@@ -50,12 +50,12 @@ Thank you for your support.
 
 ## Document
 
-_Coming soon!_
-
 The help guides and FAQs for users of Ente products are also open source, and
 can be edited in a wiki-esque manner by our community members. More than the
 quantity, we feel this helps improve the quality and approachability of the
 documentation by bringing in more diverse viewpoints and familiarity levels.
+
+See [docs/](docs/README.md) for how to edit these documents.
 
 ## Code contributions
 
@@ -63,8 +63,9 @@ If you'd like to contribute code, it is best to start small.
 
 Each of the individual product/platform specific directories in this repository
 have instructions on setting up a dev environment and making changes. The issues
-labelled "good first issues" should be good starting points. Once you have a
-bearing, you can head on to issues labelled "help wanted".
+and discussions (feature requests) labelled "good first issues" should be good
+starting points. Once you have a bearing, you can head on to issues or
+discussions labelled "help wanted".
 
 If you're planning on adding a new feature or making any other substantial
 change, please [discuss it with

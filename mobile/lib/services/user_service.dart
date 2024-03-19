@@ -12,22 +12,22 @@ import 'package:photos/core/constants.dart';
 import "package:photos/core/errors.dart";
 import 'package:photos/core/event_bus.dart';
 import 'package:photos/core/network/network.dart';
-import 'package:photos/db/public_keys_db.dart';
 import "package:photos/events/account_configured_event.dart";
 import 'package:photos/events/two_factor_status_change_event.dart';
 import 'package:photos/events/user_details_changed_event.dart';
 import "package:photos/generated/l10n.dart";
+import "package:photos/models/account/two_factor.dart";
 import "package:photos/models/api/user/srp.dart";
 import 'package:photos/models/delete_account.dart';
 import 'package:photos/models/key_attributes.dart';
 import 'package:photos/models/key_gen_result.dart';
-import 'package:photos/models/public_key.dart' as public_key;
 import 'package:photos/models/sessions.dart';
 import 'package:photos/models/set_keys_request.dart';
 import 'package:photos/models/set_recovery_key_request.dart';
 import 'package:photos/models/user_details.dart';
 import 'package:photos/ui/account/login_page.dart';
 import 'package:photos/ui/account/ott_verification_page.dart';
+import "package:photos/ui/account/passkey_page.dart";
 import 'package:photos/ui/account/password_entry_page.dart';
 import 'package:photos/ui/account/password_reentry_page.dart';
 import "package:photos/ui/account/recovery_page.dart";
@@ -159,12 +159,6 @@ class UserService {
         queryParameters: {"email": email},
       );
       final publicKey = response.data["publicKey"];
-      await PublicKeysDB.instance.setKey(
-        public_key.PublicKey(
-          email,
-          publicKey,
-        ),
-      );
       return publicKey;
     } on DioError catch (e) {
       if (e.response != null && e.response?.statusCode == 404) {
@@ -312,6 +306,25 @@ class UserService {
       _logger.severe(e);
       rethrow;
     }
+  }
+
+  Future<void> onPassKeyVerified(BuildContext context, Map response) async {
+    final userPassword = Configuration.instance.getVolatilePassword();
+    if (userPassword == null) throw Exception("volatile password is null");
+
+    await _saveConfiguration(response);
+
+    if (Configuration.instance.getEncryptedToken() != null) {
+      await Configuration.instance.decryptSecretsAndGetKeyEncKey(
+        userPassword,
+        Configuration.instance.getKeyAttributes()!,
+      );
+    } else {
+      throw Exception("unexpected response during passkey verification");
+    }
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    Bus.instance.fire(AccountConfiguredEvent());
   }
 
   Future<void> verifyEmail(
@@ -648,10 +661,14 @@ class UserService {
     if (response.statusCode == 200) {
       Widget page;
       final String twoFASessionID = response.data["twoFactorSessionID"];
+      final String passkeySessionID = response.data["passkeySessionID"];
+
       Configuration.instance.setVolatilePassword(userPassword);
       if (twoFASessionID.isNotEmpty) {
         await setTwoFactor(value: true);
         page = TwoFactorAuthenticationPage(twoFASessionID);
+      } else if (passkeySessionID.isNotEmpty) {
+        page = PasskeyPage(passkeySessionID);
       } else {
         await _saveConfiguration(response);
         if (Configuration.instance.getEncryptedToken() != null) {
@@ -791,7 +808,11 @@ class UserService {
     }
   }
 
-  Future<void> recoverTwoFactor(BuildContext context, String sessionID) async {
+  Future<void> recoverTwoFactor(
+    BuildContext context,
+    String sessionID,
+    TwoFactorType type,
+  ) async {
     final dialog = createProgressDialog(context, S.of(context).pleaseWait);
     await dialog.show();
     try {
@@ -799,6 +820,7 @@ class UserService {
         _config.getHttpEndpoint() + "/users/two-factor/recover",
         queryParameters: {
           "sessionID": sessionID,
+          "twoFactorType": twoFactorTypeToString(type),
         },
       );
       if (response.statusCode == 200) {
@@ -807,6 +829,7 @@ class UserService {
           MaterialPageRoute(
             builder: (BuildContext context) {
               return TwoFactorRecoveryPage(
+                type,
                 sessionID,
                 response.data["encryptedSecret"],
                 response.data["secretDecryptionNonce"],
@@ -817,6 +840,7 @@ class UserService {
         );
       }
     } on DioError catch (e) {
+      await dialog.hide();
       _logger.severe(e);
       if (e.response != null && e.response!.statusCode == 404) {
         showToast(context, S.of(context).sessionExpired);
@@ -838,6 +862,7 @@ class UserService {
         );
       }
     } catch (e) {
+      await dialog.hide();
       _logger.severe(e);
       // ignore: unawaited_futures
       showErrorDialog(
@@ -852,6 +877,7 @@ class UserService {
 
   Future<void> removeTwoFactor(
     BuildContext context,
+    TwoFactorType type,
     String sessionID,
     String recoveryKey,
     String encryptedSecret,
@@ -891,6 +917,7 @@ class UserService {
         data: {
           "sessionID": sessionID,
           "secret": secret,
+          "twoFactorType": twoFactorTypeToString(type),
         },
       );
       if (response.statusCode == 200) {
@@ -910,7 +937,8 @@ class UserService {
         );
       }
     } on DioError catch (e) {
-      _logger.severe(e);
+      await dialog.hide();
+      _logger.severe("error during recovery", e);
       if (e.response != null && e.response!.statusCode == 404) {
         showToast(context, "Session expired");
         // ignore: unawaited_futures
@@ -931,7 +959,9 @@ class UserService {
         );
       }
     } catch (e) {
-      _logger.severe(e);
+      await dialog.hide();
+      _logger.severe('unexpcted error during recovery', e);
+
       // ignore: unawaited_futures
       showErrorDialog(
         context,
@@ -1108,16 +1138,19 @@ class UserService {
     }
   }
 
-  Future<void> _saveConfiguration(Response response) async {
-    await Configuration.instance.setUserID(response.data["id"]);
-    if (response.data["encryptedToken"] != null) {
+  Future<void> _saveConfiguration(dynamic response) async {
+    final responseData = response is Map ? response : response.data as Map?;
+    if (responseData == null) return;
+
+    await Configuration.instance.setUserID(responseData["id"]);
+    if (responseData["encryptedToken"] != null) {
       await Configuration.instance
-          .setEncryptedToken(response.data["encryptedToken"]);
+          .setEncryptedToken(responseData["encryptedToken"]);
       await Configuration.instance.setKeyAttributes(
-        KeyAttributes.fromMap(response.data["keyAttributes"]),
+        KeyAttributes.fromMap(responseData["keyAttributes"]),
       );
     } else {
-      await Configuration.instance.setToken(response.data["token"]);
+      await Configuration.instance.setToken(responseData["token"]);
     }
   }
 

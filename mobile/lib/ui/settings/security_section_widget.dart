@@ -2,16 +2,19 @@ import 'dart:async';
 import "dart:typed_data";
 
 import 'package:flutter/material.dart';
+import "package:logging/logging.dart";
 import 'package:photos/core/configuration.dart';
 import 'package:photos/core/event_bus.dart';
 import 'package:photos/ente_theme_data.dart';
 import 'package:photos/events/two_factor_status_change_event.dart';
 import "package:photos/generated/l10n.dart";
+import "package:photos/l10n/l10n.dart";
 import "package:photos/models/user_details.dart";
+import "package:photos/services/feature_flag_service.dart";
 import 'package:photos/services/local_authentication_service.dart';
+import "package:photos/services/passkey_service.dart";
 import 'package:photos/services/user_service.dart';
 import 'package:photos/theme/ente_theme.dart';
-import "package:photos/ui/account/recovery_key_page.dart";
 import "package:photos/ui/account/request_pwd_verification_page.dart";
 import 'package:photos/ui/account/sessions_page.dart';
 import 'package:photos/ui/components/captioned_text_widget.dart';
@@ -36,7 +39,7 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
 
   late StreamSubscription<TwoFactorStatusChangeEvent>
       _twoFactorStatusChangeEvent;
-
+  final Logger _logger = Logger('SecuritySectionWidget');
   @override
   void initState() {
     super.initState();
@@ -67,45 +70,10 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
     final Completer completer = Completer();
     final List<Widget> children = [];
     if (_config.hasConfiguredAccount()) {
+      final bool isInternalUser =
+          FeatureFlagService.instance.isInternalUserOrDebugBuild();
       children.addAll(
         [
-          sectionOptionSpacing,
-          MenuItemWidget(
-            captionedTextWidget: CaptionedTextWidget(
-              title: S.of(context).recoveryKey,
-            ),
-            pressedColor: getEnteColorScheme(context).fillFaint,
-            trailingIcon: Icons.chevron_right_outlined,
-            trailingIconIsMuted: true,
-            showOnlyLoadingState: true,
-            onTap: () async {
-              final hasAuthenticated = await LocalAuthenticationService.instance
-                  .requestLocalAuthentication(
-                context,
-                S.of(context).authToViewYourRecoveryKey,
-              );
-              if (hasAuthenticated) {
-                String recoveryKey;
-                try {
-                  recoveryKey = await _getOrCreateRecoveryKey(context);
-                } catch (e) {
-                  await showGenericErrorDialog(context: context, error: e);
-                  return;
-                }
-                unawaited(
-                  routeToPage(
-                    context,
-                    RecoveryKeyPage(
-                      recoveryKey,
-                      S.of(context).ok,
-                      showAppBar: true,
-                      onDone: () {},
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
           sectionOptionSpacing,
           MenuItemWidget(
             captionedTextWidget: CaptionedTextWidget(
@@ -135,6 +103,17 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
               },
             ),
           ),
+          if (isInternalUser) sectionOptionSpacing,
+          if (isInternalUser)
+            MenuItemWidget(
+              captionedTextWidget: CaptionedTextWidget(
+                title: context.l10n.passkey,
+              ),
+              pressedColor: getEnteColorScheme(context).fillFaint,
+              trailingIcon: Icons.chevron_right_outlined,
+              trailingIconIsMuted: true,
+              onTap: () async => await onPasskeyClick(context),
+            ),
           sectionOptionSpacing,
           MenuItemWidget(
             captionedTextWidget: CaptionedTextWidget(
@@ -255,10 +234,30 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
     );
   }
 
-  Future<String> _getOrCreateRecoveryKey(BuildContext context) async {
-    return CryptoUtil.bin2hex(
-      await UserService.instance.getOrCreateRecoveryKey(context),
-    );
+  Future<void> onPasskeyClick(BuildContext buildContext) async {
+    try {
+      final isPassKeyResetEnabled =
+          await PasskeyService.instance.isPasskeyRecoveryEnabled();
+      if (!isPassKeyResetEnabled) {
+        final Uint8List recoveryKey =
+            await UserService.instance.getOrCreateRecoveryKey(context);
+        final resetKey = CryptoUtil.generateKey();
+        final resetKeyBase64 = CryptoUtil.bin2base64(resetKey);
+        final encryptionResult = CryptoUtil.encryptSync(
+          resetKey,
+          recoveryKey,
+        );
+        await PasskeyService.instance.configurePasskeyRecovery(
+          resetKeyBase64,
+          CryptoUtil.bin2base64(encryptionResult.encryptedData!),
+          CryptoUtil.bin2base64(encryptionResult.nonce!),
+        );
+      }
+      PasskeyService.instance.openPasskeyPage(buildContext).ignore();
+    } catch (e, s) {
+      _logger.severe("failed to open passkey page", e, s);
+      await showGenericErrorDialog(context: context, error: e);
+    }
   }
 
   Future<void> updateEmailMFA(bool isEnabled) async {

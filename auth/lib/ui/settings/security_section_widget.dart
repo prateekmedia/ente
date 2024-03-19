@@ -4,10 +4,11 @@ import 'dart:typed_data';
 import 'package:ente_auth/core/configuration.dart';
 import 'package:ente_auth/l10n/l10n.dart';
 import 'package:ente_auth/models/user_details.dart';
+import 'package:ente_auth/services/auth_feature_flag.dart';
 import 'package:ente_auth/services/local_authentication_service.dart';
+import 'package:ente_auth/services/passkey_service.dart';
 import 'package:ente_auth/services/user_service.dart';
 import 'package:ente_auth/theme/ente_theme.dart';
-import 'package:ente_auth/ui/account/recovery_key_page.dart';
 import 'package:ente_auth/ui/account/request_pwd_verification_page.dart';
 import 'package:ente_auth/ui/account/sessions_page.dart';
 import 'package:ente_auth/ui/components/captioned_text_widget.dart';
@@ -20,7 +21,7 @@ import 'package:ente_auth/utils/dialog_util.dart';
 import 'package:ente_auth/utils/navigation_util.dart';
 import 'package:ente_auth/utils/toast_util.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_sodium/flutter_sodium.dart';
+import 'package:logging/logging.dart';
 
 class SecuritySectionWidget extends StatefulWidget {
   const SecuritySectionWidget({Key? key}) : super(key: key);
@@ -32,6 +33,7 @@ class SecuritySectionWidget extends StatefulWidget {
 class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
   final _config = Configuration.instance;
   late bool _hasLoggedIn;
+  final Logger _logger = Logger('SecuritySectionWidget');
 
   @override
   void initState() {
@@ -63,42 +65,21 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
         // We don't know if the user can disable MFA yet, so we fetch the info
         UserService.instance.getUserDetailsV2().ignore();
       }
+      final bool isInternalUser =
+          FeatureFlagService.instance.isInternalUserOrDebugBuild();
       children.addAll([
-        sectionOptionSpacing,
-        MenuItemWidget(
-          captionedTextWidget: CaptionedTextWidget(
-            title: l10n.recoveryKey,
+        if (isInternalUser) sectionOptionSpacing,
+        if (isInternalUser)
+          MenuItemWidget(
+            captionedTextWidget: CaptionedTextWidget(
+              title: l10n.passkey,
+            ),
+            pressedColor: getEnteColorScheme(context).fillFaint,
+            trailingIcon: Icons.chevron_right_outlined,
+            trailingIconIsMuted: true,
+            onTap: () async => await onPasskeyClick(context),
           ),
-          pressedColor: getEnteColorScheme(context).fillFaint,
-          trailingIcon: Icons.chevron_right_outlined,
-          trailingIconIsMuted: true,
-          onTap: () async {
-            final hasAuthenticated = await LocalAuthenticationService.instance
-                .requestLocalAuthentication(
-              context,
-              l10n.authToViewYourRecoveryKey,
-            );
-            if (hasAuthenticated) {
-              String recoveryKey;
-              try {
-                recoveryKey =
-                    Sodium.bin2hex(Configuration.instance.getRecoveryKey());
-              } catch (e) {
-                showGenericErrorDialog(context: context);
-                return;
-              }
-              routeToPage(
-                context,
-                RecoveryKeyPage(
-                  recoveryKey,
-                  l10n.ok,
-                  showAppBar: true,
-                  onDone: () {},
-                ),
-              );
-            }
-          },
-        ),
+        sectionOptionSpacing,
         MenuItemWidget(
           captionedTextWidget: CaptionedTextWidget(
             title: l10n.emailVerificationToggle,
@@ -137,6 +118,7 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
               context.l10n.authToViewYourActiveSessions,
             );
             if (hasAuthenticated) {
+              // ignore: unawaited_futures
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (BuildContext context) {
@@ -177,6 +159,31 @@ class _SecuritySectionWidgetState extends State<SecuritySectionWidget> {
     return Column(
       children: children,
     );
+  }
+
+  Future<void> onPasskeyClick(BuildContext buildContext) async {
+    try {
+      final isPassKeyResetEnabled =
+          await PasskeyService.instance.isPasskeyRecoveryEnabled();
+      if (!isPassKeyResetEnabled) {
+        final Uint8List recoveryKey = Configuration.instance.getRecoveryKey();
+        final resetKey = CryptoUtil.generateKey();
+        final resetKeyBase64 = CryptoUtil.bin2base64(resetKey);
+        final encryptionResult = CryptoUtil.encryptSync(
+          resetKey,
+          recoveryKey,
+        );
+        await PasskeyService.instance.configurePasskeyRecovery(
+          resetKeyBase64,
+          CryptoUtil.bin2base64(encryptionResult.encryptedData!),
+          CryptoUtil.bin2base64(encryptionResult.nonce!),
+        );
+      }
+      PasskeyService.instance.openPasskeyPage(buildContext).ignore();
+    } catch (e, s) {
+      _logger.severe("failed to open passkey page", e, s);
+      await showGenericErrorDialog(context: context);
+    }
   }
 
   Future<void> updateEmailMFA(bool enableEmailMFA) async {

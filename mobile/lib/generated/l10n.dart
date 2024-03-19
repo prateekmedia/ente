@@ -5785,16 +5785,6 @@ class S {
     );
   }
 
-  /// `Albums, months, days, years, ...`
-  String get searchHintText {
-    return Intl.message(
-      'Albums, months, days, years, ...',
-      name: 'searchHintText',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `• Album names (e.g. "Camera")\n• Types of files (e.g. "Videos", ".gif")\n• Years and months (e.g. "2022", "January")\n• Holidays (e.g. "Christmas")\n• Photo descriptions (e.g. “#fun”)`
   String get searchByExamples {
     return Intl.message(
@@ -8308,6 +8298,56 @@ class S {
     );
   }
 
+  /// `Remove all files from Uncategorized that are present in other albums`
+  String get cleanUncategorizedDescription {
+    return Intl.message(
+      'Remove all files from Uncategorized that are present in other albums',
+      name: 'cleanUncategorizedDescription',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Waiting for verification...`
+  String get waitingForVerification {
+    return Intl.message(
+      'Waiting for verification...',
+      name: 'waitingForVerification',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Passkey`
+  String get passkey {
+    return Intl.message(
+      'Passkey',
+      name: 'passkey',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Passkey verification`
+  String get passkeyAuthTitle {
+    return Intl.message(
+      'Passkey verification',
+      name: 'passkeyAuthTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Verify passkey`
+  String get verifyPasskey {
+    return Intl.message(
+      'Verify passkey',
+      name: 'verifyPasskey',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Play album on TV`
   String get playOnTv {
     return Intl.message(
@@ -8363,6 +8403,62 @@ class S {
     return Intl.message(
       'Join Discord',
       name: 'joinDiscord',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Locations`
+  String get locations {
+    return Intl.message(
+      'Locations',
+      name: 'locations',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Descriptions`
+  String get descriptions {
+    return Intl.message(
+      'Descriptions',
+      name: 'descriptions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{count, plural, zero {Add viewer} one {Add viewer} other {Add viewers}}`
+  String addViewers(num count) {
+    return Intl.plural(
+      count,
+      zero: 'Add viewer',
+      one: 'Add viewer',
+      other: 'Add viewers',
+      name: 'addViewers',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `{count, plural, zero {Add collaborator} one {Add collaborator} other {Add collaborators}}`
+  String addCollaborators(num count) {
+    return Intl.plural(
+      count,
+      zero: 'Add collaborator',
+      one: 'Add collaborator',
+      other: 'Add collaborators',
+      name: 'addCollaborators',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `Long press an email to verify end to end encryption.`
+  String get longPressAnEmailToVerifyEndToEndEncryption {
+    return Intl.message(
+      'Long press an email to verify end to end encryption.',
+      name: 'longPressAnEmailToVerifyEndToEndEncryption',
       desc: '',
       args: [],
     );
