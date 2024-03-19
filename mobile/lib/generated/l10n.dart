@@ -8318,16 +8318,6 @@ class S {
     );
   }
 
-  /// `Launch passkey URL again`
-  String get launchPasskeyUrlAgain {
-    return Intl.message(
-      'Launch passkey URL again',
-      name: 'launchPasskeyUrlAgain',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Passkey`
   String get passkey {
     return Intl.message(
@@ -8433,6 +8423,42 @@ class S {
     return Intl.message(
       'Descriptions',
       name: 'descriptions',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{count, plural, zero {Add viewer} one {Add viewer} other {Add viewers}}`
+  String addViewers(num count) {
+    return Intl.plural(
+      count,
+      zero: 'Add viewer',
+      one: 'Add viewer',
+      other: 'Add viewers',
+      name: 'addViewers',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `{count, plural, zero {Add collaborator} one {Add collaborator} other {Add collaborators}}`
+  String addCollaborators(num count) {
+    return Intl.plural(
+      count,
+      zero: 'Add collaborator',
+      one: 'Add collaborator',
+      other: 'Add collaborators',
+      name: 'addCollaborators',
+      desc: '',
+      args: [count],
+    );
+  }
+
+  /// `Long press an email to verify end to end encryption.`
+  String get longPressAnEmailToVerifyEndToEndEncryption {
+    return Intl.message(
+      'Long press an email to verify end to end encryption.',
+      name: 'longPressAnEmailToVerifyEndToEndEncryption',
       desc: '',
       args: [],
     );
