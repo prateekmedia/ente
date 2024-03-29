@@ -1,10 +1,10 @@
-import React from 'react';
-import { Spinner } from 'react-bootstrap';
+import * as React from "react";
+import { Spinner } from "react-bootstrap";
 
-export default function EnteSpinner(props: any) {
+export const EnteSpinner: React.FC = () => {
     return (
-        <Spinner {...props} animation="border" variant="success" role="status">
+        <Spinner animation="border" variant="success" role="status">
             <span className="sr-only">Loading...</span>
         </Spinner>
     );
-}
+};

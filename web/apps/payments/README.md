@@ -1,38 +1,55 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with
-[`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+Code that runs on `payments.ente.io`. It brokers between our services and
+Stripe's API for payments.
 
-## Getting Started
+## Development
 
-First, run the development server:
+There are three pieces that need to be connected to have a working local setup:
 
-```bash
-npm run dev
-# or
-yarn dev
+- A client app
+- This web app
+- Museum
+
+### Client app
+
+For the client, let us consider the Photos web app (similar configuration can be
+done in the mobile client too).
+
+Add the following to `web/apps/photos/.env.local`:
+
+```env
+NEXT_PUBLIC_ENTE_ENDPOINT = http://localhost:8080
+NEXT_PUBLIC_ENTE_PAYMENTS_ENDPOINT = http://localhost:3001
+```
+Then start it locally
+
+```sh
+yarn dev:photos
 ```
 
-## Notes
+This tells it to connect to the museum and payments app running on localhost.
 
-If you're running this to test out the payment flows end-to-end, please do a
-`yarn build`, that will place the output within the `out` folder.
+> For connecting from the mobile app, you'll need to run museum on a local IP
+> instead localhost. If so, just replace "http://localhost:8080" with (say)
+> "http://192.168.1.2:8080" wherever mentioned.
 
-Then use any tool to serve this over HTTP. For example, `python3 -m http.server
-3001` will serve this directory over port `3001`.
+### Payments app
 
-Aside that, these are the necessary configuration changes.
-
-### Local configuration
-
-Update the `.env.local` to point to the local museum instance, and to define the
-necessary Stripe keys that can be fetched from [Stripe's developer
+For this (payments) web app, configure it to connect to the local museum, and
+use a set of (development) Stripe keys which can be found in [Stripe's developer
 dashboard](https://dashboard.stripe.com).
 
-Assuming that your local museum instance is running on `192.168.1.2:8080`, your
-`.env.local` should look as follows.
+Add the following to
+`web/apps/payments/.env.local`
 
-```
-NEXT_PUBLIC_ENTE_ENDPOINT = http://192.168.1.2:8080
+```env
+NEXT_PUBLIC_ENTE_ENDPOINT = http://localhost:8080
 NEXT_PUBLIC_STRIPE_US_PUBLISHABLE_KEY = stripe_publishable_key
+```
+
+Then start it locally
+
+```sh
+yarn dev:payments
 ```
 
 ### Museum
@@ -42,18 +59,33 @@ NEXT_PUBLIC_STRIPE_US_PUBLISHABLE_KEY = stripe_publishable_key
 
 2. Define this secret within your `musuem.yaml`
 
-3. Update the `whitelisted-redirect-urls` so that it supports redirecting to this locally running project
+3. Update the `whitelisted-redirect-urls` so that it supports redirecting to
+   the locally running payments app.
 
-Assuming that your local payments app is running on `192.168.1.2:3001`, your
-`museum.yaml` should look as follows.
-   
+Assuming that your local payments app is running on `localhost:3001`, your
+`server/museum.yaml` should look as follows.
+
 ```yaml
 stripe:
     us:
         key: stripe_dev_key
         webhook-secret: stripe_dev_webhook_secret
-    whitelisted-redirect-urls: ["http://192.168.1.2:3001/frameRedirect"]
+    whitelisted-redirect-urls: ["http://localhost:3000/gallery", "http://192.168.1.2:3001/frameRedirect"]
     path:
         success: ?status=success&session_id={CHECKOUT_SESSION_ID}
         cancel: ?status=fail&reason=canceled
 ```
+
+Make sure you have test plans available for museum to use, by placing them in
+(say) `server/data/billing/us-testing.json`.
+
+Finally, start museum, for example:
+
+```
+docker compose up
+```
+
+Now if you try to purchase a plan from your locally running photos web client,
+it should redirect to the locally running payments app, and from there to
+Stripe. Once the test purchase completes it should redirect back to the local
+web client.

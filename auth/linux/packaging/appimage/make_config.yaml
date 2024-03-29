@@ -1,13 +1,13 @@
 display_name: Auth
 license: GPLv3
 
-icon: assets/icon/auth-icon.png
+icon: assets/icons/auth-icon.png
 
 keywords:
   - Authentication
   - 2FA
 
-generic_name: ente Auth
+generic_name: Ente Auth
 
 categories:
   - Utility
