@@ -2,7 +2,6 @@ import * as tf from "@tensorflow/tfjs-core";
 
 import { DebugInfo } from "hdbscan";
 import PQueue from "p-queue";
-
 import { EnteFile } from "types/file";
 import { Dimensions } from "types/image";
 import { Box, Point } from "../../../thirdparty/face-api/classes";
@@ -49,6 +48,11 @@ export interface FacesCluster {
 export interface FacesClustersWithNoise {
     clusters: Array<FacesCluster>;
     noise: Cluster;
+}
+
+export interface NearestCluster {
+    cluster: FacesCluster;
+    distance: number;
 }
 
 export declare type Landmark = Point;

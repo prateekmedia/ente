@@ -18,7 +18,6 @@ import { ClipExtractionStatus, ClipService } from "services/clipService";
 import { runningInChrome } from "utils/common";
 import { formatNumber } from "utils/number/format";
 import { isInternalUser } from "utils/user";
-import CacheDirectory from "./Preferences/CacheDirectory";
 
 export default function AdvancedSettings({ open, onClose, onRootClose }) {
     const appContext = useContext(AppContext);
@@ -80,22 +79,19 @@ export default function AdvancedSettings({ open, onClose, onRootClose }) {
                     <Stack py="20px" spacing="24px">
                         {(isElectron() ||
                             (isInternalUser() && runningInChrome())) && (
-                            <>
-                                <CacheDirectory />
-                                <Box>
-                                    <MenuSectionTitle
-                                        title={t("LABS")}
-                                        icon={<ScienceIcon />}
+                            <Box>
+                                <MenuSectionTitle
+                                    title={t("LABS")}
+                                    icon={<ScienceIcon />}
+                                />
+                                <MenuItemGroup>
+                                    <EnteMenuItem
+                                        endIcon={<ChevronRight />}
+                                        onClick={openMlSearchSettings}
+                                        label={t("ML_SEARCH")}
                                     />
-                                    <MenuItemGroup>
-                                        <EnteMenuItem
-                                            endIcon={<ChevronRight />}
-                                            onClick={openMlSearchSettings}
-                                            label={t("ML_SEARCH")}
-                                        />
-                                    </MenuItemGroup>
-                                </Box>
-                            </>
+                                </MenuItemGroup>
+                            </Box>
                         )}
                         <Box>
                             <MenuItemGroup>

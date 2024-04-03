@@ -61,7 +61,14 @@ class LocalSyncService {
       return;
     }
     if (Platform.isAndroid && AppLifecycleService.instance.isForeground) {
-      final permissionState = await PhotoManager.requestPermissionExtend();
+      final permissionState = await PhotoManager.requestPermissionExtend(
+        requestOption: const PermissionRequestOption(
+          androidPermission: AndroidPermission(
+            type: RequestType.common,
+            mediaLocation: true,
+          ),
+        ),
+      );
       if (permissionState != PermissionState.authorized) {
         _logger.severe(
           "sync requested with invalid permission",
@@ -211,6 +218,11 @@ class LocalSyncService {
         file.deviceFolder == null ||
         file.title == null) {
       _logger.warning('Invalid file received for ignoring: $file');
+      return;
+    }
+    if (Platform.isIOS && error.reason == InvalidReason.sourceFileMissing) {
+      // ignoreSourceFileMissing error on iOS as the file fetch from iCloud might have failed,
+      // but the file might be available later
       return;
     }
     final ignored = IgnoredFile(
