@@ -12,7 +12,7 @@ description: ente photos application
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 
-version: 0.8.72+592
+version: 0.8.75+595
 publish_to: none
 
 environment:
@@ -91,10 +91,7 @@ dependencies:
   fluttertoast: ^8.0.6
   freezed_annotation: ^2.2.0
   google_nav_bar: ^5.0.5
-  home_widget:
-    git:
-      url: https://github.com/ente-io/FlutterHomeWidget
-      ref: main
+  home_widget: ^0.5.0
   html_unescape: ^2.0.0
   http: ^1.1.0
   image: ^4.0.17
@@ -133,6 +130,7 @@ dependencies:
   path: #dart
   path_provider: ^2.1.1
   pedantic: ^1.9.2
+  permission_handler: ^11.0.1
   photo_manager: ^2.8.1
   photo_view: ^0.14.0
   pinput: ^1.2.2
