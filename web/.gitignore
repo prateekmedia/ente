@@ -8,8 +8,10 @@ node_modules/
 .vscode/
 
 # Local env files
-.env
 .env*.local
+
+# Vite
+dist
 
 # Next.js
 .next/
