@@ -144,6 +144,8 @@
   "enterCodeHint": "أدخل الرمز المكون من 6 أرقام من\nتطبيق المصادقة",
   "lostDeviceTitle": "جهاز مفقود ؟",
   "twoFactorAuthTitle": "المصادقة الثنائية",
+  "passkeyAuthTitle": "التحقق من مفتاح المرور",
+  "verifyPasskey": "تحقق من مفتاح المرور",
   "recoverAccount": "إسترجاع الحساب",
   "enterRecoveryKeyHint": "أدخل رمز الاسترداد",
   "recover": "استرداد",
@@ -197,6 +199,8 @@
   "recoveryKeySaveDescription": "نحن لا نخزن هذا المفتاح، يرجى حفظ مفتاح الـ 24 كلمة هذا في مكان آمن.",
   "doThisLater": "قم بهذا لاحقاً",
   "saveKey": "حفظ المفتاح",
+  "save": "حفظ",
+  "send": "إرسال",
   "back": "الرجوع",
   "createAccount": "إنشاء حساب",
   "passwordStrength": "قوة كلمة المرور: {passwordStrengthValue}",
@@ -404,5 +408,7 @@
   "signOutOtherDevices": "تسجيل الخروج من الأجهزة الأخرى",
   "doNotSignOut": "لا تقم بتسجيل الخروج",
   "hearUsWhereTitle": "كيف سمعت عن Ente؟ (اختياري)",
-  "hearUsExplanation": "نحن لا نتتبع تثبيت التطبيق. سيكون من المفيد إذا أخبرتنا أين وجدتنا!"
+  "hearUsExplanation": "نحن لا نتتبع تثبيت التطبيق. سيكون من المفيد إذا أخبرتنا أين وجدتنا!",
+  "passkey": "مفتاح المرور",
+  "developerSettings": "اعدادات المطور"
 }
