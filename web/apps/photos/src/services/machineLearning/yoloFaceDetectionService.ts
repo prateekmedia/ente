@@ -42,7 +42,7 @@ class YoloFaceDetectionService implements FaceDetectionService {
     private async initOnnx() {
         console.log("start ort");
         this.onnxInferenceSession = await ort.InferenceSession.create(
-            "/models/yolo/yolov5s_face_640_640_dynamic.onnx",
+            "/models/yoloface/yolov5s_face_640_640_dynamic.onnx",
         );
         const data = new Float32Array(1 * 3 * 640 * 640);
         const inputTensor = new ort.Tensor("float32", data, [1, 3, 640, 640]);
