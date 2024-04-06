@@ -8,22 +8,37 @@ export function normalizePixelBetween0And1(pixelValue: number) {
     return pixelValue / 255.0;
 }
 
-export function getPixelData(imageData: Uint8ClampedArray, width: number, x:number, y:number) {
+export function readPixelColor(
+    imageData: Uint8ClampedArray,
+    width: number,
+    height: number,
+    x: number,
+    y: number,
+) {
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+        return { r: 0, g: 0, b: 0, a: 0 };
+    }
     const index = (y * width + x) * 4;
     return {
-      r: imageData[index],
-      g: imageData[index + 1],
-      b: imageData[index + 2],
-      a: imageData[index + 3]
+        r: imageData[index],
+        g: imageData[index + 1],
+        b: imageData[index + 2],
+        a: imageData[index + 3],
     };
-  }
+}
 
 export function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
 }
 
 /// Returns the pixel value (RGB) at the given coordinates using bilinear interpolation.
-export function getPixelBilinear(fx: number, fy: number, imageData: Uint8ClampedArray, imageWidth: number, imageHeight: number) {
+export function getPixelBilinear(
+    fx: number,
+    fy: number,
+    imageData: Uint8ClampedArray,
+    imageWidth: number,
+    imageHeight: number,
+) {
     // Clamp to image boundaries
     fx = clamp(fx, 0, imageWidth - 1);
     fy = clamp(fy, 0, imageHeight - 1);
@@ -38,14 +53,19 @@ export function getPixelBilinear(fx: number, fy: number, imageData: Uint8Clamped
     const dx1 = 1.0 - dx;
     const dy1 = 1.0 - dy;
 
-    // Get the original pixels 
-    const pixel1 = getPixelData(imageData, imageWidth, x0, y0);
-    const pixel2 = getPixelData(imageData, imageWidth, x1, y0);
-    const pixel3 = getPixelData(imageData, imageWidth, x0, y1);
-    const pixel4 = getPixelData(imageData, imageWidth, x1, y1);
+    // Get the original pixels
+    const pixel1 = readPixelColor(imageData, imageWidth, imageHeight, x0, y0);
+    const pixel2 = readPixelColor(imageData, imageWidth, imageHeight, x1, y0);
+    const pixel3 = readPixelColor(imageData, imageWidth, imageHeight, x0, y1);
+    const pixel4 = readPixelColor(imageData, imageWidth, imageHeight, x1, y1);
 
     function bilinear(val1: number, val2: number, val3: number, val4: number) {
-        return Math.round(val1 * dx1 * dy1 + val2 * dx * dy1 + val3 * dx1 * dy + val4 * dx * dy);
+        return Math.round(
+            val1 * dx1 * dy1 +
+                val2 * dx * dy1 +
+                val3 * dx1 * dy +
+                val4 * dx * dy,
+        );
     }
 
     // Interpolate the pixel values
