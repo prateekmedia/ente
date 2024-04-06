@@ -8,6 +8,10 @@ export function normalizePixelBetween0And1(pixelValue: number) {
     return pixelValue / 255.0;
 }
 
+export function normalizePixelBetweenMinus1And1(pixelValue: number) {
+    return pixelValue / 127.5 - 1.0;
+}
+
 export function readPixelColor(
     imageData: Uint8ClampedArray,
     width: number,

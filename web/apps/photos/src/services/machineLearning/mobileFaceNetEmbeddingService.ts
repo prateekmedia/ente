@@ -1,6 +1,3 @@
-import { addLogLine } from "@ente/shared/logging";
-import * as tf from "@tensorflow/tfjs-core";
-import { TFLiteModel } from "@tensorflow/tfjs-tflite";
 import { MOBILEFACENET_FACE_SIZE } from "constants/mlConfig";
 import PQueue from "p-queue";
 import {
@@ -9,13 +6,21 @@ import {
     FaceEmbeddingService,
     Versioned,
 } from "types/machineLearning";
-import { imageBitmapsToTensor4D } from "utils/machineLearning";
 
+import * as ort from "onnxruntime-web";
+import { env } from "onnxruntime-web";
+import {
+    clamp,
+    getPixelBilinear,
+    normalizePixelBetweenMinus1And1,
+} from "utils/image";
+
+env.wasm.wasmPaths = "/js/onnx/";
 class MobileFaceNetEmbeddingService implements FaceEmbeddingService {
+    private onnxInferenceSession?: ort.InferenceSession;
     public method: Versioned<FaceEmbeddingMethod>;
     public faceSize: number;
 
-    private mobileFaceNetModel: Promise<TFLiteModel>;
     private serialQueue: PQueue;
 
     public constructor(faceSize: number = MOBILEFACENET_FACE_SIZE) {
@@ -28,55 +33,134 @@ class MobileFaceNetEmbeddingService implements FaceEmbeddingService {
         this.serialQueue = new PQueue({ concurrency: 1 });
     }
 
-    private async init() {
-        // TODO: can also create new instance per new syncContext
-        const tflite = await import("@tensorflow/tfjs-tflite");
-        tflite.setWasmPath("/js/tflite/");
+    private async initOnnx() {
+        console.log("start ort mobilefacenet");
+        this.onnxInferenceSession = await ort.InferenceSession.create(
+            "/models/mobilefacenet/mobilefacenet_opset15.onnx",
+        );
+        const faceBatchSize = 1;
+        const data = new Float32Array(
+            faceBatchSize * 3 * this.faceSize * this.faceSize,
+        );
+        const inputTensor = new ort.Tensor("float32", data, [
+            faceBatchSize,
+            this.faceSize,
+            this.faceSize,
+            3,
+        ]);
+        const feeds: Record<string, ort.Tensor> = {};
+        const name = this.onnxInferenceSession.inputNames[0];
+        feeds[name] = inputTensor;
+        await this.onnxInferenceSession.run(feeds);
+        console.log("start end mobilefacenet");
+    }
 
-        this.mobileFaceNetModel = tflite.loadTFLiteModel(
-            "/models/mobilefacenet/mobilefacenet.tflite",
+    private async getOnnxInferenceSession() {
+        if (!this.onnxInferenceSession) {
+            await this.initOnnx();
+        }
+        return this.onnxInferenceSession;
+    }
+
+    private preprocessImageBitmapToFloat32(
+        imageBitmap: ImageBitmap,
+        requiredWidth: number = this.faceSize,
+        requiredHeight: number = this.faceSize,
+        maintainAspectRatio: boolean = true,
+        normFunction: (
+            pixelValue: number,
+        ) => number = normalizePixelBetweenMinus1And1,
+    ) {
+        // Create an OffscreenCanvas and set its size
+        const offscreenCanvas = new OffscreenCanvas(
+            imageBitmap.width,
+            imageBitmap.height,
+        );
+        const ctx = offscreenCanvas.getContext("2d");
+        ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width, imageBitmap.height);
+        const imageData = ctx.getImageData(
+            0,
+            0,
+            imageBitmap.width,
+            imageBitmap.height,
+        );
+        const pixelData = imageData.data;
+
+        let scaleW = requiredWidth / imageBitmap.width;
+        let scaleH = requiredHeight / imageBitmap.height;
+        if (maintainAspectRatio) {
+            const scale = Math.min(
+                requiredWidth / imageBitmap.width,
+                requiredHeight / imageBitmap.height,
+            );
+            scaleW = scale;
+            scaleH = scale;
+        }
+        const scaledWidth = clamp(
+            Math.round(imageBitmap.width * scaleW),
+            0,
+            requiredWidth,
+        );
+        const scaledHeight = clamp(
+            Math.round(imageBitmap.height * scaleH),
+            0,
+            requiredHeight,
         );
 
-        addLogLine("loaded mobileFaceNetModel: ", tf.getBackend());
-    }
+        const processedImage = new Float32Array(
+            1 * requiredWidth * requiredHeight * 3,
+        );
 
-    private async getMobileFaceNetModel() {
-        if (!this.mobileFaceNetModel) {
-            await this.init();
+        // Populate the Float32Array with normalized pixel values
+        for (let h = 0; h < requiredHeight; h++) {
+            for (let w = 0; w < requiredWidth; w++) {
+                let pixel: {
+                    r: number;
+                    g: number;
+                    b: number;
+                };
+                if (w >= scaledWidth || h >= scaledHeight) {
+                    pixel = { r: 114, g: 114, b: 114 };
+                } else {
+                    pixel = getPixelBilinear(
+                        w / scaleW,
+                        h / scaleH,
+                        pixelData,
+                        imageBitmap.width,
+                        imageBitmap.height,
+                    );
+                }
+                const pixelIndex = 3 * (h * requiredWidth + w);
+                processedImage[pixelIndex] = normFunction(pixel.r);
+                processedImage[pixelIndex + 1] = normFunction(pixel.g);
+                processedImage[pixelIndex + 2] = normFunction(pixel.b);
+            }
         }
 
-        return this.mobileFaceNetModel;
-    }
-
-    public getFaceEmbeddingTF(
-        faceTensor: tf.Tensor4D,
-        mobileFaceNetModel: TFLiteModel,
-    ): tf.Tensor2D {
-        return tf.tidy(() => {
-            const normalizedFace = tf.sub(tf.div(faceTensor, 127.5), 1.0);
-            return mobileFaceNetModel.predict(normalizedFace) as tf.Tensor2D;
-        });
+        return processedImage;
     }
 
     // Do not use this, use getFaceEmbedding which calls this through serialqueue
     private async getFaceEmbeddingNoQueue(
         faceImage: ImageBitmap,
     ): Promise<FaceEmbedding> {
-        const mobileFaceNetModel = await this.getMobileFaceNetModel();
-
-        const embeddingTensor = tf.tidy(() => {
-            const faceTensor = imageBitmapsToTensor4D([faceImage]);
-            const embeddingsTensor = this.getFaceEmbeddingTF(
-                faceTensor,
-                mobileFaceNetModel,
-            );
-            return tf.squeeze(embeddingsTensor, [0]);
-        });
-
-        const embedding = new Float32Array(await embeddingTensor.data());
-        embeddingTensor.dispose();
-
-        return embedding;
+        const data = this.preprocessImageBitmapToFloat32(faceImage);
+        const inputTensor = new ort.Tensor("float32", data, [
+            1,
+            this.faceSize,
+            this.faceSize,
+            3,
+        ]);
+        const feeds: Record<string, ort.Tensor> = {};
+        feeds["img_inputs"] = inputTensor;
+        const inferenceSession = await this.getOnnxInferenceSession();
+        const runout: ort.InferenceSession.OnnxValueMapType =
+            await inferenceSession.run(feeds);
+        const test = runout.embeddings;
+        // const test2 = test.cpuData;
+        const outputData = runout.embeddings["cpuData"] as Float32Array;
+        // const outputData = runout.embeddings as Float32Array;
+        return new Float32Array(outputData);
     }
 
     // TODO: TFLiteModel seems to not work concurrenly,
@@ -99,7 +183,9 @@ class MobileFaceNetEmbeddingService implements FaceEmbeddingService {
     }
 
     public async dispose() {
-        this.mobileFaceNetModel = undefined;
+        const inferenceSession = await this.getOnnxInferenceSession();
+        inferenceSession?.release();
+        this.onnxInferenceSession = undefined;
     }
 }
 
