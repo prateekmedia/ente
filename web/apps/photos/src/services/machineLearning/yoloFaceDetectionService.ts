@@ -8,7 +8,11 @@ import {
     FaceDetectionService,
     Versioned,
 } from "types/machineLearning";
-import { resizeToSquare } from "utils/image";
+import {
+    clamp,
+    getPixelBilinear,
+    normalizePixelBetween0And1,
+} from "utils/image";
 import { newBox } from "utils/machineLearning";
 import { removeDuplicateDetections } from "utils/machineLearning/faceDetection";
 import {
@@ -56,6 +60,101 @@ class YoloFaceDetectionService implements FaceDetectionService {
         return this.onnxInferenceSession;
     }
 
+    private preprocessImageBitmapToFloat32ChannelsFirst(
+        imageBitmap: ImageBitmap,
+        requiredWidth: number,
+        requiredHeight: number,
+        maintainAspectRatio: boolean = true,
+        normFunction: (
+            pixelValue: number,
+        ) => number = normalizePixelBetween0And1,
+    ) {
+        // Create an OffscreenCanvas and set its size
+        const offscreenCanvas = new OffscreenCanvas(
+            imageBitmap.width,
+            imageBitmap.height,
+        );
+        const ctx = offscreenCanvas.getContext("2d");
+        ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width, imageBitmap.height);
+        const imageData = ctx.getImageData(
+            0,
+            0,
+            imageBitmap.width,
+            imageBitmap.height,
+        );
+        const pixelData = imageData.data;
+
+        let scaleW = requiredWidth / imageBitmap.width;
+        let scaleH = requiredHeight / imageBitmap.height;
+        if (maintainAspectRatio) {
+            const scale = Math.min(
+                requiredWidth / imageBitmap.width,
+                requiredHeight / imageBitmap.height,
+            );
+            scaleW = scale;
+            scaleH = scale;
+        }
+        const scaledWidth = clamp(
+            Math.round(imageBitmap.width * scaleW),
+            0,
+            requiredWidth,
+        );
+        const scaledHeight = clamp(
+            Math.round(imageBitmap.height * scaleH),
+            0,
+            requiredHeight,
+        );
+
+        const processedImage = new Float32Array(
+            1 * 3 * requiredWidth * requiredHeight,
+        );
+
+        // Populate the Float32Array with normalized pixel values
+        let pixelIndex = 0;
+        const channelOffsetGreen = requiredHeight * requiredWidth;
+        const channelOffsetBlue = 2 * requiredHeight * requiredWidth;
+        for (let h = 0; h < requiredHeight; h++) {
+            for (let w = 0; w < requiredWidth; w++) {
+                let pixel: {
+                    r: number;
+                    g: number;
+                    b: number;
+                };
+                if (w >= scaledWidth || h >= scaledHeight) {
+                    pixel = { r: 114, g: 114, b: 114 };
+                } else {
+                    pixel = getPixelBilinear(
+                        w / scaleW,
+                        h / scaleH,
+                        pixelData,
+                        imageBitmap.width,
+                        imageBitmap.height,
+                    );
+                }
+                processedImage[pixelIndex] = normFunction(pixel.r);
+                processedImage[pixelIndex + channelOffsetGreen] = normFunction(
+                    pixel.g,
+                );
+                processedImage[pixelIndex + channelOffsetBlue] = normFunction(
+                    pixel.b,
+                );
+                pixelIndex++;
+            }
+        }
+
+        return {
+            data: processedImage,
+            originalSize: {
+                width: imageBitmap.width,
+                height: imageBitmap.height,
+            },
+            newSize: { width: scaledWidth, height: scaledHeight },
+        };
+    }
+
+    /**
+     * @deprecated The method should not be used
+     */
     private imageBitmapToTensorData(imageBitmap) {
         // Create an OffscreenCanvas and set its size
         const offscreenCanvas = new OffscreenCanvas(
@@ -147,8 +246,14 @@ class YoloFaceDetectionService implements FaceDetectionService {
     }
     private async estimateOnnx(imageBitmap: ImageBitmap) {
         const maxFaceDistance = imageBitmap.width * MAX_FACE_DISTANCE_PERCENT;
-        const resized = resizeToSquare(imageBitmap, 640);
-        const data = this.imageBitmapToTensorData(resized.image).data;
+        const preprocessResult =
+            this.preprocessImageBitmapToFloat32ChannelsFirst(
+                imageBitmap,
+                640,
+                640,
+            );
+        const data = preprocessResult.data;
+        const resized = preprocessResult.newSize;
         const inputTensor = new ort.Tensor("float32", data, [1, 3, 640, 640]);
         const feeds: Record<string, ort.Tensor> = {};
         feeds["input"] = inputTensor;
