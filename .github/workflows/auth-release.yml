@@ -128,8 +128,6 @@ jobs:
             flutter_distributor package --platform=linux --targets=appimage --skip-clean
             mv dist/**/*-*-linux.rpm artifacts/ente-${{ github.ref_name }}-x86_64.rpm
             mv dist/**/*-*-linux.AppImage artifacts/ente-${{ github.ref_name }}-x86_64.AppImage
-          env:
-            LIBSODIUM_USE_PKGCONFIG: 1
 
         - name: Generate checksums
           run: sha256sum artifacts/ente-* >> artifacts/sha256sum-rpm-appimage
