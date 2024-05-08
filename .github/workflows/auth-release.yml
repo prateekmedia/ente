@@ -73,7 +73,7 @@ jobs:
 
             - name: Generate checksums and push to artifacts
               run: |
-                sha256sum artifacts/ente-* > artifacts/sha256sum
+                sha256sum artifacts/ente-* > artifacts/sha256sum-apk-deb
 
             - name: Create a draft GitHub release
               uses: ncipollo/release-action@v1
@@ -131,15 +131,8 @@ jobs:
           env:
             LIBSODIUM_USE_PKGCONFIG: 1
 
-        - uses: dsaltares/fetch-gh-release-asset@master
-          with:
-            version: 'tags/sample'
-            file: 'sha256sum'
-            target: 'artifacts/'
-            token: ${{ secrets.GITHUB_TOKEN }}
-
         - name: Generate checksums
-          run: sha256sum artifacts/ente-* >> artifacts/sha256sum
+          run: sha256sum artifacts/ente-* >> artifacts/sha256sum-rpm-appimage
 
         - name: Create a draft GitHub release
           uses: ncipollo/release-action@v1
