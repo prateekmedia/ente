@@ -46,7 +46,11 @@ android {
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
     }
-    
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+    }
+
     lintOptions {
         disable 'InvalidPackage'
         warningsAsErrors false
@@ -62,6 +66,9 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
         consumerProguardFiles 'proguard-rules.pro'
+        testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] true
+
     }
 
     signingConfigs {
@@ -104,6 +111,10 @@ android {
               arguments "-DANDROID_PACKAGE_NAME=${android.defaultConfig.applicationId}${applicationIdSuffix}"
             }
           }
+          // For keeping Patrol classes  
+          isMinifyEnable false
+          isShrinkResources false
+          // End
         }
     }
 
@@ -144,6 +155,7 @@ dependencies {
     androidTestImplementation 'androidx.test:runner:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
 
     constraints {
         implementation("androidx.work:work-runtime:2.8.1") {
