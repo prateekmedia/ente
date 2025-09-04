@@ -3,6 +3,7 @@ PODS:
     - Flutter
   - battery_info (0.0.1):
     - Flutter
+  - CocoaAsyncSocket (7.6.5)
   - connectivity_plus (0.0.1):
     - Flutter
   - cupertino_http (0.0.1):
@@ -171,6 +172,10 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - patrol (0.0.1):
+    - CocoaAsyncSocket (~> 7.6)
+    - Flutter
+    - FlutterMacOS
   - permission_handler_apple (9.3.0):
     - Flutter
   - photo_manager (3.7.1):
@@ -289,6 +294,7 @@ DEPENDENCIES:
   - open_mail_app (from `.symlinks/plugins/open_mail_app/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - patrol (from `.symlinks/plugins/patrol/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - photo_manager (from `.symlinks/plugins/photo_manager/ios`)
   - privacy_screen (from `.symlinks/plugins/privacy_screen/ios`)
@@ -315,6 +321,7 @@ SPEC REPOS:
   https://github.com/ente-io/ffmpeg-kit-custom-repo-ios.git:
     - ffmpeg_kit_custom
   trunk:
+    - CocoaAsyncSocket
     - Firebase
     - FirebaseCore
     - FirebaseCoreInternal
@@ -413,6 +420,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/package_info_plus/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  patrol:
+    :path: ".symlinks/plugins/patrol/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
   photo_manager:
@@ -459,6 +468,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   app_links: 76b66b60cc809390ca1ad69bfd66b998d2387ac7
   battery_info: 83f3aae7be2fccefab1d2bf06b8aa96f11c8bcdd
+  CocoaAsyncSocket: 065fd1e645c7abab64f7a6a2007a48038fdc6a99
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
   cupertino_http: 94ac07f5ff090b8effa6c5e2c47871d48ab7c86c
   dart_ui_isolate: 46f6714abe6891313267153ef6f9748d8ecfcab1
@@ -510,6 +520,7 @@ SPEC CHECKSUMS:
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  patrol: 5df5d241d7f95f0df12a6906bbf45acb43a1e537
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   photo_manager: 1d80ae07a89a67dfbcae95953a1e5a24af7c3e62
   privacy_screen: 3159a541f5d3a31bea916cfd4e58f9dc722b3fd4

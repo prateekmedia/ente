@@ -67,7 +67,7 @@ android {
         multiDexEnabled true
         consumerProguardFiles 'proguard-rules.pro'
         testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
-        testInstrumentationRunnerArguments["clearPackageData"] true
+        testInstrumentationRunnerArguments clearPackageData: "true"
 
     }
 
@@ -112,8 +112,8 @@ android {
             }
           }
           // For keeping Patrol classes  
-          isMinifyEnable false
-          isShrinkResources false
+          minifyEnabled false
+          shrinkResources false
           // End
         }
     }

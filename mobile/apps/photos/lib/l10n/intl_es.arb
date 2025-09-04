@@ -1811,7 +1811,7 @@
   "font": "Fuente",
   "background": "Fondo",
   "align": "Alinear",
-  "addedToAlbums": "{count, plural, one {}=1{Añadido con éxito a 1 álbum} other{Añadido con éxito a {count} álbumes}}",
+  "addedToAlbums": "{count, plural, =1{Añadido con éxito a 1 álbum} other{Añadido con éxito a {count} álbumes}}",
   "@addedToAlbums": {
     "description": "Message shown when items are added to albums",
     "placeholders": {
@@ -1838,7 +1838,7 @@
   "findSimilarImages": "Buscar imágenes similares",
   "noSimilarImagesFound": "No se encontraron imágenes similares",
   "yourPhotosLookUnique": "Tus fotos se ven únicas",
-  "similarGroupsFound": "{count, plural, one {}=1{{count} grupo encontrado} other{{count} grupos encontrados}}",
+  "similarGroupsFound": "{count, plural, =1{{count} grupo encontrado} other{{count} grupos encontrados}}",
   "@similarGroupsFound": {
     "placeholders": {
       "count": {
