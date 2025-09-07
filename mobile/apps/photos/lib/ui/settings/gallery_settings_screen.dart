@@ -135,6 +135,28 @@ class _GallerySettingsScreenState extends State<GallerySettingsScreen> {
                           ? const SizedBox.shrink()
                           : MenuItemWidget(
                               captionedTextWidget: CaptionedTextWidget(
+                                title: "Nested Album View",
+                                subTitle: "Organize albums in hierarchical folders",
+                              ),
+                              menuItemColor: colorScheme.fillFaint,
+                              singleBorderRadius: 8,
+                              alignCaptionedTextToLeft: true,
+                              trailingWidget: ToggleSwitchWidget(
+                                value: () => localSettings.isNestedViewEnabled ?? false,
+                                onChanged: () async {
+                                  final prevSetting = localSettings.isNestedViewEnabled ?? false;
+                                  await localSettings.setNestedViewEnabled(!prevSetting);
+                                  setState(() {});
+                                },
+                              ),
+                            ),
+                      const SizedBox(
+                        height: 24,
+                      ),
+                      widget.fromGalleryLayoutSettingsCTA
+                          ? const SizedBox.shrink()
+                          : MenuItemWidget(
+                              captionedTextWidget: CaptionedTextWidget(
                                 title: AppLocalizations.of(context)
                                     .hideSharedItemsFromHomeGallery,
                               ),

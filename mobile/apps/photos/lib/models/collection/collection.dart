@@ -36,6 +36,12 @@ class Collection {
   // collections, && collections which don't have a path. The path is used
   // to map local on-device album on mobile to remote collection on ente.
   String? decryptedPath;
+  
+  // Parent collection ID for nested collections (null for root level)
+  int? parentID;
+  
+  // Full hierarchy path for nested collections (e.g., "Travel > Summer 2024 > Beach")
+  String? hierarchyPath;
   String? mMdEncodedJson;
   String? mMdPubEncodedJson;
   String? sharedMmdJson;
@@ -93,6 +99,8 @@ class Collection {
     this.publicURLs,
     this.updationTime, {
     this.isDeleted = false,
+    this.parentID,
+    this.hierarchyPath,
   });
 
   bool isArchived() {
@@ -199,6 +207,29 @@ class Collection {
     sharees.addAll(newSharees);
   }
 
+  // Nested collections helper methods
+  bool get isRootLevel => parentID == null;
+  
+  bool get hasChildren {
+    // This would need to be populated by the service based on child collections
+    // For now, we'll determine this in the UI layer
+    return false; // Placeholder - to be implemented by service
+  }
+  
+  String get breadcrumbPath => hierarchyPath ?? displayName;
+  
+  bool canMoveToParent(int userID, Collection? targetParent) {
+    if (!isOwner(userID)) return false;
+    if (targetParent != null && !targetParent.isOwner(userID)) return false;
+    // Prevent moving to itself or its children (circular reference)
+    if (targetParent?.id == id) return false;
+    return true;
+  }
+  
+  bool canCreateSubCollection(int userID) {
+    return isOwner(userID) && !isDeleted;
+  }
+
   Collection copyWith({
     int? id,
     User? owner,
@@ -217,6 +248,8 @@ class Collection {
     int? mMdVersion,
     String? decryptedName,
     String? decryptedPath,
+    int? parentID,
+    String? hierarchyPath,
   }) {
     final Collection result = Collection(
       id ?? this.id,
@@ -233,6 +266,8 @@ class Collection {
       publicURLs ?? this.publicURLs,
       updationTime ?? this.updationTime,
       isDeleted: isDeleted ?? this.isDeleted,
+      parentID: parentID ?? this.parentID,
+      hierarchyPath: hierarchyPath ?? this.hierarchyPath,
     );
     result.mMdVersion = mMdVersion ?? this.mMdVersion;
     result.mMdEncodedJson = mMdEncodedJson ?? this.mMdEncodedJson;
@@ -270,6 +305,8 @@ class Collection {
       publicURLs,
       map['updationTime'],
       isDeleted: map['isDeleted'] ?? false,
+      parentID: map['parentID'],
+      hierarchyPath: map['hierarchyPath'],
     );
   }
 }

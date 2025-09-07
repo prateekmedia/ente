@@ -27,6 +27,7 @@ import 'package:photos/extensions/stop_watch.dart';
 import "package:photos/generated/l10n.dart";
 import 'package:photos/models/api/collection/collection_file_item.dart';
 import 'package:photos/models/api/collection/create_request.dart';
+import 'package:photos/models/api/collection/nested_collection_requests.dart';
 import "package:photos/models/api/collection/public_url.dart";
 import "package:photos/models/api/collection/user.dart";
 import "package:photos/models/api/metadata.dart";
@@ -2016,6 +2017,138 @@ class CollectionsService {
 
   bool hasSyncedCollections() {
     return _prefs.containsKey(_collectionsSyncTimeKey);
+  }
+
+  // Nested Collections Methods
+  
+  Future<void> setParent(int collectionID, int? newParentID) async {
+    try {
+      final request = {
+        'newParentID': newParentID,
+      };
+      
+      await _enteDio.put(
+        '/collections/$collectionID/parent',
+        data: request,
+      );
+      
+      // Refresh collections to get updated hierarchy
+      await sync();
+    } catch (e, s) {
+      _logger.severe("Failed to set parent for collection $collectionID", e, s);
+      rethrow;
+    }
+  }
+  
+  Future<ShareScopeResponse> shareWithScope(
+    int collectionID,
+    List<int> recipients,
+    String scope,
+    String encryptedKey,
+  ) async {
+    try {
+      final request = {
+        'recipients': recipients,
+        'scope': scope,
+        'encryptedKey': encryptedKey,
+      };
+      
+      final response = await _enteDio.post(
+        '/collections/$collectionID/share',
+        data: request,
+      );
+      
+      return ShareScopeResponse.fromMap(response.data);
+    } catch (e, s) {
+      _logger.severe("Failed to share collection with scope", e, s);
+      rethrow;
+    }
+  }
+  
+  Future<BackupScopeResponse> backupWithScope(
+    int collectionID,
+    String scope,
+    List<int>? excludedSubCollections,
+  ) async {
+    try {
+      final request = {
+        'scope': scope,
+        'excludedSubCollections': excludedSubCollections,
+      };
+      
+      final response = await _enteDio.post(
+        '/collections/$collectionID/backup',
+        data: request,
+      );
+      
+      return BackupScopeResponse.fromMap(response.data);
+    } catch (e, s) {
+      _logger.severe("Failed to initiate backup with scope", e, s);
+      rethrow;
+    }
+  }
+  
+  Future<List<Collection>> getHierarchy() async {
+    try {
+      final response = await _enteDio.get('/collections/hierarchy');
+      final hierarchyData = CollectionHierarchy.fromMap(response.data);
+      return hierarchyData.hierarchy;
+    } catch (e, s) {
+      _logger.severe("Failed to get collection hierarchy", e, s);
+      rethrow;
+    }
+  }
+  
+  Future<List<CollectionSearchResult>> searchCollections(
+    String query, {
+    String? scope,
+    int? collectionId,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'q': query,
+      };
+      
+      if (scope != null) {
+        queryParams['scope'] = scope;
+      }
+      
+      if (collectionId != null) {
+        queryParams['collection_id'] = collectionId.toString();
+      }
+      
+      final response = await _enteDio.get(
+        '/search/collections',
+        queryParameters: queryParams,
+      );
+      
+      final List<dynamic> results = response.data['results'] ?? [];
+      return results
+          .map((item) => CollectionSearchResult.fromMap(item))
+          .toList();
+    } catch (e, s) {
+      _logger.severe("Failed to search collections", e, s);
+      rethrow;
+    }
+  }
+  
+  // Helper methods for nested view
+  List<Collection> getRootCollections() {
+    return _collectionIDToCollections.values
+        .where((collection) => collection.isRootLevel && !collection.isDeleted)
+        .toList();
+  }
+  
+  List<Collection> getChildCollections(int parentId) {
+    return _collectionIDToCollections.values
+        .where((collection) => 
+            collection.parentID == parentId && !collection.isDeleted)
+        .toList();
+  }
+  
+  bool isNestedViewEnabled() {
+    // This would check feature flags or user preferences
+    return false; // Placeholder - to be implemented with feature flags
   }
 
   String _getDecryptedCollectionName(Collection collection) {

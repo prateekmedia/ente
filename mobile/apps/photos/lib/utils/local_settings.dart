@@ -41,6 +41,7 @@ class LocalSettings {
       "hide_shared_items_from_home_gallery";
   static const kCollectionViewType = "collection_view_type";
   static const kCollectionSortDirection = "collection_sort_direction";
+  static const _kNestedViewEnabled = "ls.nested_view_enabled";
 
   final SharedPreferences _prefs;
 
@@ -217,4 +218,10 @@ class LocalSettings {
 
   bool get hideSharedItemsFromHomeGallery =>
       _prefs.getBool(_hideSharedItemsFromHomeGalleryTag) ?? false;
+
+  Future<void> setNestedViewEnabled(bool value) async {
+    await _prefs.setBool(_kNestedViewEnabled, value);
+  }
+
+  bool? get isNestedViewEnabled => _prefs.getBool(_kNestedViewEnabled);
 }
