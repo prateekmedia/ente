@@ -332,7 +332,7 @@ func (c *CollectionController) BackupWithScope(ctx context.Context, userID int64
 
 // GetHierarchy returns the collection hierarchy for a user
 func (c *CollectionController) GetHierarchy(ctx context.Context, userID int64) ([]ente.Collection, error) {
-	collections, err := c.CollectionRepo.GetOwnedCollections(userID, 0)
+	collections, err := c.CollectionRepo.GetCollectionsOwnedByUserV2(userID, 0, ente.Photos, nil)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "Failed to get collections")
 	}
