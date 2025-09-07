@@ -426,3 +426,113 @@ func (h *CollectionHandler) ShareeMagicMetadataUpdate(c *gin.Context) {
 	}
 	c.Status(http.StatusOK)
 }
+
+// SetParent sets the parent collection for nested collections
+func (h *CollectionHandler) SetParent(c *gin.Context) {
+	collectionID, err := strconv.ParseInt(c.Param("collectionID"), 10, 64)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(ente.ErrBadRequest, "Invalid collection ID"))
+		return
+	}
+	
+	var request ente.SetParentRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not bind request params"))
+		return
+	}
+	
+	userID := auth.GetUserID(c.Request.Header)
+	if err := h.Controller.SetParent(c, userID, collectionID, request.NewParentID); err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not set parent collection"))
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// ShareWithScope shares a collection with specific scope
+func (h *CollectionHandler) ShareWithScope(c *gin.Context) {
+	collectionID, err := strconv.ParseInt(c.Param("collectionID"), 10, 64)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(ente.ErrBadRequest, "Invalid collection ID"))
+		return
+	}
+	
+	var request ente.ShareScopeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not bind request params"))
+		return
+	}
+	
+	userID := auth.GetUserID(c.Request.Header)
+	response, err := h.Controller.ShareWithScope(c, userID, collectionID, request)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not share collection with scope"))
+		return
+	}
+	
+	c.JSON(http.StatusOK, response)
+}
+
+// BackupWithScope initiates backup with hierarchical scope
+func (h *CollectionHandler) BackupWithScope(c *gin.Context) {
+	collectionID, err := strconv.ParseInt(c.Param("collectionID"), 10, 64)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(ente.ErrBadRequest, "Invalid collection ID"))
+		return
+	}
+	
+	var request ente.BackupScopeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not bind request params"))
+		return
+	}
+	
+	userID := auth.GetUserID(c.Request.Header)
+	response, err := h.Controller.BackupWithScope(c, userID, collectionID, request)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not initiate backup with scope"))
+		return
+	}
+	
+	c.JSON(http.StatusOK, response)
+}
+
+// GetHierarchy returns the collection hierarchy for a user
+func (h *CollectionHandler) GetHierarchy(c *gin.Context) {
+	userID := auth.GetUserID(c.Request.Header)
+	hierarchy, err := h.Controller.GetHierarchy(c, userID)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not get collection hierarchy"))
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"hierarchy": hierarchy})
+}
+
+// SearchCollections searches for collections with hierarchy scope
+func (h *CollectionHandler) SearchCollections(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		handler.Error(c, stacktrace.Propagate(ente.ErrBadRequest, "Query parameter is required"))
+		return
+	}
+	
+	scope := c.Query("scope")
+	collectionIDStr := c.Query("collection_id")
+	var collectionID *int64
+	if collectionIDStr != "" {
+		if parsed, err := strconv.ParseInt(collectionIDStr, 10, 64); err == nil {
+			collectionID = &parsed
+		}
+	}
+	
+	userID := auth.GetUserID(c.Request.Header)
+	results, err := h.Controller.SearchCollections(c, userID, query, scope, collectionID)
+	if err != nil {
+		handler.Error(c, stacktrace.Propagate(err, "Could not search collections"))
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"results": results})
+}

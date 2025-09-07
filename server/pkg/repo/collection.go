@@ -929,3 +929,275 @@ func (repo *CollectionRepository) GetSharedCollectionsCount(userID int64) (int64
 	}
 	return count, nil
 }
+
+// SetParent sets the parent collection for nested collections
+func (repo *CollectionRepository) SetParent(ctx context.Context, collectionID int64, newParentID *int64) error {
+	updationTime := time.Microseconds()
+	
+	_, err := repo.DB.ExecContext(ctx, `UPDATE collections 
+		SET parent_collection_id = $1,
+			updation_time = $2
+		WHERE collection_id = $3`,
+		newParentID, updationTime, collectionID)
+	
+	return stacktrace.Propagate(err, "")
+}
+
+// ShareWithScope shares a collection with specific scope
+func (repo *CollectionRepository) ShareWithScope(ctx context.Context, collectionID int64, fromUserID int64, toUserID int64, encryptedKey string, scope string) error {
+	updationTime := time.Microseconds()
+	
+	_, err := repo.DB.ExecContext(ctx, `INSERT INTO collection_shares(collection_id, from_user_id, to_user_id, encrypted_key, updation_time, scope, is_deleted) 
+		VALUES($1, $2, $3, $4, $5, $6, false) 
+		ON CONFLICT (collection_id, from_user_id, to_user_id) 
+		DO UPDATE SET encrypted_key = $4, updation_time = $5, scope = $6, is_deleted = false`,
+		collectionID, fromUserID, toUserID, encryptedKey, updationTime, scope)
+	
+	return stacktrace.Propagate(err, "")
+}
+
+// GetSubCollectionCount returns the count of sub-collections
+func (repo *CollectionRepository) GetSubCollectionCount(ctx context.Context, collectionID int64) (int, error) {
+	var count int
+	err := repo.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM collections WHERE parent_collection_id = $1 AND is_deleted = false`, collectionID).Scan(&count)
+	if err != nil {
+		return 0, stacktrace.Propagate(err, "")
+	}
+	return count, nil
+}
+
+// GetFileCount returns the count of files in a collection
+func (repo *CollectionRepository) GetFileCount(ctx context.Context, collectionID int64) (int, error) {
+	var count int
+	err := repo.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM collection_files WHERE collection_id = $1 AND is_deleted = false`, collectionID).Scan(&count)
+	if err != nil {
+		return 0, stacktrace.Propagate(err, "")
+	}
+	return count, nil
+}
+
+// GetHierarchicalFileCount returns the count of files in a collection and its sub-collections
+func (repo *CollectionRepository) GetHierarchicalFileCount(ctx context.Context, collectionID int64, excludedSubCollections []int64) (int, error) {
+	var count int
+	
+	// Build query with recursive CTE to get all descendant collections
+	query := `WITH RECURSIVE collection_hierarchy AS (
+		SELECT collection_id FROM collections WHERE collection_id = $1
+		UNION ALL
+		SELECT c.collection_id FROM collections c
+		INNER JOIN collection_hierarchy ch ON c.parent_collection_id = ch.collection_id
+		WHERE c.is_deleted = false`
+	
+	if len(excludedSubCollections) > 0 {
+		query += ` AND c.collection_id NOT IN (`
+		for i, excludedID := range excludedSubCollections {
+			if i > 0 {
+				query += `, `
+			}
+			query += strconv.FormatInt(excludedID, 10)
+		}
+		query += `)`
+	}
+	
+	query += `)
+	SELECT COUNT(*) FROM collection_files cf
+	INNER JOIN collection_hierarchy ch ON cf.collection_id = ch.collection_id
+	WHERE cf.is_deleted = false`
+	
+	err := repo.DB.QueryRowContext(ctx, query, collectionID).Scan(&count)
+	if err != nil {
+		return 0, stacktrace.Propagate(err, "")
+	}
+	return count, nil
+}
+
+// GetAncestors returns all ancestor collection IDs
+func (repo *CollectionRepository) GetAncestors(collectionID int64) ([]int64, error) {
+	rows, err := repo.DB.Query(`WITH RECURSIVE ancestors AS (
+		SELECT collection_id, parent_collection_id FROM collections WHERE collection_id = $1
+		UNION ALL
+		SELECT c.collection_id, c.parent_collection_id FROM collections c
+		INNER JOIN ancestors a ON c.collection_id = a.parent_collection_id
+	)
+	SELECT collection_id FROM ancestors WHERE collection_id != $1`, collectionID)
+	
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "")
+	}
+	defer rows.Close()
+	
+	var ancestors []int64
+	for rows.Next() {
+		var ancestorID int64
+		if err := rows.Scan(&ancestorID); err != nil {
+			return nil, stacktrace.Propagate(err, "")
+		}
+		ancestors = append(ancestors, ancestorID)
+	}
+	
+	return ancestors, nil
+}
+
+// GetDescendants returns all descendant collection IDs
+func (repo *CollectionRepository) GetDescendants(ctx context.Context, collectionID int64) ([]int64, error) {
+	rows, err := repo.DB.QueryContext(ctx, `WITH RECURSIVE descendants AS (
+		SELECT collection_id FROM collections WHERE parent_collection_id = $1 AND is_deleted = false
+		UNION ALL
+		SELECT c.collection_id FROM collections c
+		INNER JOIN descendants d ON c.parent_collection_id = d.collection_id
+		WHERE c.is_deleted = false
+	)
+	SELECT collection_id FROM descendants`, collectionID)
+	
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "")
+	}
+	defer rows.Close()
+	
+	var descendants []int64
+	for rows.Next() {
+		var descendantID int64
+		if err := rows.Scan(&descendantID); err != nil {
+			return nil, stacktrace.Propagate(err, "")
+		}
+		descendants = append(descendants, descendantID)
+	}
+	
+	return descendants, nil
+}
+
+// BuildHierarchyPath builds the hierarchy path for a collection
+func (repo *CollectionRepository) BuildHierarchyPath(ctx context.Context, collectionID int64) (string, error) {
+	rows, err := repo.DB.QueryContext(ctx, `WITH RECURSIVE path AS (
+		SELECT collection_id, name, parent_collection_id, 1 as level FROM collections WHERE collection_id = $1
+		UNION ALL
+		SELECT c.collection_id, c.name, c.parent_collection_id, p.level + 1 FROM collections c
+		INNER JOIN path p ON c.collection_id = p.parent_collection_id
+	)
+	SELECT name FROM path ORDER BY level DESC`, collectionID)
+	
+	if err != nil {
+		return "", stacktrace.Propagate(err, "")
+	}
+	defer rows.Close()
+	
+	var pathParts []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return "", stacktrace.Propagate(err, "")
+		}
+		pathParts = append(pathParts, name)
+	}
+	
+	// Join with " > " separator
+	path := ""
+	for i, part := range pathParts {
+		if i > 0 {
+			path += " > "
+		}
+		path += part
+	}
+	
+	return path, nil
+}
+
+// UpdateHierarchyPath updates the hierarchy path for a collection
+func (repo *CollectionRepository) UpdateHierarchyPath(ctx context.Context, collectionID int64, path string) error {
+	updationTime := time.Microseconds()
+	
+	_, err := repo.DB.ExecContext(ctx, `UPDATE collections 
+		SET hierarchy_path = $1,
+			updation_time = $2
+		WHERE collection_id = $3`,
+		path, updationTime, collectionID)
+	
+	return stacktrace.Propagate(err, "")
+}
+
+// SearchInCollection searches for collections within a specific collection
+func (repo *CollectionRepository) SearchInCollection(ctx context.Context, userID int64, collectionID int64, query string) ([]ente.Collection, error) {
+	// Search in the collection and its sub-collections
+	rows, err := repo.DB.QueryContext(ctx, `
+		WITH RECURSIVE collection_hierarchy AS (
+			SELECT collection_id FROM collections WHERE collection_id = $2
+			UNION ALL
+			SELECT c.collection_id FROM collections c
+			INNER JOIN collection_hierarchy ch ON c.parent_collection_id = ch.collection_id
+			WHERE c.is_deleted = false
+		)
+		SELECT c.collection_id, c.owner_id, c.encrypted_key, c.key_decryption_nonce, 
+			   c.name, c.encrypted_name, c.name_decryption_nonce, c.type, c.attributes, 
+			   c.updation_time, c.is_deleted, c.magic_metadata, c.pub_magic_metadata, 
+			   c.shared_magic_metadata, c.app, c.parent_collection_id, c.hierarchy_path
+		FROM collections c
+		INNER JOIN collection_hierarchy ch ON c.collection_id = ch.collection_id
+		WHERE c.owner_id = $1 AND c.is_deleted = false 
+			AND (LOWER(c.name) LIKE LOWER($3) OR LOWER(c.encrypted_name) LIKE LOWER($3))
+		ORDER BY c.updation_time DESC`,
+		userID, collectionID, "%"+query+"%")
+	
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "")
+	}
+	defer rows.Close()
+	
+	return repo.convertRowsToCollections(rows)
+}
+
+// SearchCollections searches for collections across all user collections
+func (repo *CollectionRepository) SearchCollections(ctx context.Context, userID int64, query string) ([]ente.Collection, error) {
+	rows, err := repo.DB.QueryContext(ctx, `
+		SELECT c.collection_id, c.owner_id, c.encrypted_key, c.key_decryption_nonce, 
+			   c.name, c.encrypted_name, c.name_decryption_nonce, c.type, c.attributes, 
+			   c.updation_time, c.is_deleted, c.magic_metadata, c.pub_magic_metadata, 
+			   c.shared_magic_metadata, c.app, c.parent_collection_id, c.hierarchy_path
+		FROM collections c
+		WHERE c.owner_id = $1 AND c.is_deleted = false 
+			AND (LOWER(c.name) LIKE LOWER($2) OR LOWER(c.encrypted_name) LIKE LOWER($2))
+		ORDER BY c.updation_time DESC`,
+		userID, "%"+query+"%")
+	
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "")
+	}
+	defer rows.Close()
+	
+	return repo.convertRowsToCollections(rows)
+}
+
+// convertRowsToCollections converts database rows to Collection objects
+func (repo *CollectionRepository) convertRowsToCollections(rows *sql.Rows) ([]ente.Collection, error) {
+	var collections []ente.Collection
+	
+	for rows.Next() {
+		var c ente.Collection
+		var magicMetadata, pubMagicMetadata, sharedMagicMetadata sql.NullString
+		var parentID sql.NullInt64
+		var hierarchyPath sql.NullString
+		
+		err := rows.Scan(&c.ID, &c.Owner.ID, &c.EncryptedKey, &c.KeyDecryptionNonce,
+			&c.Name, &c.EncryptedName, &c.NameDecryptionNonce, &c.Type, &c.Attributes,
+			&c.UpdationTime, &c.IsDeleted, &magicMetadata, &pubMagicMetadata,
+			&sharedMagicMetadata, &c.App, &parentID, &hierarchyPath)
+		
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "")
+		}
+		
+		if parentID.Valid {
+			c.ParentID = &parentID.Int64
+		}
+		
+		if hierarchyPath.Valid {
+			c.HierarchyPath = &hierarchyPath.String
+		}
+		
+		// Handle magic metadata...
+		// (magic metadata handling code would go here)
+		
+		collections = append(collections, c)
+	}
+	
+	return collections, nil
+}

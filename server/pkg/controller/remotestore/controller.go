@@ -99,6 +99,12 @@ func (c *Controller) GetFeatureFlags(ctx *gin.Context) (*ente.FeatureFlagRespons
 			if value != "" {
 				response.CustomDomain = &value
 			}
+		case ente.NestedCollectionsEnabled:
+			response.NestedCollectionsEnabled = value == "true"
+		case ente.NestedMigrationEnabled:
+			response.NestedMigrationEnabled = value == "true"
+		case ente.HierarchicalSharingEnabled:
+			response.HierarchicalSharingEnabled = value == "true"
 		}
 	}
 	return response, nil

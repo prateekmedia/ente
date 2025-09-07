@@ -30,39 +30,48 @@ type AdminUpdateKeyValueRequest struct {
 type FeatureFlagResponse struct {
 	EnableStripe bool `json:"enableStripe"`
 	// If true, the mobile client will stop using CF worker to download files
-	DisableCFWorker     bool    `json:"disableCFWorker"`
-	MapEnabled          bool    `json:"mapEnabled"`
-	FaceSearchEnabled   bool    `json:"faceSearchEnabled"`
-	PassKeyEnabled      bool    `json:"passKeyEnabled"`
-	RecoveryKeyVerified bool    `json:"recoveryKeyVerified"`
-	InternalUser        bool    `json:"internalUser"`
-	BetaUser            bool    `json:"betaUser"`
-	EnableMobMultiPart  bool    `json:"enableMobMultiPart"`
-	CastUrl             string  `json:"castUrl"`
-	CustomDomain        *string `json:"customDomain,omitempty"`
-	CustomDomainCNAME   string  `json:"customDomainCNAME,omitempty"`
+	DisableCFWorker            bool    `json:"disableCFWorker"`
+	MapEnabled                 bool    `json:"mapEnabled"`
+	FaceSearchEnabled          bool    `json:"faceSearchEnabled"`
+	PassKeyEnabled             bool    `json:"passKeyEnabled"`
+	RecoveryKeyVerified        bool    `json:"recoveryKeyVerified"`
+	InternalUser               bool    `json:"internalUser"`
+	BetaUser                   bool    `json:"betaUser"`
+	EnableMobMultiPart         bool    `json:"enableMobMultiPart"`
+	CastUrl                    string  `json:"castUrl"`
+	CustomDomain               *string `json:"customDomain,omitempty"`
+	CustomDomainCNAME          string  `json:"customDomainCNAME,omitempty"`
+	NestedCollectionsEnabled   bool    `json:"nestedCollectionsEnabled"`
+	NestedMigrationEnabled     bool    `json:"nestedMigrationEnabled"`
+	HierarchicalSharingEnabled bool    `json:"hierarchicalSharingEnabled"`
 }
 
 type FlagKey string
 
 const (
-	RecoveryKeyVerified FlagKey = "recoveryKeyVerified"
-	MapEnabled          FlagKey = "mapEnabled"
-	FaceSearchEnabled   FlagKey = "faceSearchEnabled"
-	PassKeyEnabled      FlagKey = "passKeyEnabled"
-	IsInternalUser      FlagKey = "internalUser"
-	IsBetaUser          FlagKey = "betaUser"
-	CustomDomain        FlagKey = "customDomain"
+	RecoveryKeyVerified      FlagKey = "recoveryKeyVerified"
+	MapEnabled               FlagKey = "mapEnabled"
+	FaceSearchEnabled        FlagKey = "faceSearchEnabled"
+	PassKeyEnabled           FlagKey = "passKeyEnabled"
+	IsInternalUser           FlagKey = "internalUser"
+	IsBetaUser               FlagKey = "betaUser"
+	CustomDomain             FlagKey = "customDomain"
+	NestedCollectionsEnabled FlagKey = "nestedCollectionsEnabled"
+	NestedMigrationEnabled   FlagKey = "nestedMigrationEnabled"
+	HierarchicalSharingEnabled FlagKey = "hierarchicalSharingEnabled"
 )
 
 var validFlagKeys = map[FlagKey]struct{}{
-	RecoveryKeyVerified: {},
-	MapEnabled:          {},
-	FaceSearchEnabled:   {},
-	PassKeyEnabled:      {},
-	IsInternalUser:      {},
-	IsBetaUser:          {},
-	CustomDomain:        {},
+	RecoveryKeyVerified:        {},
+	MapEnabled:                 {},
+	FaceSearchEnabled:          {},
+	PassKeyEnabled:             {},
+	IsInternalUser:             {},
+	IsBetaUser:                 {},
+	CustomDomain:               {},
+	NestedCollectionsEnabled:   {},
+	NestedMigrationEnabled:     {},
+	HierarchicalSharingEnabled: {},
 }
 
 func IsValidFlagKey(key string) bool {
@@ -77,7 +86,7 @@ func (k FlagKey) String() string {
 // UserEditable returns true if the key is user editable
 func (k FlagKey) UserEditable() bool {
 	switch k {
-	case RecoveryKeyVerified, MapEnabled, FaceSearchEnabled, PassKeyEnabled, CustomDomain:
+	case RecoveryKeyVerified, MapEnabled, FaceSearchEnabled, PassKeyEnabled, CustomDomain, NestedCollectionsEnabled:
 		return true
 	default:
 		return false
@@ -96,7 +105,7 @@ func (k FlagKey) IsAdminEditable() bool {
 	switch k {
 	case RecoveryKeyVerified, MapEnabled, FaceSearchEnabled:
 		return false
-	case IsInternalUser, IsBetaUser, PassKeyEnabled:
+	case IsInternalUser, IsBetaUser, PassKeyEnabled, NestedMigrationEnabled, HierarchicalSharingEnabled:
 		return true
 	default:
 		return true
@@ -105,7 +114,7 @@ func (k FlagKey) IsAdminEditable() bool {
 
 func (k FlagKey) IsBoolType() bool {
 	switch k {
-	case RecoveryKeyVerified, MapEnabled, FaceSearchEnabled, PassKeyEnabled, IsInternalUser, IsBetaUser:
+	case RecoveryKeyVerified, MapEnabled, FaceSearchEnabled, PassKeyEnabled, IsInternalUser, IsBetaUser, NestedCollectionsEnabled, NestedMigrationEnabled, HierarchicalSharingEnabled:
 		return true
 	case CustomDomain:
 		return false

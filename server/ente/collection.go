@@ -30,6 +30,10 @@ type Collection struct {
 	// SharedMagicMetadata keeps the metadata of the sharees to store settings like
 	// if the collection should be shown on timeline or not
 	SharedMagicMetadata *MagicMetadata `json:"sharedMagicMetadata,omitempty"`
+	// ParentID represents the parent collection ID for nested collections
+	ParentID *int64 `json:"parentID,omitempty"`
+	// HierarchyPath represents the full path in the collection hierarchy
+	HierarchyPath *string `json:"hierarchyPath,omitempty"`
 }
 
 // AllowSharing indicates if this particular collection type can be shared
@@ -95,11 +99,30 @@ type AlterShareRequest struct {
 	Email        string                     `json:"email" binding:"required"`
 	EncryptedKey string                     `json:"encryptedKey"`
 	Role         *CollectionParticipantRole `json:"role"`
+	Scope        *string                    `json:"scope,omitempty"` // "direct_only" or "include_sub_collections"
 }
 
 type JoinCollectionViaLinkRequest struct {
 	CollectionID int64  `json:"collectionID" binding:"required"`
 	EncryptedKey string `json:"encryptedKey" binding:"required"`
+}
+
+// SetParentRequest represents a request to set parent collection
+type SetParentRequest struct {
+	NewParentID *int64 `json:"newParentID"` // null for root level
+}
+
+// ShareScopeRequest represents a request to share with specific scope
+type ShareScopeRequest struct {
+	Recipients   []int64 `json:"recipients" binding:"required"`
+	Scope        string  `json:"scope" binding:"required"` // "direct_only" or "include_sub_collections"  
+	EncryptedKey string  `json:"encryptedKey" binding:"required"`
+}
+
+// BackupScopeRequest represents a request for backup with scope
+type BackupScopeRequest struct {
+	Scope                  string  `json:"scope" binding:"required"` // "direct_only" or "include_sub_collections"
+	ExcludedSubCollections []int64 `json:"excludedSubCollections,omitempty"`
 }
 
 // AddFilesRequest represents a request to add files to a collection

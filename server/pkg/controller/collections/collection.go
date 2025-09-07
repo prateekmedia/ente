@@ -225,3 +225,205 @@ func (c *CollectionController) verifyOwnership(cID int64, userID int64) error {
 	}
 	return nil
 }
+
+// SetParent sets the parent collection for nested collections
+func (c *CollectionController) SetParent(ctx context.Context, userID int64, collectionID int64, newParentID *int64) error {
+	// Verify ownership of the collection being moved
+	if err := c.verifyOwnership(collectionID, userID); err != nil {
+		return stacktrace.Propagate(err, "User does not own collection")
+	}
+	
+	// If setting a parent, verify ownership of parent and prevent circular references
+	if newParentID != nil {
+		if err := c.verifyOwnership(*newParentID, userID); err != nil {
+			return stacktrace.Propagate(err, "User does not own parent collection")
+		}
+		
+		// Check for circular reference
+		if err := c.checkCircularReference(collectionID, *newParentID); err != nil {
+			return stacktrace.Propagate(err, "Would create circular reference")
+		}
+	}
+	
+	// Update the parent collection
+	if err := c.CollectionRepo.SetParent(ctx, collectionID, newParentID); err != nil {
+		return stacktrace.Propagate(err, "Failed to set parent collection")
+	}
+	
+	// Update hierarchy paths
+	if err := c.updateHierarchyPaths(ctx, collectionID); err != nil {
+		return stacktrace.Propagate(err, "Failed to update hierarchy paths")
+	}
+	
+	return nil
+}
+
+// ShareWithScope shares a collection with specific scope
+func (c *CollectionController) ShareWithScope(ctx context.Context, userID int64, collectionID int64, request ente.ShareScopeRequest) (map[string]interface{}, error) {
+	// Verify ownership
+	if err := c.verifyOwnership(collectionID, userID); err != nil {
+		return nil, stacktrace.Propagate(err, "User does not own collection")
+	}
+	
+	// Validate scope
+	if request.Scope != "direct_only" && request.Scope != "include_sub_collections" {
+		return nil, stacktrace.Propagate(ente.ErrBadRequest, "Invalid scope value")
+	}
+	
+	sharedCount := 0
+	subCollectionsCount := 0
+	
+	// Share with each recipient
+	for _, recipientID := range request.Recipients {
+		if err := c.CollectionRepo.ShareWithScope(ctx, collectionID, userID, recipientID, request.EncryptedKey, request.Scope); err != nil {
+			return nil, stacktrace.Propagate(err, "Failed to share collection")
+		}
+		sharedCount++
+	}
+	
+	// If hierarchical sharing, count sub-collections
+	if request.Scope == "include_sub_collections" {
+		if count, err := c.CollectionRepo.GetSubCollectionCount(ctx, collectionID); err == nil {
+			subCollectionsCount = count
+		}
+	}
+	
+	return map[string]interface{}{
+		"success":               true,
+		"shared_count":          sharedCount,
+		"sub_collections_count": subCollectionsCount,
+	}, nil
+}
+
+// BackupWithScope initiates backup with hierarchical scope
+func (c *CollectionController) BackupWithScope(ctx context.Context, userID int64, collectionID int64, request ente.BackupScopeRequest) (map[string]interface{}, error) {
+	// Verify ownership
+	if err := c.verifyOwnership(collectionID, userID); err != nil {
+		return nil, stacktrace.Propagate(err, "User does not own collection")
+	}
+	
+	// Validate scope
+	if request.Scope != "direct_only" && request.Scope != "include_sub_collections" {
+		return nil, stacktrace.Propagate(ente.ErrBadRequest, "Invalid scope value")
+	}
+	
+	// Get file count based on scope
+	var fileCount int
+	var err error
+	
+	if request.Scope == "direct_only" {
+		fileCount, err = c.CollectionRepo.GetFileCount(ctx, collectionID)
+	} else {
+		fileCount, err = c.CollectionRepo.GetHierarchicalFileCount(ctx, collectionID, request.ExcludedSubCollections)
+	}
+	
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "Failed to get file count")
+	}
+	
+	// Generate backup job ID
+	backupJobID := fmt.Sprintf("backup_%d_%d", collectionID, time.Microseconds())
+	
+	return map[string]interface{}{
+		"backup_job_id": backupJobID,
+		"files_count":   fileCount,
+	}, nil
+}
+
+// GetHierarchy returns the collection hierarchy for a user
+func (c *CollectionController) GetHierarchy(ctx context.Context, userID int64) ([]ente.Collection, error) {
+	collections, err := c.CollectionRepo.GetOwnedCollections(userID, 0)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "Failed to get collections")
+	}
+	
+	// Build hierarchy structure
+	hierarchy := c.buildHierarchy(collections)
+	return hierarchy, nil
+}
+
+// SearchCollections searches for collections with hierarchy scope
+func (c *CollectionController) SearchCollections(ctx context.Context, userID int64, query string, scope string, collectionID *int64) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+	
+	// Get collections based on scope
+	var collections []ente.Collection
+	var err error
+	
+	if scope == "current_folder" && collectionID != nil {
+		collections, err = c.CollectionRepo.SearchInCollection(ctx, userID, *collectionID, query)
+	} else {
+		collections, err = c.CollectionRepo.SearchCollections(ctx, userID, query)
+	}
+	
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "Failed to search collections")
+	}
+	
+	// Format results
+	for _, collection := range collections {
+		photoCount, _ := c.CollectionRepo.GetFileCount(ctx, collection.ID)
+		path := ""
+		if collection.HierarchyPath != nil {
+			path = *collection.HierarchyPath
+		}
+		
+		result := map[string]interface{}{
+			"collection_id": collection.ID,
+			"name":          collection.Name,
+			"path":          path,
+			"photo_count":   photoCount,
+		}
+		results = append(results, result)
+	}
+	
+	return results, nil
+}
+
+// Helper methods
+func (c *CollectionController) checkCircularReference(collectionID int64, parentID int64) error {
+	// Check if parentID is a descendant of collectionID
+	ancestors, err := c.CollectionRepo.GetAncestors(collectionID)
+	if err != nil {
+		return stacktrace.Propagate(err, "Failed to check ancestors")
+	}
+	
+	for _, ancestor := range ancestors {
+		if ancestor == parentID {
+			return stacktrace.Propagate(ente.ErrBadRequest, "Circular reference detected")
+		}
+	}
+	
+	return nil
+}
+
+func (c *CollectionController) updateHierarchyPaths(ctx context.Context, collectionID int64) error {
+	// Get all descendants and update their hierarchy paths
+	descendants, err := c.CollectionRepo.GetDescendants(ctx, collectionID)
+	if err != nil {
+		return stacktrace.Propagate(err, "Failed to get descendants")
+	}
+	
+	for _, descendant := range descendants {
+		path, err := c.CollectionRepo.BuildHierarchyPath(ctx, descendant)
+		if err != nil {
+			continue // Skip on error but don't fail the whole operation
+		}
+		c.CollectionRepo.UpdateHierarchyPath(ctx, descendant, path)
+	}
+	
+	return nil
+}
+
+func (c *CollectionController) buildHierarchy(collections []ente.Collection) []ente.Collection {
+	// Simple hierarchy builder - can be enhanced later
+	rootCollections := make([]ente.Collection, 0)
+	
+	for _, collection := range collections {
+		if collection.ParentID == nil {
+			rootCollections = append(rootCollections, collection)
+		}
+	}
+	
+	return rootCollections
+}
