@@ -88,6 +88,13 @@ class VideoPreviewService {
 
   static const String _videoStreamingEnabled = "videoStreamingEnabled";
 
+  // Background processing limits
+  static const int _maxBackgroundDurationSeconds = 15;
+  static const int _maxBackgroundSizeBytes = 500 * 1024 * 1024; // 500 MB
+
+  // Background mode flag
+  bool _isBackgroundMode = false;
+
   bool get isVideoStreamingEnabled {
     return serviceLocator.prefs.getBool(_videoStreamingEnabled) ?? false;
   }
@@ -110,6 +117,31 @@ class VideoPreviewService {
     }
     fileQueue.clear();
     _items.clear();
+  }
+
+  // Set background mode for the service
+  void setBackgroundMode(bool isBackground) {
+    _isBackgroundMode = isBackground;
+    _logger.info("VideoPreviewService background mode set to: $isBackground");
+  }
+
+  // Check if a video is eligible for background processing
+  bool _isEligibleForBackgroundProcessing({
+    required Duration? duration,
+    required int? fileSizeBytes,
+  }) {
+    if (duration == null || fileSizeBytes == null) return false;
+
+    final isEligible = duration.inSeconds < _maxBackgroundDurationSeconds &&
+        fileSizeBytes < _maxBackgroundSizeBytes;
+
+    if (!isEligible) {
+      _logger.fine(
+          "Video not eligible for background: duration=${duration.inSeconds}s, "
+          "size=${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(1)}MB");
+    }
+
+    return isEligible;
   }
 
   void _fireVideoPreviewStateChange(int fileId, PreviewItemStatus status) {
@@ -282,15 +314,37 @@ class VideoPreviewService {
   }) async {
     final bool isManual =
         await uploadLocksDB.isInStreamQueue(enteFile.uploadedFileID!);
-    final canStream = _isPermissionGranted();
-    if (!canStream) {
-      _logger.info(
-        "Pause preview due to disabledSteaming($isVideoStreamingEnabled) or computeController permission) - isManual: $isManual",
-      );
-      computeController.releaseCompute(stream: true);
-      if (isVideoStreamingEnabled) _logger.info("No permission to run compute");
-      clearQueue();
-      return;
+
+    // Background mode processing with different rules
+    if (_isBackgroundMode) {
+      // Early size check for background mode
+      if ((enteFile.fileSize ?? 0) >= _maxBackgroundSizeBytes) {
+        _logger.info(
+            "Skipping video ${enteFile.uploadedFileID} in background - "
+            "size ${((enteFile.fileSize ?? 0) / (1024 * 1024)).toStringAsFixed(1)}MB exceeds 500MB limit");
+        return;
+      }
+
+      // Only check device health for background processing
+      if (!computeController.isDeviceHealthy) {
+        _logger.info("Device not healthy for background video processing");
+        clearQueue();
+        return;
+      }
+    } else {
+      // Normal foreground permission checks
+      final canStream = _isPermissionGranted();
+      if (!canStream) {
+        _logger.info(
+          "Pause preview due to disabledSteaming($isVideoStreamingEnabled) or computeController permission) - isManual: $isManual",
+        );
+        computeController.releaseCompute(stream: true);
+        if (isVideoStreamingEnabled) {
+          _logger.info("No permission to run compute");
+        }
+        clearQueue();
+        return;
+      }
     }
 
     Object? error;
@@ -331,6 +385,19 @@ class VideoPreviewService {
       if (result) {
         removeFile = true;
         return;
+      }
+
+      // Additional background mode duration check
+      if (_isBackgroundMode && props != null) {
+        if (!_isEligibleForBackgroundProcessing(
+          duration: props.duration,
+          fileSizeBytes: enteFile.fileSize,
+        )) {
+          _logger.info(
+              "Skipping video ${enteFile.uploadedFileID} in background - "
+              "duration ${props.duration?.inSeconds}s or size exceeds limits");
+          return;
+        }
       }
 
       // check if there is already a preview in processing
@@ -1207,5 +1274,74 @@ class VideoPreviewService {
         computeController.releaseCompute(stream: true);
       }
     });
+  }
+
+  // Process videos in background with size/duration restrictions
+  Future<void> processBackgroundQueue() async {
+    if (!_isBackgroundMode) {
+      _logger
+          .warning("processBackgroundQueue called but not in background mode");
+      return;
+    }
+
+    _logger.info("Starting background video processing");
+
+    try {
+      await _ensurePreviewIdsInitialized();
+
+      // Get all eligible files
+      final allFiles = await _getFiles();
+
+      // Filter for background eligible videos
+      final eligibleFiles = <EnteFile>[];
+      for (final file in allFiles) {
+        // Quick size check first
+        if ((file.fileSize ?? 0) >= _maxBackgroundSizeBytes) {
+          continue;
+        }
+
+        // Skip if already processed
+        if (fileDataService.previewIds.containsKey(file.uploadedFileID)) {
+          continue;
+        }
+
+        eligibleFiles.add(file);
+      }
+
+      _logger.info(
+        "Found ${eligibleFiles.length} potentially eligible videos for background processing",
+      );
+
+      int processedCount = 0;
+      for (final file in eligibleFiles) {
+        // Check device health before each video
+        if (!computeController.isDeviceHealthy) {
+          _logger.info("Device unhealthy - stopping background processing");
+          break;
+        }
+
+        try {
+          // Process the video (duration check happens inside chunkAndUploadVideo)
+          await chunkAndUploadVideo(null, file);
+          processedCount++;
+        } catch (e, s) {
+          _logger.warning(
+            "Failed to process video ${file.uploadedFileID} in background",
+            e,
+            s,
+          );
+          // Continue with next file
+        }
+      }
+
+      _logger.info(
+        "Background video processing completed. Processed $processedCount videos",
+      );
+    } catch (e, s) {
+      _logger.severe("Error in background video processing", e, s);
+    } finally {
+      // Always release compute when done
+      computeController.releaseCompute(stream: true);
+    }
   }
 }

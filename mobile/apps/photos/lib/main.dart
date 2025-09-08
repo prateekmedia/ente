@@ -25,7 +25,16 @@ import "package:photos/db/ml/db.dart";
 import 'package:photos/ente_theme_data.dart';
 import "package:photos/extensions/stop_watch.dart";
 import "package:photos/l10n/l10n.dart";
-import "package:photos/service_locator.dart";
+import "package:photos/service_locator.dart"
+    show
+        ServiceLocator,
+        computeController,
+        entityService,
+        flagService,
+        localSettings,
+        memoriesCacheService,
+        smartAlbumsService,
+        updateService;
 import "package:photos/services/account/user_service.dart";
 import 'package:photos/services/app_lifecycle_service.dart';
 import 'package:photos/services/collections_service.dart';
@@ -189,6 +198,29 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
   // await PersonService.init(entityService, MLDataDB.instance, prefs);
   // await MLService.instance.runAllML(force: true);
   await smartAlbumsService.syncSmartAlbums();
+
+  // Background video streaming processing
+  if (VideoPreviewService.instance.isVideoStreamingEnabled) {
+    _logger.info("Starting background video streaming $tlog");
+
+    // Set background mode for video service
+    VideoPreviewService.instance.setBackgroundMode(true);
+
+    // Request compute permission for background streaming
+    final hasPermission =
+        computeController.requestCompute(backgroundStream: true);
+
+    if (hasPermission) {
+      _logger.info("Background streaming permission granted $tlog");
+      await VideoPreviewService.instance.processBackgroundQueue();
+    } else {
+      _logger.info("Device not healthy for background streaming $tlog");
+    }
+
+    // Release compute when done
+    computeController.releaseCompute(stream: true);
+    _logger.info("Background video streaming completed $tlog");
+  }
 }
 
 Future<void> _init(bool isBackground, {String via = ''}) async {

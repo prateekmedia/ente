@@ -97,10 +97,27 @@ class ComputeController {
     bool stream = false,
     bool bypassInteractionCheck = false,
     bool bypassMLWaiting = false,
+    bool backgroundStream = false,
   }) {
     _logger.info(
-      "Requesting compute: ml: $ml, stream: $stream, bypassInteraction: $bypassInteractionCheck, bypassMLWaiting: $bypassMLWaiting",
+      "Requesting compute: ml: $ml, stream: $stream, bypassInteraction: $bypassInteractionCheck, bypassMLWaiting: $bypassMLWaiting, backgroundStream: $backgroundStream",
     );
+
+    // Background streaming only checks device health
+    if (backgroundStream) {
+      if (!_isDeviceHealthy) {
+        _logger.info(
+          "Device not healthy for background streaming, denying request.",
+        );
+        return false;
+      }
+      // Direct approval for background streaming - skip all other checks
+      _currentRunState = ComputeRunState.generatingStream;
+      _logger.info("Background streaming request granted (device healthy)");
+      return true;
+    }
+
+    // Regular compute request checks
     if (!_isDeviceHealthy) {
       _logger.info("Device not healthy, denying request.");
       return false;
