@@ -31,11 +31,13 @@ class AlbumSelectionOverlayBar extends StatefulWidget {
 }
 
 class _AlbumSelectionOverlayBarState extends State<AlbumSelectionOverlayBar> {
-  final ValueNotifier<bool> _hasSelectedAlbumsNotifier = ValueNotifier(false);
+  late final ValueNotifier<bool> _hasSelectedAlbumsNotifier;
 
   @override
   void initState() {
     super.initState();
+    // Initialize with current selection state
+    _hasSelectedAlbumsNotifier = ValueNotifier(widget.selectedAlbums.albums.isNotEmpty);
     widget.selectedAlbums.addListener(_selectedAlbumsListener);
   }
 

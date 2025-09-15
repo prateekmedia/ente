@@ -72,7 +72,20 @@ class CollectionPubMagicMetadata {
   // hierarchy path for nested collections
   String? hierarchyPath;
 
-  CollectionPubMagicMetadata({this.asc, this.coverID, this.parentID, this.hierarchyPath});
+  // organizational ID for derivation manifest
+  String? orgId;
+
+  // hierarchy level for nested collections
+  int? hierarchyLevel;
+
+  CollectionPubMagicMetadata({
+    this.asc,
+    this.coverID,
+    this.parentID,
+    this.hierarchyPath,
+    this.orgId,
+    this.hierarchyLevel,
+  });
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> result = {"asc": asc ?? false};
@@ -84,6 +97,12 @@ class CollectionPubMagicMetadata {
     }
     if (hierarchyPath != null) {
       result["hierarchyPath"] = hierarchyPath!;
+    }
+    if (orgId != null) {
+      result["orgId"] = orgId!;
+    }
+    if (hierarchyLevel != null) {
+      result["hierarchyLevel"] = hierarchyLevel!;
     }
     return result;
   }
@@ -101,6 +120,8 @@ class CollectionPubMagicMetadata {
       coverID: map["coverID"],
       parentID: map["parentID"],
       hierarchyPath: map["hierarchyPath"],
+      orgId: map["orgId"],
+      hierarchyLevel: map["hierarchyLevel"],
     );
   }
 }

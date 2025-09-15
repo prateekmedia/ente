@@ -151,8 +151,24 @@ Future<void> curateFilters(
   BuildContext context,
 ) async {
   try {
+    // Extract localized strings early while context is still valid
+    final localizedStrings = <String, String>{};
+    try {
+      final l10n = AppLocalizations.of(context);
+      localizedStrings['photos'] = l10n.photos;
+      localizedStrings['videos'] = l10n.videos;
+      localizedStrings['livePhotos'] = l10n.livePhotos;
+      localizedStrings['onlyThem'] = l10n.onlyThem;
+    } catch (e) {
+      // If context is invalid, use default English strings
+      localizedStrings['photos'] = 'Photos';
+      localizedStrings['videos'] = 'Videos';
+      localizedStrings['livePhotos'] = 'Live Photos';
+      localizedStrings['onlyThem'] = 'Only them';
+    }
+
     final albumFilters = await _curateAlbumFilters(files);
-    final fileTypeFilters = _curateFileTypeFilters(files, context);
+    final fileTypeFilters = _curateFileTypeFiltersWithStrings(files, localizedStrings);
     final locationFilters = await _curateLocationFilters(
       files,
     );
@@ -160,9 +176,9 @@ Future<void> curateFilters(
     final uploaderFilters = _curateUploaderFilter(files);
     final faceFilters = await curateFaceFilters(files);
     final magicFilters = await curateMagicFilters(files, context);
-    final onlyThemFilter = getOnlyThemFilter(
+    final onlyThemFilter = getOnlyThemFilterWithStrings(
       searchFilterDataProvider,
-      context,
+      localizedStrings,
     );
 
     searchFilterDataProvider.clearAndAddRecommendations(
@@ -177,8 +193,8 @@ Future<void> curateFilters(
         ...locationFilters,
       ],
     );
-  } catch (e) {
-    Logger("HierarchicalSearchUtil").severe("Failed to curate filters", e);
+  } catch (e, s) {
+    Logger("HierarchicalSearchUtil").severe("Failed to curate filters", e, s);
   }
 }
 
@@ -207,6 +223,37 @@ List<OnlyThemFilter> getOnlyThemFilter(
     final onlyThemFilter = OnlyThemFilter(
       faceFilters: appliedFaceFilters,
       onlyThemString: AppLocalizations.of(context).onlyThem,
+      occurrence: kMostRelevantFilter,
+    );
+    return [onlyThemFilter];
+  }
+}
+
+List<OnlyThemFilter> getOnlyThemFilterWithStrings(
+  SearchFilterDataProvider searchFilterDataProvider,
+  Map<String, String> localizedStrings,
+) {
+  if (searchFilterDataProvider.initialGalleryFilter is FaceFilter &&
+      searchFilterDataProvider.appliedFilters.isEmpty) {
+    return [
+      OnlyThemFilter(
+        faceFilters: [
+          searchFilterDataProvider.initialGalleryFilter as FaceFilter,
+        ],
+        onlyThemString: localizedStrings['onlyThem'] ?? 'Only them',
+        occurrence: kMostRelevantFilter,
+      ),
+    ];
+  }
+
+  final appliedFaceFilters =
+      searchFilterDataProvider.appliedFilters.whereType<FaceFilter>().toList();
+  if (appliedFaceFilters.isEmpty || appliedFaceFilters.length > 4) {
+    return [];
+  } else {
+    final onlyThemFilter = OnlyThemFilter(
+      faceFilters: appliedFaceFilters,
+      onlyThemString: localizedStrings['onlyThem'] ?? 'Only them',
       occurrence: kMostRelevantFilter,
     );
     return [onlyThemFilter];
@@ -293,6 +340,59 @@ List<FileTypeFilter> _curateFileTypeFilters(
       FileTypeFilter(
         fileType: FileType.livePhoto,
         typeName: AppLocalizations.of(context).livePhotos,
+        occurrence: livePhotosCount,
+      ),
+    );
+  }
+
+  return fileTypeFilters;
+}
+
+List<FileTypeFilter> _curateFileTypeFiltersWithStrings(
+  List<EnteFile> files,
+  Map<String, String> localizedStrings,
+) {
+  final fileTypeFilters = <FileTypeFilter>[];
+  int photosCount = 0;
+  int videosCount = 0;
+  int livePhotosCount = 0;
+
+  for (EnteFile file in files) {
+    final id = file.uploadedFileID;
+    if (id != null && id != -1) {
+      if (file.fileType == FileType.image) {
+        photosCount++;
+      } else if (file.fileType == FileType.video) {
+        videosCount++;
+      } else if (file.fileType == FileType.livePhoto) {
+        livePhotosCount++;
+      }
+    }
+  }
+
+  if (photosCount > 0) {
+    fileTypeFilters.add(
+      FileTypeFilter(
+        fileType: FileType.image,
+        typeName: localizedStrings['photos'] ?? 'Photos',
+        occurrence: photosCount,
+      ),
+    );
+  }
+  if (videosCount > 0) {
+    fileTypeFilters.add(
+      FileTypeFilter(
+        fileType: FileType.video,
+        typeName: localizedStrings['videos'] ?? 'Videos',
+        occurrence: videosCount,
+      ),
+    );
+  }
+  if (livePhotosCount > 0) {
+    fileTypeFilters.add(
+      FileTypeFilter(
+        fileType: FileType.livePhoto,
+        typeName: localizedStrings['livePhotos'] ?? 'Live Photos',
         occurrence: livePhotosCount,
       ),
     );

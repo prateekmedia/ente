@@ -42,7 +42,7 @@ class FileSelectionOverlayBar extends StatefulWidget {
 }
 
 class _FileSelectionOverlayBarState extends State<FileSelectionOverlayBar> {
-  final ValueNotifier<bool> _hasSelectedFilesNotifier = ValueNotifier(false);
+  late final ValueNotifier<bool> _hasSelectedFilesNotifier;
   late GalleryType _galleryType;
   SearchFilterDataProvider? _searchFilterDataProvider;
   bool? _galleryInitialFilterStillApplied;
@@ -51,6 +51,8 @@ class _FileSelectionOverlayBarState extends State<FileSelectionOverlayBar> {
   void initState() {
     super.initState();
     _galleryType = widget.galleryType;
+    // Initialize with current selection state
+    _hasSelectedFilesNotifier = ValueNotifier(widget.selectedFiles.files.isNotEmpty);
     widget.selectedFiles.addListener(_selectedFilesListener);
   }
 

@@ -32,11 +32,13 @@ import "package:photos/models/api/collection/user.dart";
 import "package:photos/models/api/metadata.dart";
 import 'package:photos/models/collection/collection.dart';
 import 'package:photos/models/collection/collection_items.dart';
+import 'package:photos/models/derivation/derivation_manifest.dart';
 import 'package:photos/models/file/file.dart';
 import "package:photos/models/files_split.dart";
 import "package:photos/models/metadata/collection_magic.dart";
 import "package:photos/service_locator.dart";
 import 'package:photos/services/app_lifecycle_service.dart';
+import 'package:photos/services/derivation_manifest_service.dart';
 import "package:photos/services/favorites_service.dart";
 import 'package:photos/services/sync/local_sync_service.dart';
 import 'package:photos/services/sync/remote_sync_service.dart';
@@ -1432,6 +1434,173 @@ class CollectionsService {
       ),
     );
     return collection;
+  }
+
+  /// Create a sub-album under a parent collection using derivation manifest
+  Future<Collection> createSubAlbum(
+    String albumName,
+    Collection parentCollection,
+  ) async {
+    // Generate collection key (stable, never changes)
+    final collectionKey = CryptoUtil.generateKey();
+    final encryptedKeyData =
+        CryptoUtil.encryptSync(collectionKey, _config.getKey()!);
+    final encryptedName = CryptoUtil.encryptSync(
+      utf8.encode(albumName),
+      collectionKey,
+    );
+
+    // Create derivation entry for organizational hierarchy
+    final derivationService = DerivationManifestService.instance;
+    final orgId = derivationService.generateOrganizationalId();
+    
+    // Build hierarchy path
+    final parentPath = parentCollection.hierarchyPath ?? '';
+    final hierarchyPath = parentPath.isEmpty 
+        ? '/${parentCollection.id}'
+        : '$parentPath/${parentCollection.id}';
+    
+    // Create collection with parent metadata
+    final collection = await createAndCacheCollection(
+      CreateRequest(
+        encryptedKey: CryptoUtil.bin2base64(encryptedKeyData.encryptedData!),
+        keyDecryptionNonce: CryptoUtil.bin2base64(encryptedKeyData.nonce!),
+        encryptedName: CryptoUtil.bin2base64(encryptedName.encryptedData!),
+        nameDecryptionNonce: CryptoUtil.bin2base64(encryptedName.nonce!),
+        type: CollectionType.album,
+        attributes: CollectionAttributes(),
+      ),
+    );
+
+    // Update public magic metadata with hierarchy information
+    final pubMetadata = collection.pubMagicMetadata;
+    pubMetadata.parentID = parentCollection.id;
+    pubMetadata.hierarchyPath = hierarchyPath;
+    pubMetadata.orgId = orgId;
+    pubMetadata.hierarchyLevel = (parentCollection.pubMagicMetadata.hierarchyLevel ?? 0) + 1;
+    
+    await updateMagicMetadata(collection, pubMetadata.toJson());
+
+    // Create derivation entry for cryptographic hierarchy
+    await derivationService.createDerivationEntry(collection, parentCollection);
+
+    _logger.info('Created sub-album "$albumName" under parent ${parentCollection.id}');
+    
+    return collection;
+  }
+
+  /// Move a collection to be under a new parent using derivation manifest
+  Future<void> moveCollectionToParent(
+    Collection collectionToMove,
+    Collection? newParent,
+  ) async {
+    final derivationService = DerivationManifestService.instance;
+    
+    // Update hierarchy path
+    String newHierarchyPath = '';
+    if (newParent != null) {
+      final parentPath = newParent.hierarchyPath ?? '';
+      newHierarchyPath = parentPath.isEmpty 
+          ? '/${newParent.id}'
+          : '$parentPath/${newParent.id}';
+    }
+
+    // Update public magic metadata
+    final pubMetadata = collectionToMove.pubMagicMetadata;
+    pubMetadata.parentID = newParent?.id;
+    pubMetadata.hierarchyPath = newHierarchyPath.isEmpty ? null : newHierarchyPath;
+    pubMetadata.hierarchyLevel = newParent != null 
+        ? (newParent.pubMagicMetadata.hierarchyLevel ?? 0) + 1
+        : 0;
+    
+    // Ensure organizational ID exists
+    pubMetadata.orgId ??= derivationService.generateOrganizationalId();
+    
+    await updateMagicMetadata(collectionToMove, pubMetadata.toJson());
+
+    // Update derivation manifest
+    final manifest = await derivationService.loadManifest();
+    if (manifest != null) {
+      final entry = manifest.getEntry(pubMetadata.orgId!);
+      if (entry != null) {
+        // Update existing entry
+        final updatedEntry = DerivationEntry(
+          collectionOrgId: entry.collectionOrgId,
+          parentOrgId: newParent?.pubMagicMetadata.orgId,
+          derivationSalt: entry.derivationSalt,
+          hierarchyLevel: pubMetadata.hierarchyLevel ?? 0,
+          createdAt: entry.createdAt,
+        );
+        manifest.addEntry(updatedEntry);
+      } else {
+        // Create new entry if doesn't exist
+        await derivationService.createDerivationEntry(collectionToMove, newParent);
+      }
+      await derivationService.saveManifest(manifest);
+    }
+
+    _logger.info('Moved collection ${collectionToMove.id} to parent ${newParent?.id}');
+    
+    // Update children's hierarchy paths recursively
+    await _updateChildrenHierarchyPaths(collectionToMove);
+  }
+
+  /// Recursively update hierarchy paths for all children
+  Future<void> _updateChildrenHierarchyPaths(Collection parent) async {
+    final allCollections = getCollectionsForUI();
+    final children = allCollections
+        .where((c) => c.parentID == parent.id)
+        .toList();
+    
+    for (final child in children) {
+      final parentPath = parent.hierarchyPath ?? '';
+      final newPath = parentPath.isEmpty 
+          ? '/${parent.id}'
+          : '$parentPath/${parent.id}';
+      
+      final pubMetadata = child.pubMagicMetadata;
+      pubMetadata.hierarchyPath = newPath;
+      pubMetadata.hierarchyLevel = (parent.pubMagicMetadata.hierarchyLevel ?? 0) + 1;
+      
+      await updateMagicMetadata(child, pubMetadata.toJson());
+      
+      // Recursively update children
+      await _updateChildrenHierarchyPaths(child);
+    }
+  }
+
+  /// Share a hierarchical collection structure using derivation manifest
+  Future<void> shareHierarchicalCollection(
+    Collection rootCollection,
+    String targetUserEmail,
+    String targetUserPublicKey,
+  ) async {
+    // First share the collection normally
+    await share(
+      rootCollection.id, 
+      targetUserEmail, 
+      targetUserPublicKey,
+      CollectionParticipantRole.viewer,
+    );
+    
+    // Build and share derivation manifest for hierarchy
+    final derivationService = DerivationManifestService.instance;
+    final targetUserId = targetUserEmail; // In production, resolve user ID from email
+    
+    try {
+      final sharedManifest = await derivationService.buildShareManifest(
+        rootCollection,
+        targetUserId,
+      );
+      
+      _logger.info('Created shared derivation manifest ${sharedManifest.shareId} for hierarchy');
+      
+      // In production, this would be sent to the server
+      // For now, it's stored locally
+    } catch (e) {
+      _logger.warning('Failed to create derivation manifest for sharing: $e');
+      // Sharing can still proceed without manifest (flat structure)
+    }
   }
 
   Future<void> addOrCopyToCollection(

@@ -231,8 +231,8 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                 margin: const EdgeInsets.all(8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  color: Colors.red.withValues(alpha: 0.1),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Column(
@@ -246,8 +246,8 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                     ),
                     Text(
                       'Local enabled: ${localSettings.isNestedViewEnabled ?? false} | '
-                      'Server enabled: ${FeatureFlagsService().isNestedCollectionsEnabled()} | '
-                      'Using hierarchical: ${(localSettings.isNestedViewEnabled ?? false) && FeatureFlagsService().isNestedCollectionsEnabled()}',
+                      'Server enabled: ${flagService.isNestedAlbumsEnabled} | '
+                      'Using hierarchical: ${(localSettings.isNestedViewEnabled ?? false) && flagService.isNestedAlbumsEnabled}',
                       style: const TextStyle(fontSize: 9),
                     ),
                     Text(
@@ -268,7 +268,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                         GestureDetector(
                           onTap: () async {
                             try {
-                              final service = FeatureFlagsService();
+                              final service = FeatureFlagsService.instance;
                               service.init();
                               await service.fetchFeatureFlags();
                               setState(() {});
@@ -290,7 +290,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: Colors.blue.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -327,7 +327,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.purple.withOpacity(0.3),
+                              color: Colors.purple.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -353,7 +353,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.3),
+                              color: Colors.green.withValues(alpha: 0.3),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -390,7 +390,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
   Widget _getCollectionViewWidget(List<Collection> collections) {
     // Check if nested view is enabled for hierarchical display
     final bool showHierarchy = (localSettings.isNestedViewEnabled ?? false) &&
-        FeatureFlagsService().isNestedCollectionsEnabled();
+        flagService.isNestedAlbumsEnabled;
 
     // Filter collections based on hierarchy navigation
     final List<Collection> displayCollections = showHierarchy

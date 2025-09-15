@@ -1,7 +1,9 @@
 import "package:flutter/material.dart";
 import "package:photos/core/event_bus.dart";
+import "package:photos/events/collection_updated_event.dart";
 import "package:photos/events/hide_shared_items_from_home_gallery_event.dart";
 import "package:photos/generated/l10n.dart";
+import "package:photos/models/file/file.dart";
 import "package:photos/service_locator.dart";
 import "package:photos/theme/ente_theme.dart";
 import "package:photos/ui/components/buttons/icon_button_widget.dart";
@@ -160,6 +162,34 @@ class _GallerySettingsScreenState extends State<GallerySettingsScreen> {
                                 },
                               ),
                             ),
+                      const SizedBox(height: 16),
+                      // Nested Albums Toggle
+                      if (flagService.isNestedAlbumsEnabled)
+                        MenuItemWidget(
+                          captionedTextWidget: const CaptionedTextWidget(
+                            title: "Nested albums",
+                            subTitle: "Show albums in hierarchical view",
+                          ),
+                          menuItemColor: colorScheme.fillFaint,
+                          singleBorderRadius: 8,
+                          alignCaptionedTextToLeft: true,
+                          trailingWidget: ToggleSwitchWidget(
+                            value: () => localSettings.isNestedViewEnabled ?? false,
+                            onChanged: () async {
+                              final currentValue = localSettings.isNestedViewEnabled ?? false;
+                              await localSettings.setIsNestedViewEnabled(!currentValue);
+                              setState(() {});
+                              // Fire event to refresh collections view
+                              Bus.instance.fire(
+                                CollectionUpdatedEvent(
+                                  null,
+                                  <EnteFile>[],
+                                  "settings_update",
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                     ],
                   ),
                 );

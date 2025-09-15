@@ -21,7 +21,6 @@ import 'package:photos/models/selected_albums.dart';
 import 'package:photos/models/selected_files.dart';
 import "package:photos/service_locator.dart";
 import 'package:photos/services/collections_service.dart';
-import 'package:photos/services/feature_flags_service.dart';
 import 'package:photos/services/ignored_files_service.dart';
 import "package:photos/ui/collections/album/row_item.dart";
 import 'package:photos/ui/collections/collection_list_page.dart';
@@ -67,6 +66,7 @@ class _CollectionPageState extends State<CollectionPage> {
   bool _isFileSelectionActive = false;
   StreamSubscription<NestedCollectionsSettingChangedEvent>?
       _nestedSettingSubscription;
+  Future<List<Collection>>? _subAlbumsFuture;
 
   @override
   void initState() {
@@ -78,9 +78,12 @@ class _CollectionPageState extends State<CollectionPage> {
       if (mounted) {
         setState(() {
           // Rebuild to show/hide sub-albums based on new setting
+          _subAlbumsFuture = null; // Reset to force refresh
         });
       }
     });
+    // Initialize sub-albums future
+    _subAlbumsFuture = _getSubAlbums();
   }
 
   @override
@@ -92,27 +95,41 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   void _onFileSelectionChanged() {
+    if (!mounted) return;
+    
     final hasFileSelection = _selectedFiles.files.isNotEmpty;
+    
+    // Clear album selection if file selection is active
     if (hasFileSelection && _isAlbumSelectionActive) {
       _selectedAlbums.clearAll();
       _isAlbumSelectionActive = false;
     }
-    _isFileSelectionActive = hasFileSelection;
-    setState(() {
-      // Force rebuild to show/hide overlay immediately
-    });
+    
+    // Update file selection state
+    if (_isFileSelectionActive != hasFileSelection) {
+      setState(() {
+        _isFileSelectionActive = hasFileSelection;
+      });
+    }
   }
 
   void _onAlbumSelectionChanged() {
+    if (!mounted) return;
+    
     final hasAlbumSelection = _selectedAlbums.albums.isNotEmpty;
+    
+    // Clear file selection if album selection is active
     if (hasAlbumSelection && _isFileSelectionActive) {
       _selectedFiles.clearAll();
       _isFileSelectionActive = false;
     }
-    _isAlbumSelectionActive = hasAlbumSelection;
-    setState(() {
-      // Force rebuild to show/hide overlay immediately
-    });
+    
+    // Update album selection state
+    if (_isAlbumSelectionActive != hasAlbumSelection) {
+      setState(() {
+        _isAlbumSelectionActive = hasAlbumSelection;
+      });
+    }
   }
 
   @override
@@ -127,7 +144,27 @@ class _CollectionPageState extends State<CollectionPage> {
     );
     final List<EnteFile>? initialFiles =
         widget.c.thumbnail != null ? [widget.c.thumbnail!] : null;
+    // Build sub-albums header if needed
+    Widget? galleryHeader;
+    final bool localEnabled = localSettings.isNestedViewEnabled ?? false;
+    final bool serverEnabled = flagService.isNestedAlbumsEnabled;
+    final bool showHierarchy = localEnabled && serverEnabled;
+    
+    if (showHierarchy) {
+      _subAlbumsFuture ??= _getSubAlbums();
+      galleryHeader = FutureBuilder<List<Collection>>(
+        future: _subAlbumsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+            return _buildCompactSubAlbumsGrid(snapshot.data!);
+          }
+          return const SizedBox.shrink();
+        },
+      );
+    }
+
     final gallery = Gallery(
+      key: ValueKey('gallery_${widget.c.collection.id}'), // Stable key to prevent rebuilds
       asyncLoader: (creationStartTime, creationEndTime, {limit, asc}) async {
         final FileLoadResult result =
             await FilesDB.instance.getFilesInCollection(
@@ -169,6 +206,7 @@ class _CollectionPageState extends State<CollectionPage> {
       sortAsyncFn: () => widget.c.collection.pubMagicMetadata.asc ?? false,
       addHeaderOrFooterEmptyState: false,
       showSelectAll: galleryType != GalleryType.sharedCollection,
+      header: galleryHeader,
       emptyState: galleryType == GalleryType.ownedCollection
           ? EmptyAlbumState(
               widget.c.collection,
@@ -231,7 +269,7 @@ class _CollectionPageState extends State<CollectionPage> {
                                 tagPrefix: widget.tagPrefix,
                                 selectedFiles: _selectedFiles,
                               )
-                            : _buildGalleryWithSubAlbums(gallery);
+                            : gallery;
                       },
                     );
                   },
@@ -246,11 +284,16 @@ class _CollectionPageState extends State<CollectionPage> {
                     collection: widget.c.collection,
                   ),
                 if (_isAlbumSelectionActive)
-                  AlbumSelectionOverlayBar(
-                    _selectedAlbums,
-                    UISectionType.homeCollections,
-                    const [], // We need to provide sub-albums here, but for now empty is fine
-                    showSelectAllButton: false,
+                  FutureBuilder<List<Collection>>(
+                    future: _getSubAlbums(),
+                    builder: (context, snapshot) {
+                      return AlbumSelectionOverlayBar(
+                        _selectedAlbums,
+                        UISectionType.homeCollections,
+                        snapshot.data ?? [],
+                        showSelectAllButton: false,
+                      );
+                    },
                   ),
               ],
             ),
@@ -260,52 +303,117 @@ class _CollectionPageState extends State<CollectionPage> {
     );
   }
 
-  Widget _buildGalleryWithSubAlbums(Widget gallery) {
-    // Check if nested collections are enabled
-    final bool localEnabled = localSettings.isNestedViewEnabled ?? false;
-    final bool serverEnabled =
-        FeatureFlagsService().isNestedCollectionsEnabled();
-    final bool showHierarchy = localEnabled && serverEnabled;
 
-    if (!showHierarchy) {
-      return gallery; // Just show photos if hierarchy is disabled
-    }
+  Widget _buildCompactSubAlbumsGrid(List<Collection> subAlbums) {
+    // More compact version for inline display as part of gallery scroll
+    const int maxItemsToShow = 6;
+    final hasMoreAlbums = subAlbums.length > maxItemsToShow;
 
-    return FutureBuilder<List<Collection>>(
-      future: _getSubAlbums(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError ||
-            snapshot.connectionState == ConnectionState.waiting) {
-          return gallery;
-        }
-
-        final subAlbums = snapshot.data ?? [];
-
-        if (subAlbums.isEmpty) {
-          return gallery;
-        }
-
-        // Always show sub-albums section, even if the main album is empty
-        return _buildGalleryWithSubAlbumsHeader(subAlbums, gallery);
-      },
-    );
-  }
-
-  Widget _buildGalleryWithSubAlbumsHeader(List<Collection> subAlbums, Widget originalGallery) {
-    // Create the sub-albums header widget
-    final subAlbumsHeader = _buildSubAlbumsGrid(subAlbums);
-
-    // Create a custom scrollable layout that always shows sub-albums at the top
-    return CustomScrollView(
-      slivers: [
-        // Sub-albums section always at top
-        SliverToBoxAdapter(
-          child: subAlbumsHeader,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Section heading - matches gallery date headers style
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: GestureDetector(
+            onTap: () => _navigateToAllSubAlbums(subAlbums),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Albums in ${widget.c.collection.displayName}',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.8),
+                      ),
+                ),
+                if (hasMoreAlbums)
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.5),
+                    size: 16,
+                  ),
+              ],
+            ),
+          ),
         ),
-        // Original gallery content below (photos or empty state)
-        SliverFillRemaining(
-          child: originalGallery,
+
+        // Albums grid
+        Padding(
+          padding: const EdgeInsets.only(left: 8, right: 8, bottom: 12),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = constraints.maxWidth;
+              const double maxThumbnailWidth = 224.0;
+              const double crossAxisSpacing = 8.0;
+              const double horizontalPadding = 16.0;
+
+              final int albumsCountInCrossAxis =
+                  math.max((screenWidth / maxThumbnailWidth).floor(), 3);
+              final double totalCrossAxisSpacing =
+                  crossAxisSpacing * (albumsCountInCrossAxis - 1);
+              final double sideOfThumbnail =
+                  (screenWidth - totalCrossAxisSpacing - horizontalPadding) /
+                      albumsCountInCrossAxis;
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: albumsCountInCrossAxis,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: crossAxisSpacing,
+                  childAspectRatio: sideOfThumbnail /
+                      (sideOfThumbnail + 46), // +46 for text space
+                ),
+                itemCount: subAlbums.take(maxItemsToShow).length,
+                itemBuilder: (context, index) {
+                  final collection = subAlbums[index];
+                  return AlbumRowItemWidget(
+                    collection,
+                    sideOfThumbnail,
+                    showFileCount: true,
+                    tag: "${widget.tagPrefix}_subalbum",
+                    hasVerifiedLock: widget.hasVerifiedLock,
+                    selectedAlbums: _selectedAlbums,
+                    onTapCallback: (c) {
+                      // If albums are being selected, toggle selection on tap
+                      if (_isAlbumSelectionActive) {
+                        _selectedAlbums.toggleSelection(c);
+                      } else {
+                        _navigateToSubAlbum(c);
+                      }
+                    },
+                    onLongPressCallback: (c) =>
+                        _selectedAlbums.toggleSelection(c),
+                  );
+                },
+              );
+            },
+          ),
         ),
+        
+        // Show count if there are more albums
+        if (hasMoreAlbums)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              '${subAlbums.length} albums total • Tap to see all',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
+                  ),
+            ),
+          ),
+        
+        // Subtle divider to separate from photos
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          height: 0.5,
+          color: Theme.of(context).dividerColor.withOpacity(0.2),
+        ),
+        const SizedBox(height: 4),
       ],
     );
   }
@@ -319,11 +427,14 @@ class _CollectionPageState extends State<CollectionPage> {
         ..sort((a, b) => a.displayName.compareTo(b.displayName));
 
       // Debug: Log found subalbums
-      _logger.info('Found ${subAlbums.length} subalbums for ${widget.c.collection.displayName}');
+      _logger.info(
+        'Found ${subAlbums.length} subalbums for ${widget.c.collection.displayName}',
+      );
       if (subAlbums.isNotEmpty) {
         _logger.info('Sub-albums will be shown even if parent album is empty');
         for (final album in subAlbums) {
-          _logger.fine('  - ${album.displayName} (parentID: ${album.parentID})');
+          _logger
+              .fine('  - ${album.displayName} (parentID: ${album.parentID})');
         }
       }
 
@@ -334,103 +445,6 @@ class _CollectionPageState extends State<CollectionPage> {
     }
   }
 
-  Widget _buildSubAlbumsGrid(List<Collection> subAlbums) {
-    // Limit display to match "On Ente" section (max 2 rows)
-    const int maxItemsToShow = 6; // 2 rows typically
-    final hasMoreAlbums = subAlbums.length > maxItemsToShow;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Albums heading with navigation (exactly like "On Ente" section)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: GestureDetector(
-            onTap: () => _navigateToAllSubAlbums(subAlbums),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'On ${widget.c.collection.displayName}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                if (hasMoreAlbums)
-                  const Icon(
-                    Icons.chevron_right,
-                    color: Colors.grey,
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        // Use exact same grid as "On Ente" section  
-        Padding(
-          padding: const EdgeInsets.only(
-            top: 4,
-            left: 8,
-            right: 8,
-            bottom: 4,
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final screenWidth = constraints.maxWidth;
-              const double maxThumbnailWidth = 224.0;
-              const double crossAxisSpacing = 8.0;
-              const double horizontalPadding = 16.0;
-              
-              final int albumsCountInCrossAxis = math.max((screenWidth / maxThumbnailWidth).floor(), 3);
-              final double totalCrossAxisSpacing = crossAxisSpacing * (albumsCountInCrossAxis - 1);
-              final double sideOfThumbnail = (screenWidth - totalCrossAxisSpacing - horizontalPadding) / albumsCountInCrossAxis;
-              
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: albumsCountInCrossAxis,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: crossAxisSpacing,
-                  childAspectRatio: sideOfThumbnail / (sideOfThumbnail + 46), // +46 for text space
-                ),
-                itemCount: subAlbums.take(maxItemsToShow).length,
-                itemBuilder: (context, index) {
-                  final collection = subAlbums[index];
-                  return AlbumRowItemWidget(
-                    collection,
-                    sideOfThumbnail,
-                    showFileCount: true,
-                    tag: "${widget.tagPrefix}_subalbum",
-                    hasVerifiedLock: widget.hasVerifiedLock,
-                    selectedAlbums: _selectedAlbums,
-                    onTapCallback: (c) => _navigateToSubAlbum(c),
-                    onLongPressCallback: (c) => _selectedAlbums.toggleSelection(c),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-
-        // Show count indicator if there are more albums
-        if (hasMoreAlbums)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Text(
-              '${subAlbums.length} albums total',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
-                  ),
-            ),
-          ),
-
-        // Bottom spacing
-        const SizedBox(height: 8),
-      ],
-    );
-  }
 
   void _navigateToSubAlbum(Collection collection) async {
     final thumbnail = await CollectionsService.instance.getCover(collection);
@@ -450,7 +464,7 @@ class _CollectionPageState extends State<CollectionPage> {
     for (final album in subAlbums) {
       _logger.info('  - Subalbum: ${album.displayName} (id: ${album.id})');
     }
-    
+
     // Navigate to CollectionListPage showing only the subalbums (like "On ente" does)
     await routeToPage(
       context,
@@ -460,9 +474,9 @@ class _CollectionPageState extends State<CollectionPage> {
         appTitle: SectionTitle(
           title: '${widget.c.collection.displayName} Albums',
         ),
-        disableHierarchicalFiltering: true, // Don't filter subalbums as root albums
+        disableHierarchicalFiltering:
+            true, // Don't filter subalbums as root albums
       ),
     );
   }
-
 }

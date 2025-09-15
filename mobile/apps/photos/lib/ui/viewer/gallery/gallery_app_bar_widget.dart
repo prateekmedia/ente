@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import "package:flutter/cupertino.dart";
 import "package:flutter/foundation.dart";
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ import "package:photos/l10n/l10n.dart";
 import 'package:photos/models/backup_status.dart';
 import "package:photos/models/button_result.dart";
 import 'package:photos/models/collection/collection.dart';
+import 'package:photos/models/collection/collection_items.dart';
 import 'package:photos/models/device_collection.dart';
 import "package:photos/models/file/file.dart";
 import 'package:photos/models/gallery_type.dart';
@@ -52,6 +54,7 @@ import "package:photos/ui/sharing/manage_links_widget.dart";
 import 'package:photos/ui/sharing/share_collection_page.dart';
 import 'package:photos/ui/tools/free_space_page.dart';
 import "package:photos/ui/viewer/file/detail_page.dart";
+import "package:photos/ui/viewer/gallery/collection_page.dart";
 import "package:photos/ui/viewer/gallery/hooks/add_photos_sheet.dart";
 import 'package:photos/ui/viewer/gallery/hooks/pick_cover_photo.dart';
 import "package:photos/ui/viewer/gallery/state/inherited_search_filter_data.dart";
@@ -112,6 +115,8 @@ enum AlbumPopupAction {
   editLocation,
   deleteLocation,
   galleryGuestView,
+  createSubAlbum,
+  moveToParent,
 }
 
 class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
@@ -616,6 +621,24 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
               ? Icons.download
               : Icons.cloud_download_outlined,
         ),
+      // Nested Albums - Create Sub-Album
+      if (galleryType == GalleryType.ownedCollection && 
+          widget.collection != null &&
+          flagService.isNestedAlbumsEnabled)
+        EntePopupMenuItem(
+          "Create sub-album",
+          value: AlbumPopupAction.createSubAlbum,
+          icon: Icons.create_new_folder_outlined,
+        ),
+      // Nested Albums - Move to Parent
+      if (galleryType == GalleryType.ownedCollection && 
+          widget.collection != null &&
+          flagService.isNestedAlbumsEnabled)
+        EntePopupMenuItem(
+          "Move to parent album",
+          value: AlbumPopupAction.moveToParent,
+          icon: Icons.drive_file_move_outlined,
+        ),
       // Gallery Guest View option - Internal user only
       if (flagService.albumGuestView && widget.collection != null)
         EntePopupMenuItem(
@@ -708,6 +731,10 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
           } else if (value == AlbumPopupAction.galleryGuestView &&
               flagService.albumGuestView) {
             await _onGalleryGuestViewClick();
+          } else if (value == AlbumPopupAction.createSubAlbum) {
+            await _createSubAlbum(context);
+          } else if (value == AlbumPopupAction.moveToParent) {
+            await _moveToParentAlbum(context);
           } else {
             showToast(context, AppLocalizations.of(context).somethingWentWrong);
           }
@@ -1164,6 +1191,123 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
         AppLocalizations.of(context).noSystemLockFound,
         AppLocalizations.of(context).guestViewEnablePreSteps,
       );
+    }
+  }
+
+  Future<void> _createSubAlbum(BuildContext context) async {
+    if (widget.collection == null) return;
+    
+    final TextEditingController textEditingController = TextEditingController();
+    await showTextInputDialog(
+      context,
+      title: "Create sub-album",
+      body: "Enter a name for the sub-album under '${widget.collection!.displayName}'",
+      submitButtonLabel: "Create",
+      textEditingController: textEditingController,
+      alwaysShowSuccessState: false,
+      onSubmit: (String albumName) async {
+        if (albumName.trim().isEmpty) {
+          showToast(context, "Please enter a valid name");
+          return;
+        }
+        
+        try {
+          final newSubAlbum = await CollectionsService.instance.createSubAlbum(
+            albumName.trim(),
+            widget.collection!,
+          );
+          
+          showToast(context, "Sub-album created successfully");
+          
+          // Navigate to the new sub-album
+          final page = CollectionPage(
+            CollectionWithThumbnail(newSubAlbum, null),
+          );
+          await routeToPage(context, page);
+        } catch (e) {
+          _logger.severe("Failed to create sub-album", e);
+          await showGenericErrorDialog(context: context, error: e);
+        }
+      },
+    );
+  }
+
+  Future<void> _moveToParentAlbum(BuildContext context) async {
+    if (widget.collection == null) return;
+    
+    // Get all collections to show as potential parents
+    final collections = CollectionsService.instance.getCollectionsForUI();
+    final ownedCollections = collections
+        .where(
+          (c) => 
+          c.owner.id == Configuration.instance.getUserID() &&
+          c.id != widget.collection!.id &&
+          c.type == CollectionType.album,
+        )
+        .toList();
+    
+    if (ownedCollections.isEmpty) {
+      showToast(context, "No albums available to move to");
+      return;
+    }
+    
+    // Show dialog to select parent album
+    final selectedParent = await showDialog<Collection?>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Select parent album"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text("No parent (root level)"),
+                  onTap: () => Navigator.of(context).pop(null),
+                ),
+                const Divider(),
+                ...ownedCollections.map(
+                  (collection) => ListTile(
+                    title: Text(collection.displayName),
+                    subtitle: collection.parentID != null 
+                        ? Text("Sub-album of ${collections.firstWhereOrNull((c) => c.id == collection.parentID)?.displayName ?? 'Unknown'}")
+                        : null,
+                    onTap: () => Navigator.of(context).pop(collection),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+    
+    if (selectedParent != null || selectedParent == null && widget.collection!.parentID != null) {
+      try {
+        await CollectionsService.instance.moveCollectionToParent(
+          widget.collection!,
+          selectedParent,
+        );
+        
+        final message = selectedParent != null 
+            ? "Moved to '${selectedParent.displayName}'"
+            : "Moved to root level";
+        showToast(context, message);
+        
+        // Refresh the UI
+        if (mounted) {
+          setState(() {});
+        }
+      } catch (e) {
+        _logger.severe("Failed to move collection", e);
+        await showGenericErrorDialog(context: context, error: e);
+      }
     }
   }
 }

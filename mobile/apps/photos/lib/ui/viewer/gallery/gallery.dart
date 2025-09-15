@@ -475,14 +475,19 @@ class GalleryState extends State<Gallery> {
       );
 
       /// To curate filters when a gallery is first opened.
-      if (!result.hasMore) {
+      if (!result.hasMore && mounted) {
         final searchFilterDataProvider =
             InheritedSearchFilterData.maybeOf(context)
                 ?.searchFilterDataProvider;
         if (searchFilterDataProvider != null &&
             !searchFilterDataProvider.isSearchingNotifier.value) {
+          // Capture context values before async operation
+          final capturedContext = context;
           unawaited(
-            curateFilters(searchFilterDataProvider, result.files, context),
+            curateFilters(searchFilterDataProvider, result.files, capturedContext)
+                .catchError((e, s) {
+              _logger.severe("Failed to curate filters", e, s);
+            }),
           );
         }
       }

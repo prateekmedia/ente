@@ -11,7 +11,6 @@ import 'package:photos/models/collection/collection_items.dart';
 import "package:photos/models/selected_albums.dart";
 import "package:photos/service_locator.dart";
 import "package:photos/services/collections_service.dart";
-import "package:photos/services/feature_flags_service.dart";
 import "package:photos/theme/ente_theme.dart";
 import "package:photos/ui/collections/flex_grid_view.dart";
 import "package:photos/ui/components/buttons/icon_button_widget.dart";
@@ -136,7 +135,7 @@ class _CollectionListPageState extends State<CollectionListPage> {
             AlbumSelectionOverlayBar(
               _selectedAlbum,
               widget.sectionType,
-              displayCollections ?? [],
+              displayCollections,
               showSelectAllButton: true,
             ),
           ],
@@ -156,7 +155,7 @@ class _CollectionListPageState extends State<CollectionListPage> {
     // Check if hierarchical view should be used
     final bool useHierarchicalView =
         (localSettings.isNestedViewEnabled ?? false) &&
-            FeatureFlagsService().isNestedCollectionsEnabled() &&
+            flagService.isNestedAlbumsEnabled &&
             widget.sectionType == UISectionType.homeCollections;
 
     if (!useHierarchicalView) {
@@ -175,10 +174,10 @@ class _CollectionListPageState extends State<CollectionListPage> {
     final rootCollections = allCollections
         .where((collection) => collection.parentID == null)
         .toList();
-    
+
     // Sort alphabetically
     rootCollections.sort((a, b) => a.displayName.compareTo(b.displayName));
-    
+
     return rootCollections;
   }
 

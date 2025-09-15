@@ -45,6 +45,7 @@ class LocalSettings {
   static const kCollectionSortDirection = "collection_sort_direction";
   static const kShowLocalIDOverThumbnails = "show_local_id_over_thumbnails";
   static const kEnableDatabaseLogging = "enable_db_logging";
+  static const kIsNestedViewEnabled = "is_nested_view_enabled";
 
   // Thumbnail queue configuration keys
   static const kSmallQueueMaxConcurrent = "small_queue_max_concurrent";
@@ -173,6 +174,13 @@ class LocalSettings {
 
   Future<bool> setUserEnabledMultiplePart(bool value) async {
     await _prefs.setBool(kEnableMultiplePart, value);
+    return value;
+  }
+
+  bool? get isNestedViewEnabled => _prefs.getBool(kIsNestedViewEnabled);
+
+  Future<bool> setIsNestedViewEnabled(bool value) async {
+    await _prefs.setBool(kIsNestedViewEnabled, value);
     return value;
   }
 
