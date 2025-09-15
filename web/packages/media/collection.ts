@@ -117,6 +117,26 @@ export interface Collection {
 }
 
 /**
+ * Convenience getter for the parent ID from public magic metadata.
+ * 
+ * @param collection - The collection to get parent ID from
+ * @returns The parent collection ID if set, undefined otherwise
+ */
+export const getCollectionParentID = (collection: Collection): number | undefined => {
+    return collection.pubMagicMetadata?.data.parentID;
+};
+
+/**
+ * Convenience getter for the hierarchy path from public magic metadata.
+ * 
+ * @param collection - The collection to get hierarchy path from
+ * @returns The hierarchy path if set, undefined otherwise
+ */
+export const getCollectionHierarchyPath = (collection: Collection): string | undefined => {
+    return collection.pubMagicMetadata?.data.hierarchyPath;
+};
+
+/**
  * The known set of values for the {@link type} field of a {@link Collection}.
  *
  * This is the list of values, see {@link CollectionType} for the corresponding
@@ -675,6 +695,25 @@ export interface CollectionPublicMagicMetadataData {
      * To reset to the default cover, set this to 0.
      */
     coverID?: number;
+    /**
+     * The ID of the parent collection for nested collections.
+     * 
+     * This is set for collections that are nested within other collections.
+     * Root-level collections have this set to undefined.
+     * 
+     * Note: This is stored in public magic metadata to avoid server-side changes.
+     */
+    parentID?: number;
+    /**
+     * The hierarchy path for nested collections.
+     * 
+     * This is a string representation of the collection's position in the hierarchy,
+     * used for efficient querying and display of nested structures.
+     * Format: "rootID/parentID/collectionID" for deeply nested collections.
+     * 
+     * Note: This is stored in public magic metadata to avoid server-side changes.
+     */
+    hierarchyPath?: string;
 }
 
 /**
@@ -683,6 +722,8 @@ export interface CollectionPublicMagicMetadataData {
 export const CollectionPublicMagicMetadataData = z.looseObject({
     asc: z.boolean().nullish().transform(nullToUndefined),
     coverID: z.number().nullish().transform(nullToUndefined),
+    parentID: z.number().nullish().transform(nullToUndefined),
+    hierarchyPath: z.string().nullish().transform(nullToUndefined),
 });
 
 /**

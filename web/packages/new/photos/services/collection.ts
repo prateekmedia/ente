@@ -1037,6 +1037,25 @@ export const updateCollectionSortOrder = async (
 ) => updateCollectionPublicMagicMetadata(collection, { asc });
 
 /**
+ * Update the hierarchy information of a collection on remote.
+ *
+ * Remote only, does not modify local state.
+ *
+ * This function works only for collections owned by the user.
+ *
+ * @param collection The collection whose hierarchy we want to update.
+ *
+ * @param parentID The new parent collection ID (undefined for root level).
+ *
+ * @param hierarchyPath The new hierarchy path (optional, will be computed if not provided).
+ */
+export const updateCollectionHierarchy = async (
+    collection: Collection,
+    parentID: number | undefined,
+    hierarchyPath?: string,
+) => updateCollectionPublicMagicMetadata(collection, { parentID, hierarchyPath });
+
+/**
  * Update the private magic metadata of a collection on remote.
  *
  * Remote only, does not modify local state.
