@@ -101,6 +101,9 @@ class _BodyState extends State<_Body> {
   Timer? _externalDisplayUpdateTimer;
   final Map<int, bool> _fileLoadStates = {}; // Track file load states
 
+  // Page change debouncer for rapid switching
+  Timer? _pageChangeDebouncer;
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +111,10 @@ class _BodyState extends State<_Body> {
 
     _selectedIndexNotifier.value = widget.config.selectedIndex;
     _pageController = PageController(initialPage: _selectedIndexNotifier.value);
+
+    // Add listener for reliable page change detection
+    _selectedIndexNotifier.addListener(_onPageIndexChanged);
+
     _guestViewEventSubscription =
         Bus.instance.on<GuestViewEvent>().listen((event) {
       setState(() {
@@ -121,6 +128,8 @@ class _BodyState extends State<_Body> {
   void dispose() {
     _guestViewEventSubscription.cancel();
     _externalDisplayUpdateTimer?.cancel();
+    _pageChangeDebouncer?.cancel();
+    _selectedIndexNotifier.removeListener(_onPageIndexChanged);
     _pageController.dispose();
     _selectedIndexNotifier.dispose();
     super.dispose();
@@ -136,6 +145,38 @@ class _BodyState extends State<_Body> {
         SystemUiMode.edgeToEdge,
       ),
     );
+  }
+
+  void _onPageIndexChanged() {
+    if (_files == null || _files!.isEmpty) return;
+
+    final currentIndex = _selectedIndexNotifier.value;
+    if (currentIndex < 0 || currentIndex >= _files!.length) return;
+
+    final currentFile = _files![currentIndex];
+
+    _logger.info(
+      "Page changed to index $currentIndex: ${currentFile.displayName} "
+          "(${currentIndex + 1}/${_files!.length})",
+    );
+
+    _onMediaPageChanged(currentIndex, currentFile);
+
+    _pageChangeDebouncer?.cancel();
+    _pageChangeDebouncer = Timer(const Duration(milliseconds: 150), () {
+      if (mounted && _selectedIndexNotifier.value == currentIndex) {
+        _handlePageChangeSettled(currentIndex, currentFile);
+      }
+    });
+  }
+
+  void _onMediaPageChanged(int index, EnteFile file) {
+    // Replace this with your actual page change hook function
+  }
+
+  void _handlePageChangeSettled(int index, EnteFile file) {
+    _fileLoadStates[index] = false;
+    _updateExternalDisplayForCurrentFile();
   }
 
   @override
@@ -297,13 +338,6 @@ class _BodyState extends State<_Body> {
                   .toggleFullScreen(shouldEnable: isPlaying);
             });
           },
-          onFileLoaded: () {
-            // Mark this file as fully loaded and trigger external display update
-            _fileLoadStates[index] = true;
-            if (index == _selectedIndexNotifier.value) {
-              _scheduleExternalDisplayUpdate();
-            }
-          },
           backgroundDecoration: const BoxDecoration(color: Colors.black),
         );
         return GestureDetector(
@@ -328,9 +362,6 @@ class _BodyState extends State<_Body> {
           _selectedIndexNotifier.value = index;
         }
         Bus.instance.fire(GuestViewEvent(isGuestView, swipeLocked));
-        // Clear load state for the new page so we wait for it to load
-        _fileLoadStates[index] = false;
-        _scheduleExternalDisplayUpdate();
       },
       physics: _shouldDisableScroll || swipeLocked
           ? const NeverScrollableScrollPhysics()
@@ -348,24 +379,13 @@ class _BodyState extends State<_Body> {
     return false;
   }
 
-  void _scheduleExternalDisplayUpdate() {
-    // Cancel any pending update to prevent rapid-fire updates during quick scrolling
-    _externalDisplayUpdateTimer?.cancel();
-
-    // Use 150ms debouncer as requested
-    _externalDisplayUpdateTimer = Timer(const Duration(milliseconds: 50), () {
-      if (mounted) {
-        _updateExternalDisplayForCurrentFile();
-      }
-    });
-  }
 
   void _updateExternalDisplayForCurrentFile() {
     // Early return if external display feature is not enabled
     if (!featureFlagService.isExternalDisplayEnabled) {
       return;
     }
-    
+
     if (_files == null || _files!.isEmpty) return;
 
     final currentIndex = _selectedIndexNotifier.value;
@@ -391,7 +411,8 @@ class _BodyState extends State<_Body> {
     // If the file is not fully loaded yet, schedule another update
     if (_fileLoadStates[currentIndex] != true) {
       _logger.info(
-          'File at index $currentIndex not fully loaded yet, will retry...',);
+        'File at index $currentIndex not fully loaded yet, will retry...',
+      );
 
       // Schedule another update when the file is likely to be loaded
       Future.delayed(const Duration(milliseconds: 300), () {
