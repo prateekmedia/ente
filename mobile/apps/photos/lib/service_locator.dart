@@ -19,6 +19,7 @@ import "package:photos/services/smart_albums_service.dart";
 import "package:photos/services/smart_memories_service.dart";
 import "package:photos/services/storage_bonus_service.dart";
 import "package:photos/services/sync/trash_sync_service.dart";
+import "package:photos/services/feature_flag_service.dart";
 import "package:photos/services/text_embeddings_cache_service.dart";
 import "package:photos/services/update_service.dart";
 import "package:photos/utils/local_settings.dart";
@@ -56,6 +57,13 @@ FlagService get flagService {
     ServiceLocator.instance.enteDio,
   );
   return _flagService!;
+}
+
+FeatureFlagService? _featureFlagService;
+
+FeatureFlagService get featureFlagService {
+  _featureFlagService ??= FeatureFlagService.instance;
+  return _featureFlagService!;
 }
 
 CastService? _castService;

@@ -11,10 +11,12 @@ import "package:photos/models/file/extensions/file_props.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/models/preview/playlist_data.dart";
 import "package:photos/service_locator.dart";
+import "package:photos/services/airplay_service.dart";
 import "package:photos/services/video_preview_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/ui/common/loading_widget.dart";
 import "package:photos/ui/notification/toast.dart";
+import "package:photos/ui/viewer/file/airplay_video_widget.dart";
 import "package:photos/ui/viewer/file/video_widget_media_kit.dart";
 import "package:photos/ui/viewer/file/video_widget_native.dart";
 import "package:photos/utils/standalone/data.dart";
@@ -63,6 +65,13 @@ class _VideoWidgetState extends State<VideoWidget> {
         useNativeVideoPlayer = false;
       });
     });
+    
+    // Enable AirPlay for videos when feature flag is enabled
+    if (featureFlagService.isAirplaySupported && AirPlayService.instance.isSupported) {
+      useAirPlay = true;
+      _logger.info("AirPlay enabled for video playback");
+    }
+    
     if (widget.file.isUploaded) {
       isPreviewLoadable =
           fileDataService.previewIds.containsKey(widget.file.uploadedFileID);
@@ -144,6 +153,16 @@ class _VideoWidgetState extends State<VideoWidget> {
             padding: 0,
           ),
         ),
+      );
+    }
+
+    // Use AirPlay widget when AirPlay is enabled
+    if (useAirPlay) {
+      return AirPlayVideoWidget(
+        widget.file,
+        key: airPlayKey,
+        tagPrefix: widget.tagPrefix,
+        playbackCallback: widget.playbackCallback,
       );
     }
 
