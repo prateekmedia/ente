@@ -6,8 +6,10 @@ import "package:photos/generated/l10n.dart";
 import "package:photos/models/collection/collection.dart";
 import "package:photos/models/metadata/common_keys.dart";
 import "package:photos/models/selected_albums.dart";
+import "package:photos/service_locator.dart";
 import "package:photos/services/collections_service.dart";
 import "package:photos/ui/actions/collection/collection_sharing_actions.dart";
+import "package:photos/ui/collections/album_hierarchy_picker.dart";
 import "package:photos/ui/collections/collection_list_page.dart";
 import "package:photos/ui/components/action_sheet_widget.dart";
 import "package:photos/ui/components/bottom_action_bar/selection_action_button_widget.dart";
@@ -105,6 +107,18 @@ class _AlbumSelectionActionWidgetState
           onTap: _onHideClick,
         ),
       );
+      
+      // Add move action for nested albums
+      if (flagService.isNestedAlbumsEnabled && 
+          widget.selectedAlbums.albums.length == 1) {
+        items.add(
+          SelectionActionButton(
+            labelText: "Move",
+            icon: Icons.drive_file_move_outlined,
+            onTap: _moveCollection,
+          ),
+        );
+      }
     }
 
     items.add(
@@ -353,6 +367,72 @@ class _AlbumSelectionActionWidgetState
         Navigator.of(context).pop();
       }
     }
+  }
+
+  Future<void> _moveCollection() async {
+    final collection = widget.selectedAlbums.albums.first;
+    
+    // Can't move favorites or system collections
+    if (collection.type == CollectionType.favorites) {
+      _showFavToast();
+      return;
+    }
+    
+    // Get current parent if any
+    Collection? currentParent;
+    if (collection.parentID != null) {
+      try {
+        currentParent = CollectionsService.instance
+            .getCollectionByID(collection.parentID!);
+      } catch (e) {
+        _logger.warning("Could not find current parent", e);
+      }
+    }
+    
+    // Show hierarchy picker
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AlbumHierarchyPicker(
+          collectionToMove: collection,
+          currentParent: currentParent,
+          onDestinationSelected: (destination) async {
+            // Show progress dialog
+            final dialog = createProgressDialog(
+              context,
+              destination == null 
+                  ? "Moving to root level..."
+                  : "Moving to ${destination.displayName}...",
+            );
+            await dialog.show();
+            
+            try {
+              await CollectionsService.instance.moveCollectionToParent(
+                collection,
+                destination,
+              );
+              
+              await dialog.hide();
+              
+              showShortToast(
+                context,
+                destination == null
+                    ? "Moved to root level"
+                    : "Moved to ${destination.displayName}",
+              );
+              
+              widget.selectedAlbums.clearAll();
+            } catch (e, s) {
+              _logger.severe("Failed to move collection", e, s);
+              await dialog.hide();
+              await showGenericErrorDialog(
+                context: context,
+                error: e,
+              );
+            }
+          },
+        ),
+      ),
+    );
   }
 
   void _selectionChangedListener() {
