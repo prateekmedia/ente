@@ -73,6 +73,12 @@ class Collection {
     return decryptedName ?? name ?? "Unnamed Album";
   }
 
+  /// Get the parent collection ID from public magic metadata
+  int? get parentID => pubMagicMetadata.parentID;
+
+  /// Get the hierarchy path from public magic metadata
+  String? get hierarchyPath => pubMagicMetadata.hierarchyPath;
+
   // set the value for both name and decryptedName till we finish migration
   void setName(String newName) {
     // ignore: deprecated_member_use_from_same_package

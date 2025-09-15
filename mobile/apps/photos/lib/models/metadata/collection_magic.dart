@@ -66,12 +66,24 @@ class CollectionPubMagicMetadata {
   // cover photo id for the collection
   int? coverID;
 
-  CollectionPubMagicMetadata({this.asc, this.coverID});
+  // parent collection id for nested collections
+  int? parentID;
+
+  // hierarchy path for nested collections
+  String? hierarchyPath;
+
+  CollectionPubMagicMetadata({this.asc, this.coverID, this.parentID, this.hierarchyPath});
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> result = {"asc": asc ?? false};
     if (coverID != null) {
       result["coverID"] = coverID!;
+    }
+    if (parentID != null) {
+      result["parentID"] = parentID!;
+    }
+    if (hierarchyPath != null) {
+      result["hierarchyPath"] = hierarchyPath!;
     }
     return result;
   }
@@ -87,6 +99,8 @@ class CollectionPubMagicMetadata {
     return CollectionPubMagicMetadata(
       asc: map["asc"] as bool?,
       coverID: map["coverID"],
+      parentID: map["parentID"],
+      hierarchyPath: map["hierarchyPath"],
     );
   }
 }

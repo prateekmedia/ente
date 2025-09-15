@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import "package:photos/core/configuration.dart";
@@ -8,11 +9,14 @@ import "package:photos/events/album_sort_order_change_event.dart";
 import 'package:photos/events/collection_updated_event.dart';
 import "package:photos/events/favorites_service_init_complete_event.dart";
 import 'package:photos/events/local_photos_updated_event.dart';
+import "package:photos/events/nested_collections_setting_event.dart";
 import 'package:photos/events/user_logged_out_event.dart';
 import "package:photos/generated/l10n.dart";
 import 'package:photos/models/collection/collection.dart';
 import "package:photos/models/selected_albums.dart";
+import "package:photos/service_locator.dart";
 import 'package:photos/services/collections_service.dart';
+import "package:photos/services/feature_flags_service.dart";
 import "package:photos/theme/ente_theme.dart";
 import "package:photos/ui/collections/button/archived_button.dart";
 import "package:photos/ui/collections/button/hidden_button.dart";
@@ -50,6 +54,8 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
   late StreamSubscription<FavoritesServiceInitCompleteEvent>
       _favoritesServiceInitCompleteEvent;
   late StreamSubscription<AlbumSortOrderChangeEvent> _albumSortOrderChangeEvent;
+  late StreamSubscription<NestedCollectionsSettingChangedEvent>
+      _nestedSettingSubscription;
 
   String _loadReason = "init";
   final _scrollController = ScrollController();
@@ -95,6 +101,11 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
     _albumSortOrderChangeEvent =
         Bus.instance.on<AlbumSortOrderChangeEvent>().listen((event) {
       _loadReason = event.reason;
+      setState(() {});
+    });
+    _nestedSettingSubscription =
+        Bus.instance.on<NestedCollectionsSettingChangedEvent>().listen((event) {
+      _loadReason = "nested_setting_changed";
       setState(() {});
     });
   }
@@ -166,6 +177,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
             SliverToBoxAdapter(
               child: SectionOptions(
                 onTap: () {
+                  // Always navigate to CollectionListPage but let it handle hierarchical view internally
                   unawaited(
                     routeToPage(
                       context,
@@ -189,14 +201,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
             ),
             SliverToBoxAdapter(child: DeleteEmptyAlbums(collections)),
             Configuration.instance.hasConfiguredAccount()
-                ? CollectionsFlexiGridViewWidget(
-                    collections,
-                    displayLimitCount: _kOnEnteItemLimitCount,
-                    selectedAlbums: widget.selectedAlbums,
-                    shrinkWrap: true,
-                    shouldShowCreateAlbum: true,
-                    enableSelectionMode: true,
-                  )
+                ? _getCollectionViewWidget(collections)
                 : const SliverToBoxAdapter(child: EmptyState()),
             SliverToBoxAdapter(
               child: Divider(
@@ -220,6 +225,152 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                 ),
               ),
             ),
+            // Debug info sliver moved to end
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '🔧 DEBUG: Nested Collections Status',
+                      style:
+                          TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'Local enabled: ${localSettings.isNestedViewEnabled ?? false} | '
+                      'Server enabled: ${FeatureFlagsService().isNestedCollectionsEnabled()} | '
+                      'Using hierarchical: ${(localSettings.isNestedViewEnabled ?? false) && FeatureFlagsService().isNestedCollectionsEnabled()}',
+                      style: const TextStyle(fontSize: 9),
+                    ),
+                    Text(
+                      'Collections: ${collections.length} | With parents: ${collections.where((c) => c.parentID != null).length}',
+                      style: const TextStyle(fontSize: 9),
+                    ),
+                    if (collections
+                        .where((c) => c.parentID != null)
+                        .isNotEmpty) ...[
+                      Text(
+                        'Parent-child pairs: ${collections.where((c) => c.parentID != null).map((c) => '${c.displayName}→${c.parentID}').take(2).join(', ')}',
+                        style: const TextStyle(fontSize: 8),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            try {
+                              final service = FeatureFlagsService();
+                              service.init();
+                              await service.fetchFeatureFlags();
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '🔧 Feature flags refreshed: ${service.getAllFlags()}',
+                                  ),
+                                ),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('🔧 Error fetching flags: $e'),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              '🔄 FETCH FLAGS',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () async {
+                            try {
+                              // Call debug endpoint to see server feature flags
+                              final dio = Dio();
+                              dio.options.baseUrl =
+                                  Configuration.instance.getHttpEndpoint();
+                              final response = await dio.get('/debug/feature-flags');
+                              final debugInfo = response.data;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('🔧 Feature flags: $debugInfo'),
+                                  duration: const Duration(seconds: 10),
+                                ),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('🔧 Debug error: $e')),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              '🔍 FLAGS',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () async {
+                            await CollectionsService.instance.sync();
+                            setState(() {});
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('🔧 Collections refreshed'),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              '🔄 SYNC',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             SliverToBoxAdapter(
               child:
                   SizedBox(height: 64 + MediaQuery.paddingOf(context).bottom),
@@ -236,6 +387,42 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
     );
   }
 
+  Widget _getCollectionViewWidget(List<Collection> collections) {
+    // Check if nested view is enabled for hierarchical display
+    final bool showHierarchy = (localSettings.isNestedViewEnabled ?? false) &&
+        FeatureFlagsService().isNestedCollectionsEnabled();
+
+    // Filter collections based on hierarchy navigation
+    final List<Collection> displayCollections = showHierarchy
+        ? _getCollectionsForCurrentLevel(collections)
+        : collections;
+
+    // Always use the same UI component
+    return CollectionsFlexiGridViewWidget(
+      displayCollections,
+      displayLimitCount: _kOnEnteItemLimitCount,
+      selectedAlbums: widget.selectedAlbums,
+      shrinkWrap: true,
+      shouldShowCreateAlbum: true,
+      enableSelectionMode: true,
+    );
+  }
+
+  /// Get collections to display at current hierarchy level
+  /// Only shows root collections or children of current parent
+  List<Collection> _getCollectionsForCurrentLevel(
+    List<Collection> collections,
+  ) {
+    // For now, just show root collections (parentID == null)
+    // This can be enhanced later with navigation state tracking
+    final rootCollections = collections
+        .where((c) => c.parentID == null)
+        .toList()
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+
+    return rootCollections;
+  }
+
   @override
   void dispose() {
     _localFilesSubscription.cancel();
@@ -245,6 +432,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
     _scrollController.dispose();
     _debouncer.cancelDebounceTimer();
     _albumSortOrderChangeEvent.cancel();
+    _nestedSettingSubscription.cancel();
     super.dispose();
   }
 

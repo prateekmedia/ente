@@ -11,6 +11,7 @@ import 'package:photos/models/collection/collection_items.dart';
 import "package:photos/models/selected_albums.dart";
 import "package:photos/service_locator.dart";
 import "package:photos/services/collections_service.dart";
+import "package:photos/services/feature_flags_service.dart";
 import "package:photos/theme/ente_theme.dart";
 import "package:photos/ui/collections/flex_grid_view.dart";
 import "package:photos/ui/components/buttons/icon_button_widget.dart";
@@ -30,6 +31,7 @@ class CollectionListPage extends StatefulWidget {
   final double? initialScrollOffset;
   final String tag;
   final UISectionType sectionType;
+  final bool disableHierarchicalFiltering;
 
   const CollectionListPage(
     this.collections, {
@@ -37,6 +39,7 @@ class CollectionListPage extends StatefulWidget {
     this.appTitle,
     this.initialScrollOffset,
     this.tag = "",
+    this.disableHierarchicalFiltering = false,
     super.key,
   });
 
@@ -80,7 +83,9 @@ class _CollectionListPageState extends State<CollectionListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final displayLimitCount = (collections?.length ?? 0) +
+    // Filter collections for hierarchical display if enabled
+    final displayCollections = _getDisplayCollections();
+    final displayLimitCount = (displayCollections?.length ?? 0) +
         (widget.tag.isEmpty && _searchQuery.isEmpty ? 1 : 0);
     final bool enableSelectionMode =
         widget.sectionType == UISectionType.homeCollections ||
@@ -114,11 +119,11 @@ class _CollectionListPageState extends State<CollectionListPage> {
                       refreshCollections();
                     },
                     actions: [
-                      _sortMenu(collections!),
+                      _sortMenu(displayCollections!),
                     ],
                   ),
                   CollectionsFlexiGridViewWidget(
-                    collections,
+                    displayCollections,
                     displayLimitCount: displayLimitCount,
                     tag: widget.tag,
                     enableSelectionMode: enableSelectionMode,
@@ -131,13 +136,50 @@ class _CollectionListPageState extends State<CollectionListPage> {
             AlbumSelectionOverlayBar(
               _selectedAlbum,
               widget.sectionType,
-              collections!,
+              displayCollections ?? [],
               showSelectAllButton: true,
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<Collection>? _getDisplayCollections() {
+    if (collections == null) return null;
+
+    // Don't apply hierarchical filtering if explicitly disabled (e.g., for subalbums)
+    if (widget.disableHierarchicalFiltering) {
+      return collections;
+    }
+
+    // Check if hierarchical view should be used
+    final bool useHierarchicalView =
+        (localSettings.isNestedViewEnabled ?? false) &&
+            FeatureFlagsService().isNestedCollectionsEnabled() &&
+            widget.sectionType == UISectionType.homeCollections;
+
+    if (!useHierarchicalView) {
+      return collections; // Return original flat collections
+    }
+
+    // Show hierarchical structure (similar to app_ss_3.png)
+    return _buildHierarchicalCollectionsList(collections!);
+  }
+
+  List<Collection> _buildHierarchicalCollectionsList(
+    List<Collection> allCollections,
+  ) {
+    // When hierarchical view is enabled, show ONLY root-level albums
+    // Users can navigate into parents to see children (cleaner hierarchy)
+    final rootCollections = allCollections
+        .where((collection) => collection.parentID == null)
+        .toList();
+    
+    // Sort alphabetically
+    rootCollections.sort((a, b) => a.displayName.compareTo(b.displayName));
+    
+    return rootCollections;
   }
 
   Widget _sortMenu(List<Collection> collections) {
