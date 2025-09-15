@@ -33,8 +33,8 @@ class VideoRemoteControl extends StatefulWidget {
 
 class _VideoRemoteControlState extends State<VideoRemoteControl> {
   final _logger = Logger('VideoRemoteControl');
-  late final ExternalDisplayService _externalDisplayService;
-  late StreamSubscription<VideoPlayerState> _videoStateSubscription;
+  ExternalDisplayService? _externalDisplayService;
+  StreamSubscription<VideoPlayerState>? _videoStateSubscription;
 
   VideoPlayerState? _currentState;
   Duration _currentPosition = Duration.zero;
@@ -45,9 +45,13 @@ class _VideoRemoteControlState extends State<VideoRemoteControl> {
   @override
   void initState() {
     super.initState();
-    _externalDisplayService = externalDisplayService;
-    _setupVideoStateListener();
-    _initializeState();
+    
+    // Only initialize if external display feature is enabled
+    if (featureFlagService.isExternalDisplayEnabled) {
+      _externalDisplayService = externalDisplayService;
+      _setupVideoStateListener();
+      _initializeState();
+    }
   }
 
   void _setupVideoStateListener() {
@@ -101,16 +105,18 @@ class _VideoRemoteControlState extends State<VideoRemoteControl> {
 
   @override
   void dispose() {
-    _videoStateSubscription.cancel();
+    _videoStateSubscription?.cancel();
     super.dispose();
   }
 
   void _onPlayPause() async {
+    if (_externalDisplayService == null) return;
+    
     try {
       if (_isPlaying) {
-        await _externalDisplayService.pauseVideo();
+        await _externalDisplayService!.pauseVideo();
       } else {
-        await _externalDisplayService.resumeVideo();
+        await _externalDisplayService!.resumeVideo();
       }
     } catch (e, s) {
       _logger.severe('Failed to toggle play/pause', e, s);
@@ -118,14 +124,14 @@ class _VideoRemoteControlState extends State<VideoRemoteControl> {
   }
 
   void _onSeek(double value) async {
-    if (!_isSeeking) return;
+    if (!_isSeeking || _externalDisplayService == null) return;
 
     final position = Duration(
       milliseconds: (value * _totalDuration.inMilliseconds).round(),
     );
 
     try {
-      await _externalDisplayService.seekVideo(position);
+      await _externalDisplayService!.seekVideo(position);
     } catch (e, s) {
       _logger.severe('Failed to seek video', e, s);
     }
@@ -147,8 +153,8 @@ class _VideoRemoteControlState extends State<VideoRemoteControl> {
 
     // Small delay to allow the external player to update its state
     Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted && _externalDisplayService.currentVideoState != null) {
-        final externalState = _externalDisplayService.currentVideoState!;
+      if (mounted && _externalDisplayService?.currentVideoState != null) {
+        final externalState = _externalDisplayService!.currentVideoState!;
         if (mounted) {
           setState(() {
             _currentPosition = externalState.position;
@@ -174,6 +180,11 @@ class _VideoRemoteControlState extends State<VideoRemoteControl> {
 
   @override
   Widget build(BuildContext context) {
+    // Return empty widget if external display feature is not enabled
+    if (!featureFlagService.isExternalDisplayEnabled) {
+      return const SizedBox.shrink();
+    }
+    
     final textTheme = getEnteTextTheme(context);
 
     return Scaffold(

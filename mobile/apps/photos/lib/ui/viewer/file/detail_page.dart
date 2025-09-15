@@ -361,6 +361,11 @@ class _BodyState extends State<_Body> {
   }
 
   void _updateExternalDisplayForCurrentFile() {
+    // Early return if external display feature is not enabled
+    if (!featureFlagService.isExternalDisplayEnabled) {
+      return;
+    }
+    
     if (_files == null || _files!.isEmpty) return;
 
     final currentIndex = _selectedIndexNotifier.value;

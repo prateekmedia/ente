@@ -48,6 +48,11 @@ class _FileWidgetState extends State<FileWidget> {
   }
 
   void _displayOnExternalScreen() {
+    // Early return if external display feature is not enabled
+    if (!featureFlagService.isExternalDisplayEnabled) {
+      return;
+    }
+    
     final externalDisplay = externalDisplayService;
     if (!externalDisplay.isSupported || !externalDisplay.isConnected) {
       return;

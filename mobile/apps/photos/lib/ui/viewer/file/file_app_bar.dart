@@ -372,8 +372,8 @@ class FileAppBarState extends State<FileAppBar> {
     final newLoopState = !shouldLoopVideo;
     await localSettings.setShouldLoopVideo(newLoopState);
 
-    // Immediately update external display if video is currently playing
-    if (widget.file.fileType == FileType.video) {
+    // Immediately update external display if video is currently playing and feature is enabled
+    if (widget.file.fileType == FileType.video && featureFlagService.isExternalDisplayEnabled) {
       await externalDisplayService.updateLoopSetting(newLoopState);
     }
 

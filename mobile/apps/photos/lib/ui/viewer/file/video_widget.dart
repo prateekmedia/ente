@@ -83,6 +83,11 @@ class _VideoWidgetState extends State<VideoWidget> {
   }
   
   void _initializeExternalDisplay() {
+    // Early return if external display feature is not enabled
+    if (!featureFlagService.isExternalDisplayEnabled) {
+      return;
+    }
+    
     final externalDisplay = externalDisplayService;
     if (!externalDisplay.isSupported || !externalDisplay.isConnected) {
       return;
@@ -93,6 +98,11 @@ class _VideoWidgetState extends State<VideoWidget> {
   }
   
   void _updateExternalDisplay(bool isStreamMode) {
+    // Early return if external display feature is not enabled
+    if (!featureFlagService.isExternalDisplayEnabled) {
+      return;
+    }
+    
     final externalDisplay = externalDisplayService;
     if (!externalDisplay.isSupported || !externalDisplay.isConnected) {
       return;
