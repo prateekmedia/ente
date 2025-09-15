@@ -97,6 +97,10 @@ class _BodyState extends State<_Body> {
   bool swipeLocked = false;
   late final StreamSubscription<GuestViewEvent> _guestViewEventSubscription;
 
+  // External display update management
+  Timer? _externalDisplayUpdateTimer;
+  final Map<int, bool> _fileLoadStates = {}; // Track file load states
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +120,7 @@ class _BodyState extends State<_Body> {
   @override
   void dispose() {
     _guestViewEventSubscription.cancel();
+    _externalDisplayUpdateTimer?.cancel();
     _pageController.dispose();
     _selectedIndexNotifier.dispose();
     super.dispose();
@@ -292,6 +297,13 @@ class _BodyState extends State<_Body> {
                   .toggleFullScreen(shouldEnable: isPlaying);
             });
           },
+          onFileLoaded: () {
+            // Mark this file as fully loaded and trigger external display update
+            _fileLoadStates[index] = true;
+            if (index == _selectedIndexNotifier.value) {
+              _scheduleExternalDisplayUpdate();
+            }
+          },
           backgroundDecoration: const BoxDecoration(color: Colors.black),
         );
         return GestureDetector(
@@ -316,6 +328,9 @@ class _BodyState extends State<_Body> {
           _selectedIndexNotifier.value = index;
         }
         Bus.instance.fire(GuestViewEvent(isGuestView, swipeLocked));
+        // Clear load state for the new page so we wait for it to load
+        _fileLoadStates[index] = false;
+        _scheduleExternalDisplayUpdate();
       },
       physics: _shouldDisableScroll || swipeLocked
           ? const NeverScrollableScrollPhysics()
@@ -331,6 +346,57 @@ class _BodyState extends State<_Body> {
       return true;
     }
     return false;
+  }
+
+  void _scheduleExternalDisplayUpdate() {
+    // Cancel any pending update to prevent rapid-fire updates during quick scrolling
+    _externalDisplayUpdateTimer?.cancel();
+
+    // Use 150ms debouncer as requested
+    _externalDisplayUpdateTimer = Timer(const Duration(milliseconds: 50), () {
+      if (mounted) {
+        _updateExternalDisplayForCurrentFile();
+      }
+    });
+  }
+
+  void _updateExternalDisplayForCurrentFile() {
+    if (_files == null || _files!.isEmpty) return;
+
+    final currentIndex = _selectedIndexNotifier.value;
+    if (currentIndex < 0 || currentIndex >= _files!.length) return;
+
+    final currentFile = _files![currentIndex];
+    final externalDisplay = externalDisplayService;
+
+    if (!externalDisplay.isSupported || !externalDisplay.isConnected) {
+      return;
+    }
+
+    // Update external display immediately to avoid showing stale content
+    // Even if the file is still loading, show what we can immediately
+    if (currentFile.fileType == FileType.image ||
+        currentFile.fileType == FileType.livePhoto) {
+      externalDisplay.displayImage(currentFile).catchError((e) {
+        _logger.warning('Failed to display image on external display: $e');
+        return false;
+      });
+    }
+
+    // If the file is not fully loaded yet, schedule another update
+    if (_fileLoadStates[currentIndex] != true) {
+      _logger.info(
+          'File at index $currentIndex not fully loaded yet, will retry...',);
+
+      // Schedule another update when the file is likely to be loaded
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _selectedIndexNotifier.value == currentIndex) {
+          // Only retry if we're still on the same file
+          _updateExternalDisplayForCurrentFile();
+        }
+      });
+    }
+    // Note: Videos handle their own external display updates in VideoWidget
   }
 
   void _preloadFiles(int index) {
