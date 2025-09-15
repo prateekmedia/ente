@@ -29,7 +29,6 @@ import 'package:photos/models/gallery_type.dart';
 import "package:photos/models/metadata/common_keys.dart";
 import 'package:photos/models/selected_files.dart';
 import 'package:photos/service_locator.dart';
-import 'package:photos/services/airplay_service.dart';
 import 'package:photos/services/collections_service.dart';
 import "package:photos/services/files_service.dart";
 import "package:photos/states/location_screen_state.dart";
@@ -995,12 +994,6 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
 
   Future<void> _castChoiceDialog() async {
     final gw = CastGateway(NetworkClient.instance.enteDio);
-
-    // On iOS, show AirPlay button instead of Cast
-    if (Platform.isIOS) {
-      await _showAirPlayDialog();
-      return;
-    }
 
     if (castService.getActiveSessions().isNotEmpty) {
       await showChoiceDialog(

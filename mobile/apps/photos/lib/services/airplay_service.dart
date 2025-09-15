@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_to_airplay/flutter_to_airplay.dart';
 import 'package:logging/logging.dart';
 import 'package:photos/models/file/file.dart';
+import 'package:photos/service_locator.dart';
 
 class AirPlayService {
   static final AirPlayService _instance = AirPlayService._internal();
@@ -14,7 +15,7 @@ class AirPlayService {
 
   final Logger _logger = Logger('AirPlayService');
 
-  bool get isSupported => Platform.isIOS;
+  bool get isSupported => Platform.isIOS && featureFlagService.isAirplaySupported;
 
   Widget buildAirPlayButton({
     Color? tintColor,
@@ -51,7 +52,7 @@ class AirPlayService {
 
   Future<void> playVideo(String filePath, {String? urlString}) async {
     if (!isSupported) {
-      _logger.warning('AirPlay is not supported on this platform');
+      _logger.warning('AirPlay is not supported on this platform or not enabled');
       return;
     }
 
@@ -65,24 +66,6 @@ class AirPlayService {
     }
   }
 
-  Future<void> playFile(EnteFile file, String localPath) async {
-    if (!isSupported) {
-      _logger.warning('AirPlay is not supported on this platform');
-      return;
-    }
-
-    try {
-      final fileType = file.fileType;
-      _logger.info('Playing file via AirPlay: $localPath, type: $fileType');
-
-      // For videos and live photos, we can directly play them
-      // For images, we might need additional handling
-      // The FlutterAVPlayerView will handle the actual playback
-    } catch (e, s) {
-      _logger.severe('Failed to play file via AirPlay', e, s);
-      rethrow;
-    }
-  }
 
   Widget buildPlayerView({
     String? filePath,
@@ -91,7 +74,7 @@ class AirPlayService {
   }) {
     if (!isSupported) {
       return const Center(
-        child: Text('AirPlay is not supported on this platform'),
+        child: Text('AirPlay is not supported on this platform or not enabled'),
       );
     }
 
