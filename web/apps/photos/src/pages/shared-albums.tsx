@@ -89,6 +89,7 @@ import {
     GalleryItemsSummary,
 } from "ente-new/photos/components/gallery/ListHeader";
 import { PseudoCollectionID } from "ente-new/photos/services/collection-summary";
+import { isNestedAlbumsEnabled } from "ente-new/photos/services/feature-flags";
 import { usePhotosAppContext } from "ente-new/photos/types/context";
 import { t } from "i18next";
 import { useRouter } from "next/router";
@@ -110,6 +111,7 @@ export default function PublicCollectionGallery() {
     );
     const [referralCode, setReferralCode] = useState<string>("");
     const [errorMessage, setErrorMessage] = useState<string>("");
+    const [subAlbums, setSubAlbums] = useState<Collection[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPasswordProtected, setIsPasswordProtected] = useState(false);
     const [uploadTypeSelectorView, setUploadTypeSelectorView] = useState(false);
@@ -193,6 +195,8 @@ export default function PublicCollectionGallery() {
                     setIsPasswordProtected(
                         !!collection.publicURLs[0]?.passwordEnabled,
                     );
+                    // Fetch sub-albums for hierarchy support
+                    void fetchSubAlbums(collection);
                     setPublicFiles(
                         sortFilesForCollection(
                             await savedPublicCollectionFiles(accessToken),
@@ -221,6 +225,12 @@ export default function PublicCollectionGallery() {
     const downloadEnabled =
         publicCollection?.publicURLs[0]?.enableDownload ?? true;
 
+    // Sub-albums functionality disabled for shared albums since it requires server changes
+    const fetchSubAlbums = useCallback(async (collection: Collection) => {
+        // For now, shared albums don't support hierarchy since it requires server-side changes
+        setSubAlbums([]);
+    }, []);
+
     /**
      * Pull the latest data related to the public album from remote, updating
      * both our local database and component state.
@@ -239,6 +249,8 @@ export default function PublicCollectionGallery() {
                 !!collection.publicURLs[0]?.passwordEnabled;
             setIsPasswordProtected(isPasswordProtected);
             setErrorMessage("");
+            // Fetch sub-albums for hierarchy support
+            void fetchSubAlbums(collection);
 
             // Remove the locally cached accessTokenJWT if the sharer has
             // disabled password protection on the link.
@@ -394,6 +406,12 @@ export default function PublicCollectionGallery() {
         setUploadTypeSelectorView(false);
     };
 
+    const handleSubAlbumNavigation = (album: Collection) => {
+        // Create a new URL for the sub-album
+        const subAlbumUrl = `/shared-albums/${album.id}`;
+        void router.push(subAlbumUrl);
+    };
+
     const fileListHeader = useMemo<FileListHeaderOrFooter | undefined>(
         () =>
             publicCollection && publicFiles
@@ -405,6 +423,8 @@ export default function PublicCollectionGallery() {
                                   publicFiles,
                                   downloadEnabled,
                                   onAddSaveGroup,
+                                  subAlbums,
+                                  onSubAlbumClick: handleSubAlbumNavigation,
                               }}
                           />
                       ),
@@ -628,6 +648,8 @@ interface FileListHeaderProps {
     publicFiles: EnteFile[];
     downloadEnabled: boolean;
     onAddSaveGroup: AddSaveGroup;
+    subAlbums?: Collection[];
+    onSubAlbumClick?: (album: Collection) => void;
 }
 
 /**
@@ -646,6 +668,8 @@ const FileListHeader: React.FC<FileListHeaderProps> = ({
     publicFiles,
     downloadEnabled,
     onAddSaveGroup,
+    subAlbums = [],
+    onSubAlbumClick,
 }) => {
     const downloadAllFiles = () =>
         downloadAndSaveCollectionFiles(
@@ -656,25 +680,35 @@ const FileListHeader: React.FC<FileListHeaderProps> = ({
             onAddSaveGroup,
         );
 
+    const handleSubAlbumClick = (album: Collection) => {
+        if (onSubAlbumClick) {
+            onSubAlbumClick(album);
+        }
+    };
+
     return (
-        <GalleryItemsHeaderAdapter>
-            <SpacedRow>
-                <GalleryItemsSummary
-                    name={publicCollection.name}
-                    fileCount={publicFiles.length}
-                />
-                {downloadEnabled && (
-                    <OverflowMenu ariaID="collection-options">
-                        <OverflowMenuOption
-                            startIcon={<FileDownloadOutlinedIcon />}
-                            onClick={downloadAllFiles}
-                        >
-                            {t("download_album")}
-                        </OverflowMenuOption>
-                    </OverflowMenu>
-                )}
-            </SpacedRow>
-        </GalleryItemsHeaderAdapter>
+        <Box>
+            <GalleryItemsHeaderAdapter>
+                <SpacedRow>
+                    <GalleryItemsSummary
+                        name={publicCollection.name}
+                        fileCount={publicFiles.length}
+                    />
+                    {downloadEnabled && (
+                        <OverflowMenu ariaID="collection-options">
+                            <OverflowMenuOption
+                                startIcon={<FileDownloadOutlinedIcon />}
+                                onClick={downloadAllFiles}
+                            >
+                                {t("download_album")}
+                            </OverflowMenuOption>
+                        </OverflowMenu>
+                    )}
+                </SpacedRow>
+            </GalleryItemsHeaderAdapter>
+
+            {/* Sub-albums functionality temporarily disabled - requires server-side changes */}
+        </Box>
     );
 };
 

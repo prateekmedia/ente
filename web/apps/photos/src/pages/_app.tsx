@@ -39,6 +39,7 @@ import {
 } from "ente-new/photos/components/utils/download";
 import { useLoadingBar } from "ente-new/photos/components/utils/use-loading-bar";
 import { resumeExportsIfNeeded } from "ente-new/photos/services/export";
+import { initializeFeatureFlags } from "ente-new/photos/services/feature-flags";
 import { runMigrations } from "ente-new/photos/services/migration";
 import { initML, isMLSupported } from "ente-new/photos/services/ml";
 import { getFamilyPortalRedirectURL } from "ente-new/photos/services/user-details";
@@ -114,6 +115,7 @@ const App: React.FC<AppProps> = ({ Component, pageProps }) => {
 
         if (isMLSupported) initML();
         if (isHLSGenerationSupported) void initVideoProcessing();
+        void initializeFeatureFlags();
 
         electron.onOpenEnteURL(handleOpenEnteURL);
         electron.onAppUpdateAvailable(showUpdateDialog);

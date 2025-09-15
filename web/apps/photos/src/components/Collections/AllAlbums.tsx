@@ -1,13 +1,17 @@
 // TODO: Audit this file.
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import CloseIcon from "@mui/icons-material/Close";
+import ViewListIcon from "@mui/icons-material/ViewList";
 import {
     Box,
     Dialog,
     DialogContent,
     DialogTitle,
     Divider,
+    IconButton,
     Stack,
     styled,
+    Tooltip,
     Typography,
     useMediaQuery,
 } from "@mui/material";
@@ -23,6 +27,7 @@ import type {
     CollectionsSortBy,
     CollectionSummary,
 } from "ente-new/photos/services/collection-summary";
+import { isNestedAlbumsEnabled } from "ente-new/photos/services/feature-flags";
 import { t } from "i18next";
 import memoize from "memoize-one";
 import React, { useEffect, useRef, useState } from "react";
@@ -56,10 +61,16 @@ export const AllAlbums: React.FC<AllAlbums> = ({
     isInHiddenSection,
 }) => {
     const fullScreen = useMediaQuery("(max-width: 428px)");
+    const [viewMode, setViewMode] = useState<"grid" | "hierarchy">("grid");
+    const isNestedEnabled = isNestedAlbumsEnabled();
 
     const onCollectionClick = (collectionID: number) => {
         onSelectCollectionID(collectionID);
         onClose();
+    };
+
+    const handleToggleViewMode = () => {
+        setViewMode(current => current === "grid" ? "hierarchy" : "grid");
     };
 
     return (
@@ -76,11 +87,15 @@ export const AllAlbums: React.FC<AllAlbums> = ({
                     onChangeCollectionsSortBy,
                 }}
                 collectionCount={collectionSummaries.length}
+                viewMode={viewMode}
+                onChangeViewMode={isNestedEnabled ? handleToggleViewMode : undefined}
             />
             <Divider />
             <AllAlbumsContent
                 collectionSummaries={collectionSummaries}
                 onCollectionClick={onCollectionClick}
+                viewMode={viewMode}
+                isNestedEnabled={isNestedEnabled}
             />
         </AllAlbumsDialog>
     );
@@ -102,7 +117,11 @@ const AllAlbumsDialog = styled(Dialog)(({ theme }) => ({
     },
 }));
 
-type TitleProps = { collectionCount: number } & Pick<
+type TitleProps = { 
+    collectionCount: number;
+    viewMode: "grid" | "hierarchy";
+    onChangeViewMode?: () => void;
+} & Pick<
     AllAlbums,
     | "onClose"
     | "collectionsSortBy"
@@ -116,6 +135,8 @@ const Title: React.FC<TitleProps> = ({
     collectionsSortBy,
     onChangeCollectionsSortBy,
     isInHiddenSection,
+    viewMode,
+    onChangeViewMode,
 }) => (
     <DialogTitle>
         <Stack direction="row" sx={{ gap: 1.5 }}>
@@ -138,6 +159,13 @@ const Title: React.FC<TitleProps> = ({
                     </Typography>
                 </Box>
             </Stack>
+            {onChangeViewMode && (
+                <Tooltip title={viewMode === "grid" ? "Switch to hierarchy view" : "Switch to grid view"}>
+                    <IconButton onClick={onChangeViewMode} size="small">
+                        {viewMode === "grid" ? <AccountTreeIcon /> : <ViewListIcon />}
+                    </IconButton>
+                </Tooltip>
+            )}
             <CollectionsSortOptions
                 activeSortBy={collectionsSortBy}
                 onChangeSortBy={onChangeCollectionsSortBy}
@@ -204,12 +232,31 @@ const AlbumsRow = React.memo(
 interface AllAlbumsContentProps {
     collectionSummaries: CollectionSummary[];
     onCollectionClick: (id: number) => void;
+    viewMode: "grid" | "hierarchy";
+    isNestedEnabled: boolean;
 }
 
 const AllAlbumsContent: React.FC<AllAlbumsContentProps> = ({
     collectionSummaries,
     onCollectionClick,
+    viewMode,
+    isNestedEnabled,
 }) => {
+    // For hierarchy view, we need to render a different component
+    if (viewMode === "hierarchy" && isNestedEnabled) {
+        return (
+            <DialogContent sx={{ "&&": { padding: 0 }, height: "min(80svh, 600px)" }}>
+                {/* TODO: Implement HierarchicalAlbumContent component */}
+                <Box sx={{ p: 3, textAlign: "center" }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Hierarchical view coming soon...
+                    </Typography>
+                </Box>
+            </DialogContent>
+        );
+    }
+
+    // Original grid view implementation
     const isTwoColumn = useMediaQuery(`(width < ${Column3To2Breakpoint}px)`);
 
     const refreshInProgress = useRef(false);
