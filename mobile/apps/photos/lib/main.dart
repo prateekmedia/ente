@@ -282,6 +282,10 @@ Future<void> _init(bool isBackground, {String via = ''}) async {
     _logger.info("PushService/HomeWidget done $tlog");
     unawaited(SemanticSearchService.instance.init());
     unawaited(MLService.instance.init());
+    // Only initialize external display if feature is enabled
+    if (featureFlagService.isExternalDisplayEnabled) {
+      unawaited(externalDisplayService.init());
+    }
     await PersonService.init(
       entityService,
       MLDataDB.instance,

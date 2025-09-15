@@ -8,6 +8,8 @@ import "package:photos/module/download/manager.dart";
 import "package:photos/services/account/billing_service.dart";
 import "package:photos/services/collections_service.dart";
 import "package:photos/services/entity_service.dart";
+import "package:photos/services/external_display_service.dart";
+import "package:photos/services/feature_flag_service.dart";
 import "package:photos/services/filedata/filedata_service.dart";
 import "package:photos/services/location_service.dart";
 import "package:photos/services/machine_learning/compute_controller.dart";
@@ -196,4 +198,16 @@ CollectionsService? _collectionsService;
 CollectionsService get collectionsService {
   _collectionsService ??= CollectionsService.instance;
   return _collectionsService!;
+}
+
+ExternalDisplayService? _externalDisplayService;
+ExternalDisplayService get externalDisplayService {
+  _externalDisplayService ??= ExternalDisplayService();
+  return _externalDisplayService!;
+}
+
+FeatureFlagService? _featureFlagService;
+FeatureFlagService get featureFlagService {
+  _featureFlagService ??= FeatureFlagService.instance;
+  return _featureFlagService!;
 }

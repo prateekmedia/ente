@@ -61,6 +61,12 @@ class _VideoWidgetState extends State<VideoWidget> {
         useNativeVideoPlayer = false;
       });
     });
+    
+    // Setup stream switching listener for external display
+    Bus.instance.on<StreamSwitchedEvent>().listen((event) {
+      _updateExternalDisplay(event.selectedPreview);
+    });
+    
     if (widget.file.isUploaded) {
       isPreviewLoadable =
           fileDataService.previewIds.containsKey(widget.file.uploadedFileID);
@@ -70,6 +76,40 @@ class _VideoWidgetState extends State<VideoWidget> {
         isPreviewLoadable = true;
       }
       _checkForPreview();
+    }
+    
+    // Initialize external display for video
+    _initializeExternalDisplay();
+  }
+  
+  void _initializeExternalDisplay() {
+    final externalDisplay = externalDisplayService;
+    if (!externalDisplay.isSupported || !externalDisplay.isConnected) {
+      return;
+    }
+    
+    // Play video on external display with default stream mode
+    _updateExternalDisplay(selectPreviewForPlay);
+  }
+  
+  void _updateExternalDisplay(bool isStreamMode) {
+    final externalDisplay = externalDisplayService;
+    if (!externalDisplay.isSupported || !externalDisplay.isConnected) {
+      return;
+    }
+    
+    if (isStreamMode && playlistData != null) {
+      // Use streaming mode with m3u8 playlist
+      externalDisplay.playVideo(widget.file, isStreamMode: true).catchError((e) {
+        _logger.warning('Failed to play stream video on external display: $e');
+        return false;
+      });
+    } else {
+      // Use original video
+      externalDisplay.playVideo(widget.file, isStreamMode: false).catchError((e) {
+        _logger.warning('Failed to play original video on external display: $e');
+        return false;
+      });
     }
   }
 
