@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_to_airplay/flutter_to_airplay.dart';
 import 'package:logging/logging.dart';
 import 'package:photos/models/file/file.dart';
+import 'package:photos/service_locator.dart';
 import 'package:photos/services/airplay_service.dart';
 import 'package:photos/theme/ente_theme.dart';
 import 'package:photos/ui/common/loading_widget.dart';
@@ -68,10 +69,10 @@ class _AirPlayVideoWidgetState extends State<AirPlayVideoWidget> {
   Widget build(BuildContext context) {
     final textTheme = getEnteTextTheme(context);
 
-    if (!_airPlayService.isSupported) {
+    if (!featureFlagService.isAirplaySupported || !_airPlayService.isSupported) {
       return Center(
         child: Text(
-          'AirPlay is not supported on this device',
+          'AirPlay is not supported on this device or not enabled',
           style: textTheme.body,
         ),
       );
