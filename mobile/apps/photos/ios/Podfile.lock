@@ -77,6 +77,9 @@ PODS:
     - Flutter
   - flutter_timezone (0.0.1):
     - Flutter
+  - flutter_to_airplay (0.0.1):
+    - Flutter
+    - Mux-Stats-AVPlayer
   - fluttertoast (0.0.2):
     - Flutter
   - GoogleDataTransport (10.1.0):
@@ -146,6 +149,9 @@ PODS:
     - Flutter
   - move_to_background (0.0.1):
     - Flutter
+  - Mux-Stats-AVPlayer (4.8.2):
+    - Mux-Stats-Core (~> 5.5)
+  - Mux-Stats-Core (5.6.0)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -272,6 +278,7 @@ DEPENDENCIES:
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
   - flutter_sodium (from `.symlinks/plugins/flutter_sodium/ios`)
   - flutter_timezone (from `.symlinks/plugins/flutter_timezone/ios`)
+  - flutter_to_airplay (from `.symlinks/plugins/flutter_to_airplay/ios`)
   - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
   - home_widget (from `.symlinks/plugins/home_widget/ios`)
   - in_app_purchase_storekit (from `.symlinks/plugins/in_app_purchase_storekit/darwin`)
@@ -327,6 +334,8 @@ SPEC REPOS:
     - GoogleUtilities
     - libwebp
     - Mantle
+    - Mux-Stats-AVPlayer
+    - Mux-Stats-Core
     - nanopb
     - onnxruntime-c
     - onnxruntime-objc
@@ -378,6 +387,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_sodium/ios"
   flutter_timezone:
     :path: ".symlinks/plugins/flutter_timezone/ios"
+  flutter_to_airplay:
+    :path: ".symlinks/plugins/flutter_to_airplay/ios"
   fluttertoast:
     :path: ".symlinks/plugins/fluttertoast/ios"
   home_widget:
@@ -488,6 +499,7 @@ SPEC CHECKSUMS:
   flutter_secure_storage: 1ed9476fba7e7a782b22888f956cce43e2c62f13
   flutter_sodium: 7e4621538491834eba53bd524547854bcbbd6987
   flutter_timezone: 7c838e17ffd4645d261e87037e5bebf6d38fe544
+  flutter_to_airplay: 06ecea4c4458e28e1bfeff6741de84b79aa28821
   fluttertoast: 2c67e14dce98bbdb200df9e1acf610d7a6264ea1
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
@@ -505,6 +517,8 @@ SPEC CHECKSUMS:
   motion_sensors: 741e702c17467b9569a92165dda8d4d88c6167f1
   motionphoto: 23e2aeb5c6380112f69468d71f970fa7438e5ed1
   move_to_background: 7e3467dd2a1d1013e98c9c1cb93fd53cd7ef9d84
+  Mux-Stats-AVPlayer: 87786c378c44017d820ed23ee96d126ddbe519fd
+  Mux-Stats-Core: 241ec881d868df57317e19fcdf6beeeac43ca6da
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   native_video_player: 6809dec117e8997161dbfb42a6f90d6df71a504d
   objective_c: 89e720c30d716b036faf9c9684022048eee1eee2

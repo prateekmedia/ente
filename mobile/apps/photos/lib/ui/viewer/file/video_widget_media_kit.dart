@@ -9,6 +9,7 @@ import "package:photos/core/constants.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/file_caption_updated_event.dart";
 import "package:photos/events/guest_view_event.dart";
+import "package:photos/events/loop_video_event.dart";
 import "package:photos/events/pause_video_event.dart";
 import "package:photos/events/stream_switched_event.dart";
 import "package:photos/generated/l10n.dart";
@@ -17,6 +18,7 @@ import "package:photos/models/file/file.dart";
 import "package:photos/module/download/task.dart";
 import "package:photos/service_locator.dart";
 import "package:photos/services/files_service.dart";
+import "package:photos/services/airplay_service.dart";
 import "package:photos/services/wake_lock_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart";
@@ -69,6 +71,7 @@ class _VideoWidgetMediaKitState extends State<VideoWidgetMediaKit>
   StreamSubscription<DownloadTask>? _downloadTaskSubscription;
   late final StreamSubscription<FileCaptionUpdatedEvent>
       _captionUpdatedSubscription;
+  StreamSubscription<LoopVideoEvent>? _loopVideoEventSubscription;
 
   @override
   void initState() {
@@ -123,6 +126,16 @@ class _VideoWidgetMediaKitState extends State<VideoWidgetMediaKit>
         }
       }
     });
+    
+    _loopVideoEventSubscription =
+        Bus.instance.on<LoopVideoEvent>().listen((event) {
+      if (mounted && controller != null) {
+        player.setPlaylistMode(
+          event.shouldLoop ? PlaylistMode.single : PlaylistMode.none,
+        );
+      }
+    });
+    
     EnteWakeLockService.instance
         .updateWakeLock(enable: true, wakeLockFor: WakeLockFor.videoPlayback);
   }
@@ -184,6 +197,7 @@ class _VideoWidgetMediaKitState extends State<VideoWidgetMediaKit>
     }
     player.dispose();
     _captionUpdatedSubscription.cancel();
+    _loopVideoEventSubscription?.cancel();
     if (EnteWakeLockService.instance.shouldKeepAppAwakeAcrossSessions) {
       EnteWakeLockService.instance.updateWakeLock(
         enable: true,
@@ -215,13 +229,30 @@ class _VideoWidgetMediaKitState extends State<VideoWidgetMediaKit>
               },
       child: Center(
         child: controller != null
-            ? common.VideoWidget(
-                widget.file,
-                controller!,
-                widget.playbackCallback,
-                isFromMemories: widget.isFromMemories,
-                onStreamChange: widget.onStreamChange,
-                isPreviewPlayer: widget.selectedPreview,
+            ? Stack(
+                children: [
+                  common.VideoWidget(
+                    widget.file,
+                    controller!,
+                    widget.playbackCallback,
+                    isFromMemories: widget.isFromMemories,
+                    onStreamChange: widget.onStreamChange,
+                    isPreviewPlayer: widget.selectedPreview,
+                  ),
+                  // AirPlay overlay button for iOS videos
+                  Platform.isIOS && featureFlagService.isAirplaySupported
+                      ? Positioned(
+                          top: 40,
+                          right: 16,
+                          child: SafeArea(
+                            child: AirPlayService.instance.buildAirPlayButton(
+                              tintColor: Colors.white,
+                              activeTintColor: Colors.blue,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ],
               )
             : Center(
                 child: ValueListenableBuilder(

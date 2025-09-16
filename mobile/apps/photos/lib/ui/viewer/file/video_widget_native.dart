@@ -10,6 +10,9 @@ import "package:photos/core/constants.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/file_caption_updated_event.dart";
 import "package:photos/events/guest_view_event.dart";
+import "package:photos/events/loop_video_event.dart";
+import "package:photos/generated/l10n.dart";
+import 'package:flutter_to_airplay/flutter_to_airplay.dart';
 import "package:photos/events/pause_video_event.dart";
 import "package:photos/events/seekbar_triggered_event.dart";
 import "package:photos/events/stream_switched_event.dart";
@@ -21,6 +24,7 @@ import "package:photos/models/preview/playlist_data.dart";
 import "package:photos/module/download/task.dart";
 import "package:photos/service_locator.dart";
 import "package:photos/services/files_service.dart";
+import "package:photos/services/airplay_service.dart";
 import "package:photos/services/wake_lock_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart";
@@ -90,6 +94,8 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
   StreamSubscription<DownloadTask>? downloadTaskSubscription;
   late final StreamSubscription<FileCaptionUpdatedEvent>
       _captionUpdatedSubscription;
+  StreamSubscription<LoopVideoEvent>? _loopVideoEventSubscription;
+  bool _shouldLoop = false;
   int position = 0;
 
   @override
@@ -116,9 +122,13 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       });
     });
     _streamSwitchedSubscription =
-        Bus.instance.on<StreamSwitchedEvent>().listen((event) {
+        Bus.instance.on<StreamSwitchedEvent>().listen((event) async {
       if (event.type != PlayerType.nativeVideoPlayer) return;
+      // Stop current playback and clear the path
+      await _controller?.stop();
       _filePath = null;
+      // Small delay to ensure clean switch
+      await Future.delayed(const Duration(milliseconds: 100));
       if (event.selectedPreview) {
         loadPreview(update: true);
       } else {
@@ -144,6 +154,16 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       });
     }
 
+    _shouldLoop = localSettings.shouldLoopVideo();
+    _loopVideoEventSubscription =
+        Bus.instance.on<LoopVideoEvent>().listen((event) {
+      if (mounted) {
+        setState(() {
+          _shouldLoop = event.shouldLoop;
+        });
+      }
+    });
+    
     EnteWakeLockService.instance
         .updateWakeLock(enable: true, wakeLockFor: WakeLockFor.videoPlayback);
   }
@@ -165,6 +185,10 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
   }
 
   void loadPreview({bool update = false}) async {
+    if (widget.playlistData == null) {
+      _logger.warning('Cannot load preview, playlistData is null');
+      return;
+    }
     _setFilePathForNativePlayer(widget.playlistData!.preview.path, update);
 
     await setVideoSource();
@@ -239,6 +263,7 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
     _streamSwitchedSubscription?.cancel();
     _guestViewEventSubscription.cancel();
     pauseVideoSubscription.cancel();
+    _loopVideoEventSubscription?.cancel();
     removeCallBack(widget.file);
     _progressNotifier.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -342,6 +367,31 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                                     height: 180,
                                     color: Colors.transparent,
                                   ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                      // AirPlay overlay button for iOS videos
+                      Platform.isIOS && featureFlagService.isAirplaySupported
+                          ? Positioned(
+                              top: 40,
+                              right: 16,
+                              child: SafeArea(
+                                child: ValueListenableBuilder(
+                                  valueListenable: _showControls,
+                                  builder: (context, value, _) {
+                                    return AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 200),
+                                      opacity: value ? 1 : 0,
+                                      child: IgnorePointer(
+                                        ignoring: !value,
+                                        child: AirPlayService.instance.buildAirPlayButton(
+                                          tintColor: Colors.white,
+                                          activeTintColor: Colors.blue,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             )
@@ -564,10 +614,16 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
   }
 
   void _onPlaybackEnded() async {
-    await _controller?.stop();
-    if (localSettings.shouldLoopVideo()) {
+    if (_shouldLoop && _controller != null) {
+      // Reset to beginning and play again for infinite loop
+      await _controller!.seekTo(const Duration(seconds: 0));
+      // Small delay to ensure seek completes before playing
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _controller!.play();
+      // Update the seekbar position
       Bus.instance.fire(SeekbarTriggeredEvent(position: 0));
-      await _controller?.play();
+    } else {
+      await _controller?.stop();
     }
   }
 

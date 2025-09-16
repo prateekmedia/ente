@@ -119,22 +119,10 @@ class _AirPlayVideoWidgetState extends State<AirPlayVideoWidget> {
       );
     }
 
-    return Stack(
-      children: [
-        Center(
-          child: FlutterAVPlayerView(
-            filePath: _localPath,
-          ),
-        ),
-        Positioned(
-          top: 40,
-          right: 16,
-          child: _airPlayService.buildAirPlayIconButton(
-            tintColor: Colors.white,
-            activeTintColor: Colors.blue,
-          ),
-        ),
-      ],
+    return Center(
+      child: FlutterAVPlayerView(
+        filePath: _localPath,
+      ),
     );
   }
 }
