@@ -379,9 +379,14 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
     // dimensions.
     const stderrPath = path.join(outputPathPrefix, "stderr.txt");
 
-    // Determine stream version (enhanced streaming feature flag would be checked here)
-    // For now, default to legacy for backward compatibility
-    const streamVersion = StreamVersion.LEGACY; // TODO: Use feature flag to enable ENHANCED
+    // Determine stream version based on environment variable or development mode
+    // Set ENTE_ENHANCED_STREAMING=true to enable v2 streams with AES-256 and bitrate control
+    const isEnhancedStreamingEnabled = process.env.ENTE_ENHANCED_STREAMING === 'true';
+    const streamVersion = isEnhancedStreamingEnabled
+        ? StreamVersion.ENHANCED
+        : StreamVersion.LEGACY;
+    
+    log.debug(() => `Using stream version: ${streamVersion === StreamVersion.ENHANCED ? 'Enhanced (v2)' : 'Legacy (v1)'}`);
     
     // Generate a cryptographically secure random key
     // Version 1 (Legacy): 16 bytes (AES-128)

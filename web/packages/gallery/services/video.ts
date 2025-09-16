@@ -231,6 +231,15 @@ const savedGenerateHLS = async () => await getKVB("generateHLS");
 const saveGenerateHLS = (enabled: boolean) => setKV("generateHLS", enabled);
 
 /**
+ * Check if enhanced streaming (v2) is enabled.
+ * Set NEXT_PUBLIC_ENTE_ENHANCED_STREAMING=true to enable AES-256 encryption
+ * with random IV and bitrate control for new video streams.
+ */
+const isEnhancedStreamingEnabled = (): boolean => {
+    return process.env.NEXT_PUBLIC_ENTE_ENHANCED_STREAMING === "true";
+};
+
+/**
  * Enable or disable (toggle) the HLS generation on this client.
  *
  * When HLS generation is enabled, this client will process videos to generate a
@@ -1043,9 +1052,10 @@ const processQueueItem = async ({
             (res) => res.text(),
         );
 
-        // Use version 2 for new streams (when enhanced streaming is available)
-        // This would need to be controlled by a feature flag in production
-        const streamVersion = 1; // TODO: Use feature flag to determine version
+        // Determine stream version based on feature flag
+        const streamVersion = isEnhancedStreamingEnabled()
+            ? StreamVersion.ENHANCED
+            : StreamVersion.LEGACY;
         
         const playlistData = await encodePlaylistJSON({
             type: "hls_video",
