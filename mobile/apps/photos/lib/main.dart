@@ -289,12 +289,12 @@ Future<void> _init(bool isBackground, {String via = ''}) async {
       preferences,
     );
     EnteWakeLockService.instance.init(preferences);
-    
+
     if (Platform.isIOS && !isBackground) {
       await M3u8ServerService.instance.initialize();
       _logger.info("M3u8ServerService initialized $tlog");
     }
-    
+
     logLocalSettings();
     initComplete = true;
     _stopHearBeat = true;

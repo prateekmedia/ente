@@ -16,10 +16,9 @@ import "package:photos/theme/colors.dart";
 import "package:photos/ui/common/loading_widget.dart";
 import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/viewer/file/video_widget_media_kit.dart";
-import "package:photos/ui/viewer/file/video_widget_native.dart";
-import "package:photos/ui/viewer/file/video_airplay_widget.dart";
-import "package:photos/utils/standalone/data.dart";
 import "package:photos/services/airplay_service.dart";
+import "package:photos/ui/viewer/file/video_widget_native.dart";
+import "package:photos/utils/standalone/data.dart";
 
 class VideoWidget extends StatefulWidget {
   final EnteFile file;
@@ -63,27 +62,27 @@ class _VideoWidgetState extends State<VideoWidget> {
         useNativeVideoPlayer = false;
       });
     });
-    
+
     if (widget.file.isUploaded) {
       _initializePreviewState();
     }
   }
-  
+
   Future<void> _initializePreviewState() async {
     // Ensure previewIds are loaded from database first
     await fileDataService.ensurePreviewIdsLoaded();
-    
+
     if (!mounted) return;
-    
+
     // Check if preview exists in previewIds
     isPreviewLoadable =
         fileDataService.previewIds.containsKey(widget.file.uploadedFileID);
-    
+
     // For shared videos, always try to load preview
     if (!widget.file.isOwner) {
       isPreviewLoadable = true;
     }
-    
+
     if (mounted) {
       setState(() {});
       _checkForPreview();
@@ -139,12 +138,13 @@ class _VideoWidgetState extends State<VideoWidget> {
   @override
   Widget build(BuildContext context) {
     // Check if AirPlay is active
-    final bool isAirPlaying = Platform.isIOS ? 
-        AirPlayService.instance.isAirPlaying : false;
-    
+    final bool isAirPlaying =
+        Platform.isIOS ? AirPlayService.instance.isAirPlaying : false;
+
     // If AirPlay is active, always use original (not stream) as local m3u8 doesn't work with AirPlay
-    final playPreview = isPreviewLoadable && selectPreviewForPlay && !isAirPlaying;
-    
+    final playPreview =
+        isPreviewLoadable && selectPreviewForPlay && !isAirPlaying;
+
     if (playPreview && playlistData == null) {
       return Center(
         child: Container(

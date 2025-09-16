@@ -11,20 +11,18 @@ import "package:photos/core/event_bus.dart";
 import "package:photos/events/file_caption_updated_event.dart";
 import "package:photos/events/guest_view_event.dart";
 import "package:photos/events/loop_video_event.dart";
-import "package:photos/generated/l10n.dart";
-import 'package:flutter_to_airplay/flutter_to_airplay.dart';
 import "package:photos/events/pause_video_event.dart";
+import "package:photos/generated/l10n.dart";
 import "package:photos/events/seekbar_triggered_event.dart";
 import "package:photos/events/stream_switched_event.dart";
 import "package:photos/events/use_media_kit_for_video.dart";
-import "package:photos/generated/l10n.dart";
 import "package:photos/models/file/extensions/file_props.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/models/preview/playlist_data.dart";
 import "package:photos/module/download/task.dart";
 import "package:photos/service_locator.dart";
-import "package:photos/services/files_service.dart";
 import "package:photos/services/airplay_service.dart";
+import "package:photos/services/files_service.dart";
 import "package:photos/services/m3u8_server_service.dart";
 import "package:photos/services/wake_lock_service.dart";
 import "package:photos/theme/colors.dart";
@@ -165,20 +163,23 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
         });
       }
     });
-    
+
     if (Platform.isIOS) {
       _airPlayStateSubscription = AirPlayService.instance.isAirPlayingStream
           .listen((isAirPlaying) async {
         if (mounted) {
           _logger.info('AirPlay state changed: $isAirPlaying');
-          if (isAirPlaying && _filePath?.toLowerCase().endsWith('.m3u8') == true) {
-            _logger.info('AirPlay activated for m3u8 file, reloading with HTTP URL');
+          if (isAirPlaying &&
+              _filePath?.toLowerCase().endsWith('.m3u8') == true) {
+            _logger.info(
+              'AirPlay activated for m3u8 file, reloading with HTTP URL',
+            );
             await setVideoSource();
           }
         }
       });
     }
-    
+
     EnteWakeLockService.instance
         .updateWakeLock(enable: true, wakeLockFor: WakeLockFor.videoPlayback);
   }
@@ -189,9 +190,9 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       await _controller?.stop();
       return;
     }
-    
+
     VideoSource videoSource;
-    
+
     if (_filePath!.toLowerCase().endsWith('.m3u8')) {
       final httpUrl = M3u8ServerService.instance.getHttpUrlForM3u8(_filePath!);
       if (httpUrl != null) {
@@ -201,7 +202,9 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
           type: VideoSourceType.network,
         );
       } else {
-        _logger.warning('Failed to get HTTP URL for m3u8 file, falling back to file source');
+        _logger.warning(
+          'Failed to get HTTP URL for m3u8 file, falling back to file source',
+        );
         videoSource = VideoSource(
           path: _filePath!,
           type: VideoSourceType.file,
@@ -213,7 +216,7 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
         type: VideoSourceType.file,
       );
     }
-    
+
     await _controller?.loadVideo(videoSource);
     await _controller?.play();
 
@@ -418,11 +421,13 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                                   valueListenable: _showControls,
                                   builder: (context, value, _) {
                                     return AnimatedOpacity(
-                                      duration: const Duration(milliseconds: 200),
+                                      duration:
+                                          const Duration(milliseconds: 200),
                                       opacity: value ? 1 : 0,
                                       child: IgnorePointer(
                                         ignoring: !value,
-                                        child: AirPlayService.instance.buildAirPlayButton(
+                                        child: AirPlayService.instance
+                                            .buildAirPlayButton(
                                           tintColor: Colors.white,
                                           activeTintColor: Colors.blue,
                                         ),
