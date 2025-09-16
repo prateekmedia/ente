@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:photos/core/configuration.dart';
 import 'package:photos/generated/l10n.dart';
 import 'package:photos/models/collection/collection.dart';
+import 'package:photos/models/collection/collection_items.dart';
 import 'package:photos/service_locator.dart';
 import 'package:photos/services/collections_service.dart';
 import 'package:photos/theme/ente_theme.dart';
+import 'package:photos/ui/collections/collection_item_widget.dart';
 import 'package:photos/ui/components/buttons/button_widget.dart';
 import 'package:photos/ui/components/models/button_type.dart';
 
@@ -70,7 +72,7 @@ class _HierarchicalAlbumPickerState extends State<HierarchicalAlbumPicker> {
     // Apply additional filters
     if (widget.showOnlyOwnedAlbums) {
       _allCollections = _allCollections
-          .where((c) => c.owner.id == userId)
+          .where((c) => c.owner?.id == userId)
           .toList();
     }
 
@@ -85,11 +87,11 @@ class _HierarchicalAlbumPickerState extends State<HierarchicalAlbumPicker> {
     _allCollections = _allCollections
         .where((c) => c.type != CollectionType.favorites && 
                       c.type != CollectionType.uncategorized &&
-                      !c.isDefaultHidden(),)
+                      !c.isDefaultHidden())
         .toList();
 
     // Sort by name
-    _allCollections.sort((a, b) => a.displayName.compareTo(b.displayName),);
+    _allCollections.sort((a, b) => a.displayName.compareTo(b.displayName));
 
     // Update current level collections
     _updateCurrentLevelCollections();
@@ -101,7 +103,7 @@ class _HierarchicalAlbumPickerState extends State<HierarchicalAlbumPicker> {
       _currentLevelCollections = _allCollections
           .where((c) => c.displayName
               .toLowerCase()
-              .contains(widget.searchQuery!.toLowerCase()),)
+              .contains(widget.searchQuery!.toLowerCase()))
           .toList();
     } else {
       // Show hierarchical view
@@ -328,7 +330,7 @@ class _HierarchicalAlbumPickerState extends State<HierarchicalAlbumPicker> {
           if (_currentLocation != null) {
             // Create sub-album
             newCollection = await CollectionsService.instance
-                .createSubAlbum(albumName, _currentLocation!);
+                .createSubAlbum(_currentLocation!, albumName);
           } else {
             // Create root album
             newCollection = await CollectionsService.instance
@@ -493,7 +495,7 @@ class _HierarchicalAlbumPickerState extends State<HierarchicalAlbumPicker> {
                 labelText: widget.actionButtonText ?? 
                     AppLocalizations.of(context).add,
                 isDisabled: _selectedCollections.isEmpty,
-                onTap: () async {
+                onTap: () {
                   widget.onMultipleAlbumsSelected?.call(
                     _selectedCollections.toList(),
                   );
