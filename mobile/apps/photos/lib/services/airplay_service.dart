@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,8 +15,19 @@ class AirPlayService {
   static AirPlayService get instance => _instance;
 
   final Logger _logger = Logger('AirPlayService');
+  final _isAirPlayingController = StreamController<bool>.broadcast();
+  bool _isAirPlaying = false;
 
   bool get isSupported => Platform.isIOS && featureFlagService.isAirplaySupported;
+  
+  Stream<bool> get isAirPlayingStream => _isAirPlayingController.stream;
+  
+  bool get isAirPlaying => _isAirPlaying;
+  
+  void setAirPlayingState(bool isPlaying) {
+    _isAirPlaying = isPlaying;
+    _isAirPlayingController.add(isPlaying);
+  }
 
   Widget buildAirPlayButton({
     Color? tintColor,
