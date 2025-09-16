@@ -322,11 +322,41 @@ class VideoPreviewService {
         return;
       }
     } else {
-      // For background, check device health and internal user flag
-      if (!computeController.isDeviceHealthy || !isBackgroundStreamingEnabled) {
+      // For background processing:
+      // 1. Check if background streaming is enabled
+      // 2. Request compute with interaction bypass
+      // 3. Check device health for this specific video
+
+      if (!isBackgroundStreamingEnabled) {
         _logger.info(
-          "[BG] Cannot process - device not healthy or not internal user",
+          "[BG] Background streaming not enabled (not internal user)",
         );
+        return;
+      }
+
+      // Request compute with user interaction bypass for background processing
+      final canCompute = computeController.requestCompute(
+        stream: true,
+        bypassInteractionCheck:
+            true, // Always bypass interaction for background
+        bypassMLWaiting: true, // Background has lower priority than ML
+      );
+
+      if (!canCompute) {
+        _logger.info(
+          "[BG] Cannot get compute permission for ${enteFile.displayName}",
+        );
+        // Will be retried later
+        return;
+      }
+
+      // Final device health check
+      if (!computeController.isDeviceHealthy) {
+        _logger.info(
+          "[BG] Device not healthy for processing ${enteFile.displayName}",
+        );
+        computeController.releaseCompute(stream: true);
+        // Will be retried later
         return;
       }
     }
@@ -656,6 +686,11 @@ class VideoPreviewService {
             queueBackgroundStreaming();
           }
         }
+      } else {
+        // For background processing, release compute after each video
+        // The next video will request compute again
+        _logger.info("[BG] Releasing compute after processing video");
+        computeController.releaseCompute(stream: true);
       }
     }
   }
@@ -1272,7 +1307,7 @@ class VideoPreviewService {
       await _queueBackgroundFiles();
 
       if (_hasBgQueuedFile) {
-        _processNextBackgroundFile();
+        await _processNextBackgroundFile();
       }
     });
   }
@@ -1336,14 +1371,29 @@ class VideoPreviewService {
     if (uploadingFileId >= 0) {
       // Don't process if regular streaming is active
       _logger.info(
-        "[BG] Regular streaming active, postponing background processing",
+        "[BG] Regular streaming active, will retry in 10s",
+      );
+      Future.delayed(const Duration(seconds: 10), () {
+        _processNextBackgroundFile();
+      });
+      return;
+    }
+
+    // Check if background streaming is enabled
+    if (!isBackgroundStreamingEnabled) {
+      _logger.info(
+        "[BG] Background streaming not enabled (not internal user)",
       );
       return;
     }
-    if (!isBackgroundStreamingEnabled || !computeController.isDeviceHealthy) {
-      _logger.info(
-        "[BG] Cannot process - conditions not met or not internal user",
-      );
+
+    // Check device health before processing next item
+    if (!computeController.isDeviceHealthy) {
+      _logger.info("[BG] Device not healthy, will check again in 30s");
+      // Retry later when device is healthy
+      Future.delayed(const Duration(seconds: 30), () {
+        _processNextBackgroundFile();
+      });
       return;
     }
 
@@ -1391,11 +1441,23 @@ class VideoPreviewService {
   Future<void> _processBackgroundVideo(EnteFile file) async {
     if (file.uploadedFileID == null) return;
 
-    // Final safety check before processing
-    if (uploadingFileId >= 0 || !computeController.isDeviceHealthy) {
-      _logger.info("[BG] Aborting - conditions changed");
-      // Re-queue for later
+    // Check if regular streaming is active
+    if (uploadingFileId >= 0) {
+      _logger.info("[BG] Regular streaming started, re-queuing file");
       bgFileQueue[file.uploadedFileID!] = file;
+      return;
+    }
+
+    // Check device health before starting to process this video
+    if (!computeController.isDeviceHealthy) {
+      _logger.info(
+        "[BG] Device not healthy before processing ${file.displayName}",
+      );
+      bgFileQueue[file.uploadedFileID!] = file;
+      // Retry later
+      Future.delayed(const Duration(seconds: 30), () {
+        _processNextBackgroundFile();
+      });
       return;
     }
 
@@ -1455,13 +1517,19 @@ class VideoPreviewService {
     } finally {
       bgUploadingFileId = -1;
 
-      // Process next file after a delay (longer if device was unhealthy)
-      final delay = computeController.isDeviceHealthy
-          ? const Duration(seconds: 5)
-          : const Duration(seconds: 30);
-      Future.delayed(delay, () {
-        _processNextBackgroundFile();
-      });
+      // Check device health before scheduling next file
+      if (!computeController.isDeviceHealthy) {
+        _logger.info("[BG] Device unhealthy, will check again in 30s");
+        Future.delayed(const Duration(seconds: 30), () {
+          _processNextBackgroundFile();
+        });
+      } else {
+        // Process next file after a short delay
+        _logger.info("[BG] Scheduling next file in 5s");
+        Future.delayed(const Duration(seconds: 5), () {
+          _processNextBackgroundFile();
+        });
+      }
     }
   }
 }
