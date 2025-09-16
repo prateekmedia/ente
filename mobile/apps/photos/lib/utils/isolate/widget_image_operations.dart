@@ -9,7 +9,7 @@ final _logger = Logger("WidgetImageOperations");
 class WidgetImageOperations {
   static const int kDefaultMaxSize = 1024;
   static const int kDefaultQuality = 85;
-  
+
   /// Process widget image with proper EXIF handling and sizing
   /// Runs in isolate via Computer.shared() to avoid blocking UI
   static Future<Uint8List?> processWidgetImage(
@@ -19,12 +19,12 @@ class WidgetImageOperations {
     final Uint8List? imageBytes = params['imageBytes'];
     final int maxSize = params['maxSize'] ?? kDefaultMaxSize;
     final int quality = params['quality'] ?? kDefaultQuality;
-    
+
     if (imagePath == null && imageBytes == null) {
       _logger.warning("No image path or bytes provided");
       return null;
     }
-    
+
     try {
       return await _processImageWithExif(
         imagePath,
@@ -37,7 +37,7 @@ class WidgetImageOperations {
       return null;
     }
   }
-  
+
   static Future<Uint8List?> _processImageWithExif(
     String? imagePath,
     Uint8List? imageBytes,
@@ -55,15 +55,16 @@ class WidgetImageOperations {
           autoCorrectionAngle: true, // This applies EXIF orientation!
           keepExif: false, // We don't need EXIF in final widget image
         );
-        
+
         if (result != null) {
           return Uint8List.fromList(result);
         }
       } catch (e) {
-        _logger.warning("flutter_image_compress failed, falling back to image package", e);
+        _logger.warning(
+            "flutter_image_compress failed, falling back to image package", e);
       }
     }
-    
+
     // Option 2: Use flutter_image_compress with bytes
     if (imageBytes != null && imagePath == null) {
       try {
@@ -75,13 +76,15 @@ class WidgetImageOperations {
           autoCorrectionAngle: true, // This applies EXIF orientation!
           keepExif: false,
         );
-        
+
         return Uint8List.fromList(result);
       } catch (e) {
-        _logger.warning("flutter_image_compress with bytes failed, falling back to image package", e);
+        _logger.warning(
+            "flutter_image_compress with bytes failed, falling back to image package",
+            e);
       }
     }
-    
+
     // Option 3: Fallback to image package (requires manual EXIF handling)
     if (imageBytes != null || imagePath != null) {
       try {
@@ -93,13 +96,13 @@ class WidgetImageOperations {
             _logger.warning("Failed to decode image from path: $imagePath");
             return null;
           }
-          
+
           // bakeOrientation() reads and applies EXIF rotation
           final orientedImage = img.bakeOrientation(image);
-          
+
           // Resize if needed
           final resized = _resizeImage(orientedImage, maxSize);
-          
+
           // Encode to JPEG
           data = img.encodeJpg(resized, quality: quality);
         } else {
@@ -109,35 +112,35 @@ class WidgetImageOperations {
             _logger.warning("Failed to decode image from bytes");
             return null;
           }
-          
+
           // bakeOrientation() reads and applies EXIF rotation
           final orientedImage = img.bakeOrientation(image);
-          
+
           // Resize if needed
           final resized = _resizeImage(orientedImage, maxSize);
-          
+
           // Encode to JPEG
           data = img.encodeJpg(resized, quality: quality);
         }
-        
+
         return Uint8List.fromList(data);
       } catch (e) {
         _logger.severe("Image package processing failed", e);
       }
     }
-    
+
     return null;
   }
-  
+
   static img.Image _resizeImage(img.Image image, int maxSize) {
     if (image.width <= maxSize && image.height <= maxSize) {
       return image;
     }
-    
+
     // Calculate new dimensions maintaining aspect ratio
     final double aspectRatio = image.width / image.height;
     int newWidth, newHeight;
-    
+
     if (image.width > image.height) {
       newWidth = maxSize;
       newHeight = (maxSize / aspectRatio).round();
@@ -145,7 +148,7 @@ class WidgetImageOperations {
       newHeight = maxSize;
       newWidth = (maxSize * aspectRatio).round();
     }
-    
+
     return img.copyResize(
       image,
       width: newWidth,

@@ -57,7 +57,7 @@ enum IsolateOperation {
   setIsolateCache,
   clearIsolateCache,
   clearAllIsolateCache,
-  
+
   /// Widget image processing
   processWidgetImage,
 }
@@ -222,7 +222,7 @@ Future<dynamic> isolateFunction(
       return true;
 
     /// Cases for Caching stop here
-    
+
     /// Widget image processing
     case IsolateOperation.processWidgetImage:
       final result = await WidgetImageOperations.processWidgetImage(args);

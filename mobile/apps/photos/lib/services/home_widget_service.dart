@@ -9,12 +9,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
 import 'package:photos/core/constants.dart';
 import 'package:photos/models/file/file.dart';
+import 'package:photos/service_locator.dart';
 import 'package:photos/services/album_home_widget_service.dart';
 import 'package:photos/services/memory_home_widget_service.dart';
 import 'package:photos/services/people_home_widget_service.dart';
 import 'package:photos/services/smart_memories_service.dart';
-import 'package:photos/utils/widget_image_util.dart';
 import "package:synchronized/synchronized.dart";
+
+import 'package:photos/utils/widget_image_util.dart';
 
 enum WidgetStatus {
   // notSynced means the widget is not initialized or has no data
@@ -34,7 +36,8 @@ enum WidgetStatus {
 class HomeWidgetService {
   // Constants
   static const double THUMBNAIL_SIZE = 512.0; // Legacy size for compatibility
-  static const double WIDGET_IMAGE_SIZE = 1024.0; // Enhanced size for better quality
+  static const double WIDGET_IMAGE_SIZE =
+      1024.0; // Enhanced size for better quality
   static const String WIDGET_DIRECTORY = 'home_widget';
 
   // URI schemes for different widget types
@@ -108,7 +111,9 @@ class HomeWidgetService {
       return null;
     }
 
-    return const Size(WIDGET_IMAGE_SIZE, WIDGET_IMAGE_SIZE);
+    final imageSize =
+        flagService.enhancedWidgetImage ? WIDGET_IMAGE_SIZE : THUMBNAIL_SIZE;
+    return Size(imageSize, imageSize);
   }
 
   Future<int> countHomeWidgets(
@@ -138,15 +143,19 @@ class HomeWidgetService {
     String? mainKey,
   ) async {
     try {
-      // Get high-quality widget image with proper EXIF handling
+      // Get widget image with proper EXIF handling
+      // Use enhanced quality for internal users, legacy size for others
+      final imageSize =
+          flagService.enhancedWidgetImage ? WIDGET_IMAGE_SIZE : THUMBNAIL_SIZE;
       final imageData = await getWidgetImage(
         file,
-        maxSize: WIDGET_IMAGE_SIZE,
-        quality: 85,
+        maxSize: imageSize,
+        quality: flagService.enhancedWidgetImage ? 85 : 70,
       );
-      
+
       if (imageData == null) {
-        _logger.warning("Failed to get widget image for file ${file.displayName}");
+        _logger
+            .warning("Failed to get widget image for file ${file.displayName}");
         return false;
       }
 
