@@ -13,7 +13,7 @@ import 'package:photos/services/album_home_widget_service.dart';
 import 'package:photos/services/memory_home_widget_service.dart';
 import 'package:photos/services/people_home_widget_service.dart';
 import 'package:photos/services/smart_memories_service.dart';
-import 'package:photos/utils/thumbnail_util.dart';
+import 'package:photos/utils/widget_image_util.dart';
 import "package:synchronized/synchronized.dart";
 
 enum WidgetStatus {
@@ -33,7 +33,8 @@ enum WidgetStatus {
 /// Handles widget initialization, updates, and interaction with platform-specific widget APIs
 class HomeWidgetService {
   // Constants
-  static const double THUMBNAIL_SIZE = 512.0;
+  static const double THUMBNAIL_SIZE = 512.0; // Legacy size for compatibility
+  static const double WIDGET_IMAGE_SIZE = 1024.0; // Enhanced size for better quality
   static const String WIDGET_DIRECTORY = 'home_widget';
 
   // URI schemes for different widget types
@@ -107,7 +108,7 @@ class HomeWidgetService {
       return null;
     }
 
-    return const Size(THUMBNAIL_SIZE, THUMBNAIL_SIZE);
+    return const Size(WIDGET_IMAGE_SIZE, WIDGET_IMAGE_SIZE);
   }
 
   Future<int> countHomeWidgets(
@@ -137,10 +138,15 @@ class HomeWidgetService {
     String? mainKey,
   ) async {
     try {
-      // Get thumbnail data
-      final thumbnail = await getThumbnail(file);
-      if (thumbnail == null) {
-        _logger.warning("Failed to get thumbnail for file ${file.displayName}");
+      // Get high-quality widget image with proper EXIF handling
+      final imageData = await getWidgetImage(
+        file,
+        maxSize: WIDGET_IMAGE_SIZE,
+        quality: 85,
+      );
+      
+      if (imageData == null) {
+        _logger.warning("Failed to get widget image for file ${file.displayName}");
         return false;
       }
 
@@ -156,7 +162,7 @@ class HomeWidgetService {
         await thumbnailFile.create(recursive: true);
       }
 
-      await thumbnailFile.writeAsBytes(thumbnail);
+      await thumbnailFile.writeAsBytes(imageData);
       await setData(key, thumbnailPath);
 
       // Format date for display
