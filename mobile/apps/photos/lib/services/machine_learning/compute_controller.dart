@@ -9,6 +9,7 @@ import "package:logging/logging.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/compute_control_event.dart";
 import "package:photos/models/compute/cancel_token.dart";
+import "package:photos/service_locator.dart";
 import "package:thermal/thermal.dart";
 
 enum ComputeRunState {
@@ -124,12 +125,16 @@ class ComputeController {
     bool result = false;
     if (ml) {
       result = _requestML();
-      if (result && cleanupCallback != null) {
+      if (result &&
+          cleanupCallback != null &&
+          flagService.computeControllerCancellation) {
         _cleanupCallbacks[ComputeRunState.runningML] = cleanupCallback;
       }
     } else if (stream) {
       result = _requestStream(bypassMLWaiting);
-      if (result && cleanupCallback != null) {
+      if (result &&
+          cleanupCallback != null &&
+          flagService.computeControllerCancellation) {
         _cleanupCallbacks[ComputeRunState.generatingStream] = cleanupCallback;
       }
     } else {
@@ -146,7 +151,9 @@ class ComputeController {
     if (_currentRunState == ComputeRunState.idle) {
       _currentRunState = ComputeRunState.runningML;
       _waitingToRunML = false;
-      _cancelTokens[ComputeRunState.runningML] = CancelToken();
+      if (flagService.computeControllerCancellation) {
+        _cancelTokens[ComputeRunState.runningML] = CancelToken();
+      }
       _logger.info("ML request granted");
       return true;
     } else if (_currentRunState == ComputeRunState.runningML) {
@@ -164,7 +171,9 @@ class ComputeController {
         (bypassMLWaiting || !_waitingToRunML)) {
       _logger.info("Stream request granted");
       _currentRunState = ComputeRunState.generatingStream;
-      _cancelTokens[ComputeRunState.generatingStream] = CancelToken();
+      if (flagService.computeControllerCancellation) {
+        _cancelTokens[ComputeRunState.generatingStream] = CancelToken();
+      }
       return true;
     }
     _logger.info(
@@ -235,7 +244,7 @@ class ComputeController {
       );
 
       // If compute should stop, cancel ongoing operations immediately
-      if (!shouldRunCompute) {
+      if (!shouldRunCompute && flagService.computeControllerCancellation) {
         _cancelOngoingCompute();
       }
 
@@ -351,11 +360,17 @@ class ComputeController {
 
   /// Get cancellation token for current compute state
   CancelToken? getCancelToken() {
+    if (!flagService.computeControllerCancellation) {
+      return null;
+    }
     return _cancelTokens[_currentRunState];
   }
 
   /// Check if current compute operation has been cancelled
   bool get isCancelled {
+    if (!flagService.computeControllerCancellation) {
+      return false;
+    }
     final token = _cancelTokens[_currentRunState];
     return token?.isCancelled ?? false;
   }

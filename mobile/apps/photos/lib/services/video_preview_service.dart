@@ -281,7 +281,8 @@ class VideoPreviewService {
     bool forceUpload = false,
   }) async {
     // Check if compute has been cancelled before starting
-    if (computeController.isCancelled) {
+    if (flagService.computeControllerCancellation &&
+        computeController.isCancelled) {
       _logger.info("Compute cancelled, stopping video preview generation");
       _handleCancellation();
       return;
@@ -300,7 +301,9 @@ class VideoPreviewService {
     }
 
     // Get cancellation token for monitoring
-    final cancelToken = computeController.getCancelToken();
+    final cancelToken = flagService.computeControllerCancellation
+        ? computeController.getCancelToken()
+        : null;
 
     Object? error;
     bool removeFile = false;
@@ -471,7 +474,8 @@ class VideoPreviewService {
       _logger.info(command);
 
       // Check cancellation before starting heavy FFmpeg operation
-      if (cancelToken?.isCancelled ?? false) {
+      if (flagService.computeControllerCancellation &&
+          (cancelToken?.isCancelled ?? false)) {
         _logger.info("Operation cancelled before FFmpeg processing");
         _handleCancellation();
         Directory(prefix).delete(recursive: true).ignore();
@@ -493,7 +497,8 @@ class VideoPreviewService {
       });
 
       // Check if cancelled during FFmpeg operation
-      if (cancelToken?.isCancelled ?? false) {
+      if (flagService.computeControllerCancellation &&
+          (cancelToken?.isCancelled ?? false)) {
         _logger.info("Operation cancelled during FFmpeg processing");
         _handleCancellation();
         Directory(prefix).delete(recursive: true).ignore();
@@ -1197,7 +1202,9 @@ class VideoPreviewService {
     return isVideoStreamingEnabled &&
         computeController.requestCompute(
           stream: true,
-          cleanupCallback: _handleCancellation,
+          cleanupCallback: flagService.computeControllerCancellation
+              ? _handleCancellation
+              : null,
         );
   }
 
@@ -1207,7 +1214,9 @@ class VideoPreviewService {
           stream: true,
           bypassInteractionCheck: true,
           bypassMLWaiting: true,
-          cleanupCallback: _handleCancellation,
+          cleanupCallback: flagService.computeControllerCancellation
+              ? _handleCancellation
+              : null,
         );
   }
 
