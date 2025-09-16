@@ -296,12 +296,12 @@ Future<void> _init(bool isBackground, {String via = ''}) async {
     unawaited(MLService.instance.init());
     await PersonService.init(entityService, MLDataDB.instance, preferences);
     EnteWakeLockService.instance.init(preferences);
-    
+
     if (Platform.isIOS && !isBackground) {
       await M3u8ServerService.instance.initialize();
       _logger.info("M3u8ServerService initialized $tlog");
     }
-    
+
     logLocalSettings();
     initComplete = true;
     _stopHearBeat = true;
