@@ -9,6 +9,7 @@ import 'package:media_extension/media_extension.dart';
 import "package:photos/core/configuration.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/guest_view_event.dart";
+import "package:photos/events/loop_video_event.dart";
 import "package:photos/generated/l10n.dart";
 import "package:photos/l10n/l10n.dart";
 import "package:photos/models/file/extensions/file_props.dart";
@@ -20,6 +21,7 @@ import 'package:photos/models/selected_files.dart';
 import "package:photos/service_locator.dart";
 import 'package:photos/services/collections_service.dart';
 import 'package:photos/services/hidden_service.dart';
+import "package:photos/services/airplay_service.dart";
 import "package:photos/services/local_authentication_service.dart";
 import "package:photos/services/video_preview_service.dart";
 import "package:photos/theme/ente_theme.dart";
@@ -188,6 +190,18 @@ class FileAppBarState extends State<FileAppBar> {
         UploadIconWidget(
           file: widget.file,
           key: ValueKey(widget.file.tag),
+        ),
+      );
+    }
+
+    // Add AirPlay button for videos when feature flag is enabled
+    if (widget.file.isVideo && 
+        featureFlagService.isAirplaySupported &&
+        AirPlayService.instance.isSupported) {
+      _actions.add(
+        AirPlayService.instance.buildAirPlayIconButton(
+          tintColor: Colors.white,
+          activeTintColor: Colors.blue,
         ),
       );
     }
@@ -384,10 +398,12 @@ class FileAppBarState extends State<FileAppBar> {
   }
 
   _onToggleLoopVideo() {
-    localSettings.setShouldLoopVideo(!shouldLoopVideo);
+    final newLoopSetting = !shouldLoopVideo;
+    localSettings.setShouldLoopVideo(newLoopSetting);
+    Bus.instance.fire(LoopVideoEvent(newLoopSetting));
     setState(() {
       _reloadActions = true;
-      shouldLoopVideo = !shouldLoopVideo;
+      shouldLoopVideo = newLoopSetting;
     });
   }
 

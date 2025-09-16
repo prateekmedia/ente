@@ -21,10 +21,33 @@ class FileDataService {
   final Dio _dio;
   final SharedPreferences _prefs;
   late Map<int, PreviewInfo> previewIds;
+  bool _previewIdsLoaded = false;
+  Future<void>? _loadingFuture;
 
   FileDataService(this._prefs, this._dio) {
     _logger.info("FileDataService constructor called");
     previewIds = <int, PreviewInfo>{};
+    _loadingFuture = _loadPreviewIdsFromDB();
+  }
+  
+  bool get previewIdsLoaded => _previewIdsLoaded;
+  
+  Future<void> ensurePreviewIdsLoaded() async {
+    if (_loadingFuture != null) {
+      await _loadingFuture;
+    }
+  }
+  
+  Future<void> _loadPreviewIdsFromDB() async {
+    try {
+      _logger.info("Loading preview IDs from database...");
+      previewIds = await MLDataDB.instance.getFileIDsVidPreview();
+      _previewIdsLoaded = true;
+      _logger.info("Loaded ${previewIds.length} preview IDs from database");
+    } catch (e) {
+      _logger.severe("Failed to load preview IDs from database", e);
+      _previewIdsLoaded = true; // Set to true even on error to avoid infinite waiting
+    }
   }
 
   /// Used to not sync preview ids everytime a chunking and preview

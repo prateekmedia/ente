@@ -11,15 +11,15 @@ import "package:photos/models/file/extensions/file_props.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/models/preview/playlist_data.dart";
 import "package:photos/service_locator.dart";
-import "package:photos/services/airplay_service.dart";
 import "package:photos/services/video_preview_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/ui/common/loading_widget.dart";
 import "package:photos/ui/notification/toast.dart";
-import "package:photos/ui/viewer/file/airplay_video_widget.dart";
 import "package:photos/ui/viewer/file/video_widget_media_kit.dart";
 import "package:photos/ui/viewer/file/video_widget_native.dart";
+import "package:photos/ui/viewer/file/video_airplay_widget.dart";
 import "package:photos/utils/standalone/data.dart";
+import "package:photos/services/airplay_service.dart";
 
 class VideoWidget extends StatefulWidget {
   final EnteFile file;
@@ -44,14 +44,12 @@ class VideoWidget extends StatefulWidget {
 class _VideoWidgetState extends State<VideoWidget> {
   final _logger = Logger("VideoWidget");
   bool useNativeVideoPlayer = true;
-  bool useAirPlay = false;
   late final StreamSubscription<UseMediaKitForVideo>
       useMediaKitForVideoSubscription;
   late bool selectPreviewForPlay = widget.file.localID == null;
   PlaylistData? playlistData;
   final nativePlayerKey = GlobalKey();
   final mediaKitKey = GlobalKey();
-  final airPlayKey = GlobalKey();
 
   bool isPreviewLoadable = false;
 
@@ -66,20 +64,28 @@ class _VideoWidgetState extends State<VideoWidget> {
       });
     });
     
-    // Enable AirPlay for videos when feature flag is enabled
-    if (featureFlagService.isAirplaySupported && AirPlayService.instance.isSupported) {
-      useAirPlay = true;
-      _logger.info("AirPlay enabled for video playback");
+    if (widget.file.isUploaded) {
+      _initializePreviewState();
+    }
+  }
+  
+  Future<void> _initializePreviewState() async {
+    // Ensure previewIds are loaded from database first
+    await fileDataService.ensurePreviewIdsLoaded();
+    
+    if (!mounted) return;
+    
+    // Check if preview exists in previewIds
+    isPreviewLoadable =
+        fileDataService.previewIds.containsKey(widget.file.uploadedFileID);
+    
+    // For shared videos, always try to load preview
+    if (!widget.file.isOwner) {
+      isPreviewLoadable = true;
     }
     
-    if (widget.file.isUploaded) {
-      isPreviewLoadable =
-          fileDataService.previewIds.containsKey(widget.file.uploadedFileID);
-      if (!widget.file.isOwner) {
-        // For shared video, we need to on-demand check if the file is streamable
-        // and if not, we need to set isPreviewLoadable to false
-        isPreviewLoadable = true;
-      }
+    if (mounted) {
+      setState(() {});
       _checkForPreview();
     }
   }
@@ -132,7 +138,13 @@ class _VideoWidgetState extends State<VideoWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final playPreview = isPreviewLoadable && selectPreviewForPlay;
+    // Check if AirPlay is active
+    final bool isAirPlaying = Platform.isIOS ? 
+        AirPlayService.instance.isAirPlaying : false;
+    
+    // If AirPlay is active, always use original (not stream) as local m3u8 doesn't work with AirPlay
+    final playPreview = isPreviewLoadable && selectPreviewForPlay && !isAirPlaying;
+    
     if (playPreview && playlistData == null) {
       return Center(
         child: Container(
@@ -156,42 +168,66 @@ class _VideoWidgetState extends State<VideoWidget> {
       );
     }
 
-    // Use AirPlay widget when AirPlay is enabled
-    if (useAirPlay) {
-      return AirPlayVideoWidget(
-        widget.file,
-        key: airPlayKey,
-        tagPrefix: widget.tagPrefix,
-        playbackCallback: widget.playbackCallback,
+    // On iOS, listen to AirPlay state and use native player when AirPlay is active
+    if (Platform.isIOS) {
+      return StreamBuilder<bool>(
+        stream: AirPlayService.instance.isAirPlayingStream,
+        initialData: AirPlayService.instance.isAirPlaying,
+        builder: (context, snapshot) {
+          final isAirPlaying = snapshot.data ?? false;
+          // Always use native player when AirPlay is active
+          if (isAirPlaying) {
+            return _buildNativePlayer(playPreview, playlistData);
+          }
+          // Otherwise use default behavior
+          if (useNativeVideoPlayer && !playPreview) {
+            return _buildNativePlayer(playPreview, playlistData);
+          } else {
+            return _buildMediaKitPlayer(playPreview, playlistData);
+          }
+        },
       );
     }
 
-    if (useNativeVideoPlayer && !playPreview ||
-        playPreview && Platform.isAndroid) {
-      return VideoWidgetNative(
-        widget.file,
-        key: nativePlayerKey,
-        tagPrefix: widget.tagPrefix,
-        playbackCallback: widget.playbackCallback,
-        playlistData: playlistData,
-        selectedPreview: playPreview,
-        isFromMemories: widget.isFromMemories,
-        onStreamChange: () {
-          setState(() {
-            selectPreviewForPlay = !selectPreviewForPlay;
-            Bus.instance.fire(
-              StreamSwitchedEvent(
-                selectPreviewForPlay,
-                Platform.isAndroid && useNativeVideoPlayer
-                    ? PlayerType.nativeVideoPlayer
-                    : PlayerType.mediaKit,
-              ),
-            );
-          });
-        },
-        onFinalFileLoad: widget.onFinalFileLoad,
-      );
+    // On Android, use native for original and MediaKit for stream
+    if ((useNativeVideoPlayer && !playPreview) ||
+        (playPreview && Platform.isAndroid)) {
+      return _buildNativePlayer(playPreview, playlistData);
     }
+    return _buildMediaKitPlayer(playPreview, playlistData);
+  }
+
+  Widget _buildNativePlayer(bool playPreview, PlaylistData? playlistData) {
+    return VideoWidgetNative(
+      widget.file,
+      key: nativePlayerKey,
+      tagPrefix: widget.tagPrefix,
+      playbackCallback: widget.playbackCallback,
+      playlistData: playlistData,
+      selectedPreview: playPreview,
+      isFromMemories: widget.isFromMemories,
+      onStreamChange: () {
+        setState(() {
+          selectPreviewForPlay = !selectPreviewForPlay;
+          // If switching to preview but preview not loaded, load it now
+          if (selectPreviewForPlay && this.playlistData == null) {
+            _checkForPreview();
+          }
+          Bus.instance.fire(
+            StreamSwitchedEvent(
+              selectPreviewForPlay,
+              Platform.isAndroid && useNativeVideoPlayer
+                  ? PlayerType.nativeVideoPlayer
+                  : PlayerType.mediaKit,
+            ),
+          );
+        });
+      },
+      onFinalFileLoad: widget.onFinalFileLoad,
+    );
+  }
+
+  Widget _buildMediaKitPlayer(bool playPreview, PlaylistData? playlistData) {
     return VideoWidgetMediaKit(
       widget.file,
       key: mediaKitKey,
@@ -203,6 +239,10 @@ class _VideoWidgetState extends State<VideoWidget> {
       onStreamChange: () {
         setState(() {
           selectPreviewForPlay = !selectPreviewForPlay;
+          // If switching to preview but preview not loaded, load it now
+          if (selectPreviewForPlay && this.playlistData == null) {
+            _checkForPreview();
+          }
           Bus.instance.fire(
             StreamSwitchedEvent(
               selectPreviewForPlay,

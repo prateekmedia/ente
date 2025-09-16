@@ -1,12 +1,15 @@
 import "dart:async";
+import "dart:io";
 
 import "package:flutter/material.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/video_preview_state_changed_event.dart";
 import "package:photos/generated/l10n.dart";
 import "package:photos/models/file/file.dart";
+import "package:photos/models/file/extensions/file_props.dart";
 import "package:photos/models/preview/preview_item_status.dart";
 import "package:photos/service_locator.dart";
+import "package:photos/services/airplay_service.dart";
 import "package:photos/services/video_preview_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart" show getEnteColorScheme;
@@ -85,8 +88,16 @@ class _VideoStreamChangeWidgetState extends State<VideoStreamChangeWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if AirPlay is active (streams don't work with AirPlay)
+    final bool isAirPlaying = Platform.isIOS ? 
+        AirPlayService.instance.isAirPlaying : false;
+    
+    // For owned videos, check if preview exists in previewIds
+    // For shared videos, always show the button (preview check happens on-demand)
     final bool isPreviewAvailable = widget.file.uploadedFileID != null &&
-        (fileDataService.previewIds.containsKey(widget.file.uploadedFileID));
+        (widget.file.isOwner 
+            ? fileDataService.previewIds.containsKey(widget.file.uploadedFileID)
+            : true);
 
     // Get the current processing status for more specific messaging
     final processingStatus = widget.file.uploadedFileID != null
@@ -95,6 +106,11 @@ class _VideoStreamChangeWidgetState extends State<VideoStreamChangeWidget> {
         : null;
 
     final colorScheme = getEnteColorScheme(context);
+
+    // Hide stream button completely when AirPlay is active (streams don't work with AirPlay)
+    if (isAirPlaying) {
+      return const SizedBox();
+    }
 
     if (!isPreviewAvailable && !isCurrentlyProcessing) {
       return const SizedBox();
@@ -158,14 +174,16 @@ class _VideoStreamChangeWidgetState extends State<VideoStreamChangeWidget> {
                   ),
                 )
               : GestureDetector(
-                  onTap: widget.onStreamChange,
+                  onTap: isAirPlaying ? null : widget.onStreamChange,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green,
+                      color: isAirPlaying 
+                          ? Colors.grey.withOpacity(0.5) 
+                          : Colors.green,
                       borderRadius: const BorderRadius.all(
                         Radius.circular(200),
                       ),
@@ -178,20 +196,22 @@ class _VideoStreamChangeWidgetState extends State<VideoStreamChangeWidget> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.play_arrow,
+                        Icon(
+                          isAirPlaying ? Icons.airplay : Icons.play_arrow,
                           size: 16,
-                          color: Colors.white,
+                          color: Colors.white.withOpacity(isAirPlaying ? 0.5 : 1),
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          widget.isPreviewPlayer
-                              ? AppLocalizations.of(context).playOriginal
-                              : AppLocalizations.of(context).playStream,
-                          style: const TextStyle(
+                          isAirPlaying 
+                              ? "Stream unavailable"
+                              : (widget.isPreviewPlayer
+                                  ? AppLocalizations.of(context).playOriginal
+                                  : AppLocalizations.of(context).playStream),
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: Colors.white.withOpacity(isAirPlaying ? 0.5 : 1),
                           ),
                         ),
                       ],
