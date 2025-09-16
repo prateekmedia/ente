@@ -17,8 +17,8 @@ import "package:photos/models/file/extensions/file_props.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/module/download/task.dart";
 import "package:photos/service_locator.dart";
-import "package:photos/services/files_service.dart";
 import "package:photos/services/airplay_service.dart";
+import "package:photos/services/files_service.dart";
 import "package:photos/services/wake_lock_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart";
@@ -126,7 +126,7 @@ class _VideoWidgetMediaKitState extends State<VideoWidgetMediaKit>
         }
       }
     });
-    
+
     _loopVideoEventSubscription =
         Bus.instance.on<LoopVideoEvent>().listen((event) {
       if (mounted && controller != null) {
@@ -135,7 +135,7 @@ class _VideoWidgetMediaKitState extends State<VideoWidgetMediaKit>
         );
       }
     });
-    
+
     EnteWakeLockService.instance
         .updateWakeLock(enable: true, wakeLockFor: WakeLockFor.videoPlayback);
   }
