@@ -2,8 +2,10 @@ import "dart:async";
 import "dart:collection";
 import "dart:convert";
 import "dart:io";
+import 'dart:math';
 
 import "package:collection/collection.dart";
+import 'package:convert/convert.dart';
 import "package:dio/dio.dart";
 import "package:encrypt/encrypt.dart" as enc;
 import "package:ffmpeg_kit_flutter/return_code.dart";
@@ -24,6 +26,7 @@ import "package:photos/models/base/id.dart";
 import "package:photos/models/ffmpeg/ffprobe_props.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/models/file/file_type.dart";
+import 'package:photos/models/metadata/stream_version.dart';
 import "package:photos/models/metadata/file_magic.dart";
 import "package:photos/models/preview/playlist_data.dart";
 import "package:photos/models/preview/preview_item.dart";
@@ -400,16 +403,26 @@ class VideoPreviewService {
           "${tempDir}_${enteFile.uploadedFileID}_${newID("pv")}";
       Directory(prefix).createSync();
       _logger.info('Compressing video ${enteFile.displayName}');
-      final key = enc.Key.fromLength(16);
+      
+      // Determine stream version based on feature flag
+      final int streamVersion = _getStreamVersion();
+      _logger.info('Using stream version: ${StreamVersion.getVersionName(streamVersion)}');
+      
+      // Use AES-256 for enhanced version, AES-128 for legacy
+      final key = streamVersion == StreamVersion.ENHANCED
+          ? enc.Key.fromLength(32)  // AES-256
+          : enc.Key.fromLength(16); // AES-128 (legacy)
 
       final keyfile = File('$prefix/keyfile.key');
       keyfile.writeAsBytesSync(key.bytes);
 
       final keyinfo = File('$prefix/mykey.keyinfo');
-      keyinfo.writeAsStringSync(
-        "data:text/plain;base64,${key.base64}\n"
-        "${keyfile.path}\n",
+      final keyInfoContent = _generateKeyInfo(
+        keyfile.path,
+        key,
+        streamVersion,
       );
+      keyinfo.writeAsStringSync(keyInfoContent);
 
       _logger.info(
         'Generating HLS Playlist ${enteFile.displayName} at $prefix/output.m3u8',
@@ -427,8 +440,11 @@ class VideoPreviewService {
         final videoFilters = <String>[];
 
         if (rescaleVideo || needsTonemap) {
-          // scale video to 720p or keep original height if less than 720p
-          videoFilters.add("scale=-2:'min(720,ih)'");
+          // Scale video to max 720p on the longer dimension while maintaining aspect ratio
+          // For landscape: scale=-2:'min(720,ih)' (limit height to 720)
+          // For portrait: scale='min(720,iw)':-2 (limit width to 720)
+          // The -2 ensures dimensions are divisible by 2 (required for video encoding)
+          videoFilters.add("scale='if(gt(iw,ih),min(iw,720),-2)':'if(gt(iw,ih),-2,min(ih,720))'");
 
           // reduce fps to 30 if it is more than 30
           if (applyFPS) videoFilters.add("fps=30");
@@ -448,16 +464,12 @@ class VideoPreviewService {
         filters = '-vf "${videoFilters.join(",")}" ';
       }
 
-      final command =
-          // scaling, fps, tonemapping
-          '$filters'
-          // video encoding
-          '${reencodeVideo ? '-c:v libx264 -crf 23 -preset medium ' : '-c:v copy '}'
-          // audio encoding
-          '-c:a aac -b:a 128k '
-          // hls options
-          '-f hls -hls_flags single_file '
-          '-hls_list_size 0 -hls_key_info_file ${keyinfo.path} ';
+      final command = _buildFFmpegCommand(
+        reencodeVideo,
+        filters,
+        streamVersion,
+        keyinfo.path,
+      );
 
       _logger.info(command);
 
@@ -538,6 +550,7 @@ class VideoPreviewService {
             objectSize: objectSize,
             width: width,
             height: height,
+            streamVersion: streamVersion,
           );
 
           _logger.info("Video preview uploaded for $enteFile");
@@ -687,6 +700,7 @@ class VideoPreviewService {
     required int objectSize,
     required int? width,
     required int? height,
+    int streamVersion = StreamVersion.LEGACY,
   }) async {
     _logger.info("Pushing playlist for ${file.uploadedFileID}");
     try {
@@ -699,6 +713,7 @@ class VideoPreviewService {
           'width': width,
           'height': height,
           'size': objectSize,
+          'version': streamVersion,
         },
         encryptionKey,
       );
@@ -799,6 +814,10 @@ class VideoPreviewService {
         width = playlistData["width"];
         height = playlistData["height"];
         size = playlistData["size"];
+        
+        // Extract stream version for proper decryption handling
+        final streamVersion = playlistData["version"] ?? StreamVersion.LEGACY;
+        _logger.info("Playlist uses stream version: ${StreamVersion.getVersionName(streamVersion)}");
         unawaited(
           cacheManager.putFile(
             _getCacheKey(objectID),
@@ -1207,5 +1226,64 @@ class VideoPreviewService {
         computeController.releaseCompute(stream: true);
       }
     });
+  }
+  
+  /// Determine which stream version to use based on feature flag
+  int _getStreamVersion() {
+    // Check if enhanced streaming is enabled
+    if (flagService.isEnhancedStreamingEnabled) {
+      return StreamVersion.ENHANCED;
+    }
+    return StreamVersion.LEGACY;
+  }
+  
+  /// Generate random IV for enhanced streaming
+  String _generateRandomIV() {
+    final random = Random.secure();
+    final ivBytes = Uint8List.fromList(
+      List.generate(16, (_) => random.nextInt(256))
+    );
+    return '0x${hex.encode(ivBytes).toUpperCase()}';
+  }
+  
+  /// Generate key info file content based on stream version
+  String _generateKeyInfo(String keyfilePath, enc.Key key, int streamVersion) {
+    if (streamVersion == StreamVersion.ENHANCED) {
+      // Generate random IV for enhanced version
+      final iv = _generateRandomIV();
+      return "data:text/plain;base64,${key.base64}\n"
+             "$keyfilePath\n"
+             "$iv\n";
+    } else {
+      // Legacy: use existing format (no IV means 0x00000000)
+      return "data:text/plain;base64,${key.base64}\n"
+             "$keyfilePath\n";
+    }
+  }
+  
+  /// Build FFmpeg command based on stream version
+  String _buildFFmpegCommand(
+    bool reencodeVideo,
+    String filters,
+    int streamVersion,
+    String keyinfoPath,
+  ) {
+    if (streamVersion == StreamVersion.ENHANCED) {
+      return '$filters'
+          // Use bitrate instead of CRF for enhanced version
+          '${reencodeVideo ? '-c:v libx264 -b:v 2000k -maxrate 2500k -bufsize 4000k -preset medium ' : '-c:v copy '}'
+          // Audio encoding remains same
+          '-c:a aac -b:a 128k '
+          // HLS options with encryption
+          '-f hls -hls_flags single_file '
+          '-hls_list_size 0 -hls_key_info_file $keyinfoPath ';
+    } else {
+      // Legacy: keep existing CRF-based encoding
+      return '$filters'
+          '${reencodeVideo ? '-c:v libx264 -crf 23 -preset medium ' : '-c:v copy '}'
+          '-c:a aac -b:a 128k '
+          '-f hls -hls_flags single_file '
+          '-hls_list_size 0 -hls_key_info_file $keyinfoPath ';
+    }
   }
 }
