@@ -60,6 +60,16 @@ class UploadLocksDB {
     columnCreatedAt: "created_at",
   );
 
+  static const _bgStreamQueueTable = (
+    table: "bg_stream_queue",
+    columnUploadedFileID: "uploaded_file_id",
+    columnBgRetryCount: "bg_retry_count",
+    columnFileSize: "file_size",
+    columnDuration: "duration",
+    columnLastAttemptedAt: "last_attempted_at",
+    columnCreatedAt: "created_at",
+  );
+
   static final initializationScript = [
     ..._createUploadLocksTable(),
   ];
@@ -146,6 +156,16 @@ class UploadLocksDB {
                   ${_streamQueueTable.columnUploadedFileID} INTEGER PRIMARY KEY,
                   ${_streamQueueTable.columnQueueType} TEXT NOT NULL,
                   ${_streamQueueTable.columnCreatedAt} INTEGER DEFAULT CURRENT_TIMESTAMP NOT NULL
+                )
+                ''',
+      '''
+                CREATE TABLE IF NOT EXISTS ${_bgStreamQueueTable.table} (
+                  ${_bgStreamQueueTable.columnUploadedFileID} INTEGER PRIMARY KEY,
+                  ${_bgStreamQueueTable.columnBgRetryCount} INTEGER DEFAULT 0 NOT NULL,
+                  ${_bgStreamQueueTable.columnFileSize} INTEGER NOT NULL,
+                  ${_bgStreamQueueTable.columnDuration} INTEGER NOT NULL,
+                  ${_bgStreamQueueTable.columnLastAttemptedAt} INTEGER,
+                  ${_bgStreamQueueTable.columnCreatedAt} INTEGER DEFAULT CURRENT_TIMESTAMP NOT NULL
                 )
                 ''',
     ];
@@ -583,6 +603,88 @@ class UploadLocksDB {
     final rows = await db.query(
       _streamQueueTable.table,
       where: '${_streamQueueTable.columnUploadedFileID} = ?',
+      whereArgs: [uploadedFileID],
+    );
+    return rows.isNotEmpty;
+  }
+
+  // Background Stream Queue Management Methods
+  Future<void> addToBgStreamQueue(
+    int uploadedFileID,
+    int fileSize,
+    int duration,
+  ) async {
+    final db = await database;
+    await db.insert(
+      _bgStreamQueueTable.table,
+      {
+        _bgStreamQueueTable.columnUploadedFileID: uploadedFileID,
+        _bgStreamQueueTable.columnBgRetryCount: 0,
+        _bgStreamQueueTable.columnFileSize: fileSize,
+        _bgStreamQueueTable.columnDuration: duration,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Ignore if already exists
+    );
+  }
+
+  Future<void> incrementBgRetryCount(int uploadedFileID) async {
+    final db = await database;
+    await db.rawUpdate(
+      'UPDATE ${_bgStreamQueueTable.table} '
+      'SET ${_bgStreamQueueTable.columnBgRetryCount} = ${_bgStreamQueueTable.columnBgRetryCount} + 1, '
+      '${_bgStreamQueueTable.columnLastAttemptedAt} = ? '
+      'WHERE ${_bgStreamQueueTable.columnUploadedFileID} = ?',
+      [DateTime.now().millisecondsSinceEpoch, uploadedFileID],
+    );
+  }
+
+  Future<int> getBgRetryCount(int uploadedFileID) async {
+    final db = await database;
+    final rows = await db.query(
+      _bgStreamQueueTable.table,
+      columns: [_bgStreamQueueTable.columnBgRetryCount],
+      where: '${_bgStreamQueueTable.columnUploadedFileID} = ?',
+      whereArgs: [uploadedFileID],
+    );
+    if (rows.isEmpty) return 0;
+    return rows.first[_bgStreamQueueTable.columnBgRetryCount] as int;
+  }
+
+  Future<void> removeFromBgStreamQueue(int uploadedFileID) async {
+    final db = await database;
+    await db.delete(
+      _bgStreamQueueTable.table,
+      where: '${_bgStreamQueueTable.columnUploadedFileID} = ?',
+      whereArgs: [uploadedFileID],
+    );
+  }
+
+  Future<Map<int, Map<String, int>>> getBgStreamQueue() async {
+    final db = await database;
+    final rows = await db.query(
+      _bgStreamQueueTable.table,
+      orderBy: '${_bgStreamQueueTable.columnBgRetryCount} ASC, '
+          '${_bgStreamQueueTable.columnCreatedAt} ASC',
+    );
+    final map = <int, Map<String, int>>{};
+    for (final row in rows) {
+      final fileId = row[_bgStreamQueueTable.columnUploadedFileID] as int;
+      map[fileId] = {
+        'retryCount': row[_bgStreamQueueTable.columnBgRetryCount] as int,
+        'fileSize': row[_bgStreamQueueTable.columnFileSize] as int,
+        'duration': row[_bgStreamQueueTable.columnDuration] as int,
+        'lastAttempted':
+            (row[_bgStreamQueueTable.columnLastAttemptedAt] ?? 0) as int,
+      };
+    }
+    return map;
+  }
+
+  Future<bool> isInBgStreamQueue(int uploadedFileID) async {
+    final db = await database;
+    final rows = await db.query(
+      _bgStreamQueueTable.table,
+      where: '${_bgStreamQueueTable.columnUploadedFileID} = ?',
       whereArgs: [uploadedFileID],
     );
     return rows.isNotEmpty;

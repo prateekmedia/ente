@@ -41,15 +41,22 @@ import "package:photos/utils/gzip.dart";
 import "package:photos/utils/network_util.dart";
 
 const _maxRetryCount = 3;
+const _maxBgRetryCount = 3;
+const _maxBgVideoSize = 100 * 1024 * 1024; // 100MB
+const _maxBgVideoDuration = 15; // 15 seconds
 
 class VideoPreviewService {
   final _logger = Logger("VideoPreviewService");
   final LinkedHashMap<int, PreviewItem> _items = LinkedHashMap();
   LinkedHashMap<int, EnteFile> fileQueue = LinkedHashMap();
+  LinkedHashMap<int, EnteFile> bgFileQueue =
+      LinkedHashMap(); // Background queue for small videos
   final int _maxPreviewSizeLimitForCache = 50 * 1024 * 1024; // 50 MB
   Set<int>? _failureFiles;
+  int bgUploadingFileId = -1; // Track background processing separately
 
   bool get _hasQueuedFile => fileQueue.isNotEmpty;
+  bool get _hasBgQueuedFile => bgFileQueue.isNotEmpty;
 
   VideoPreviewService._privateConstructor()
       : serviceLocator = ServiceLocator.instance,
@@ -98,8 +105,12 @@ class VideoPreviewService {
 
     if (isVideoStreamingEnabled) {
       queueFiles(duration: Duration.zero);
+      queueBackgroundStreaming(); // Also start background streaming
     } else {
       clearQueue();
+      // Clear background queue
+      bgFileQueue.clear();
+      bgUploadingFileId = -1;
     }
   }
 
@@ -110,6 +121,8 @@ class VideoPreviewService {
     }
     fileQueue.clear();
     _items.clear();
+    bgFileQueue.clear();
+    bgUploadingFileId = -1;
   }
 
   void _fireVideoPreviewStateChange(int fileId, PreviewItemStatus status) {
@@ -279,18 +292,36 @@ class VideoPreviewService {
     bool continuation = false,
     // not used currently
     bool forceUpload = false,
+    bool isBackground = false, // New flag for background processing
   }) async {
+    // Check if this is being processed in background
+    final processingInBackground =
+        isBackground || bgUploadingFileId == enteFile.uploadedFileID;
     final bool isManual =
         await uploadLocksDB.isInStreamQueue(enteFile.uploadedFileID!);
-    final canStream = _isPermissionGranted();
-    if (!canStream) {
-      _logger.info(
-        "Pause preview due to disabledSteaming($isVideoStreamingEnabled) or computeController permission) - isManual: $isManual",
-      );
-      computeController.releaseCompute(stream: true);
-      if (isVideoStreamingEnabled) _logger.info("No permission to run compute");
-      clearQueue();
-      return;
+
+    // Background processing has different permission requirements
+    if (!processingInBackground) {
+      final canStream = _isPermissionGranted();
+      if (!canStream) {
+        _logger.info(
+          "Pause preview due to disabledSteaming($isVideoStreamingEnabled) or computeController permission) - isManual: $isManual",
+        );
+        computeController.releaseCompute(stream: true);
+        if (isVideoStreamingEnabled) {
+          _logger.info("No permission to run compute");
+        }
+        clearQueue();
+        return;
+      }
+    } else {
+      // For background, only check if device is healthy
+      if (!computeController.isDeviceHealthy || !isVideoStreamingEnabled) {
+        _logger.info(
+          "[BG] Cannot process - device not healthy or streaming disabled",
+        );
+        return;
+      }
     }
 
     Object? error;
@@ -334,7 +365,7 @@ class VideoPreviewService {
       }
 
       // check if there is already a preview in processing
-      if (!continuation && uploadingFileId >= 0) {
+      if (!continuation && !processingInBackground && uploadingFileId >= 0) {
         if (uploadingFileId == enteFile.uploadedFileID) return;
 
         _items[enteFile.uploadedFileID!] = PreviewItem(
@@ -354,7 +385,9 @@ class VideoPreviewService {
       }
 
       // everything is fine, let's process
-      uploadingFileId = enteFile.uploadedFileID!;
+      if (!processingInBackground) {
+        uploadingFileId = enteFile.uploadedFileID!;
+      }
       _items[enteFile.uploadedFileID!] = PreviewItem(
         status: PreviewItemStatus.compressing,
         file: enteFile,
@@ -585,26 +618,35 @@ class VideoPreviewService {
         _removeFile(enteFile);
         _removeFromLocks(enteFile).ignore();
       }
-      if (fileQueue.isNotEmpty) {
-        // process next file
-        _logger.info(
-          "[chunk] Processing ${_items.length} items for streaming, $error",
-        );
-        final entry = fileQueue.entries.first;
-        final file = entry.value;
-        fileQueue.remove(entry.key);
-        await chunkAndUploadVideo(
-          ctx,
-          file,
-          continuation: true,
-        );
-      } else {
-        _logger.info(
-          "[chunk] Nothing to process releasing compute, $error",
-        );
-        computeController.releaseCompute(stream: true);
 
-        uploadingFileId = -1;
+      // Handle continuation based on processing type
+      if (!processingInBackground) {
+        if (fileQueue.isNotEmpty) {
+          // process next file
+          _logger.info(
+            "[chunk] Processing ${_items.length} items for streaming, $error",
+          );
+          final entry = fileQueue.entries.first;
+          final file = entry.value;
+          fileQueue.remove(entry.key);
+          await chunkAndUploadVideo(
+            ctx,
+            file,
+            continuation: true,
+          );
+        } else {
+          _logger.info(
+            "[chunk] Nothing to process releasing compute, $error",
+          );
+          computeController.releaseCompute(stream: true);
+          uploadingFileId = -1;
+
+          // Start background processing when regular queue is empty
+          if (isVideoStreamingEnabled) {
+            _logger.info("Starting background processing for small videos");
+            queueBackgroundStreaming();
+          }
+        }
       }
     }
   }
@@ -1207,5 +1249,208 @@ class VideoPreviewService {
         computeController.releaseCompute(stream: true);
       }
     });
+  }
+
+  // Start background streaming for small videos
+  void queueBackgroundStreaming() {
+    Future.delayed(const Duration(seconds: 10), () async {
+      if (!isVideoStreamingEnabled || bgUploadingFileId >= 0) return;
+
+      // Only run background streaming if device is healthy and not running regular streaming
+      if (!computeController.isDeviceHealthy || uploadingFileId >= 0) return;
+
+      await _ensurePreviewIdsInitialized();
+      await _queueBackgroundFiles();
+
+      if (_hasBgQueuedFile) {
+        _processNextBackgroundFile();
+      }
+    });
+  }
+
+  Future<void> _queueBackgroundFiles() async {
+    try {
+      // Get all small videos that need processing
+      final files = await _getFiles(
+        beginDate: DateTime.now().subtract(const Duration(days: 90)),
+        onlyFilesWithLocalId: true,
+      );
+
+      final previewIds = fileDataService.previewIds;
+      // bgQueue not needed here
+
+      for (final file in files) {
+        if (file.uploadedFileID == null) continue;
+
+        // Skip if already has preview
+        if (previewIds.containsKey(file.uploadedFileID)) continue;
+
+        // Check size and duration constraints
+        final size = file.fileSize ?? 0;
+        final duration = file.duration ?? 0;
+
+        if (size <= _maxBgVideoSize &&
+            duration <= _maxBgVideoDuration &&
+            size > 0 &&
+            duration > 0) {
+          // Check retry count
+          final bgRetryCount =
+              await uploadLocksDB.getBgRetryCount(file.uploadedFileID!);
+          if (bgRetryCount >= _maxBgRetryCount) {
+            _logger.info(
+              "[BG] Skipping ${file.displayName} - max retries reached",
+            );
+            continue;
+          }
+
+          // Add to background queue
+          await uploadLocksDB.addToBgStreamQueue(
+            file.uploadedFileID!,
+            size,
+            duration,
+          );
+          bgFileQueue[file.uploadedFileID!] = file;
+
+          _logger.info(
+            "[BG] Queued ${file.displayName} (${size ~/ (1024 * 1024)}MB, ${duration}s)",
+          );
+        }
+      }
+    } catch (e, s) {
+      _logger.severe('[BG] Error queuing background files', e, s);
+    }
+  }
+
+  Future<void> _processNextBackgroundFile() async {
+    // Safety checks to prevent conflicts
+    if (!_hasBgQueuedFile || bgUploadingFileId >= 0) return;
+    if (uploadingFileId >= 0) {
+      // Don't process if regular streaming is active
+      _logger.info(
+        "[BG] Regular streaming active, postponing background processing",
+      );
+      return;
+    }
+    if (!isVideoStreamingEnabled || !computeController.isDeviceHealthy) {
+      _logger.info("[BG] Cannot process - conditions not met");
+      return;
+    }
+
+    // Get file with lowest retry count
+    final bgQueue = await uploadLocksDB.getBgStreamQueue();
+    if (bgQueue.isEmpty) {
+      bgFileQueue.clear();
+      return;
+    }
+
+    // Sort by retry count and pick first
+    final sortedEntries = bgQueue.entries.toList()
+      ..sort(
+        (a, b) =>
+            (a.value['retryCount'] ?? 0).compareTo(b.value['retryCount'] ?? 0),
+      );
+
+    final nextFileId = sortedEntries.first.key;
+
+    // Check if file is already being processed in regular queue
+    if (_items.containsKey(nextFileId)) {
+      _logger.info(
+        "[BG] File $nextFileId is in regular queue, skipping",
+      );
+      await uploadLocksDB.removeFromBgStreamQueue(nextFileId);
+      bgFileQueue.remove(nextFileId);
+      await _processNextBackgroundFile(); // Try next file
+      return;
+    }
+
+    final nextFile =
+        bgFileQueue[nextFileId] ?? await filesDB.getAnyUploadedFile(nextFileId);
+
+    if (nextFile == null) {
+      await uploadLocksDB.removeFromBgStreamQueue(nextFileId);
+      bgFileQueue.remove(nextFileId);
+      await _processNextBackgroundFile(); // Try next file
+      return;
+    }
+
+    bgFileQueue.remove(nextFileId);
+    await _processBackgroundVideo(nextFile);
+  }
+
+  Future<void> _processBackgroundVideo(EnteFile file) async {
+    if (file.uploadedFileID == null) return;
+
+    // Final safety check before processing
+    if (uploadingFileId >= 0 || !computeController.isDeviceHealthy) {
+      _logger.info("[BG] Aborting - conditions changed");
+      // Re-queue for later
+      bgFileQueue[file.uploadedFileID!] = file;
+      return;
+    }
+
+    bgUploadingFileId = file.uploadedFileID!;
+    _logger.info("[BG] Processing ${file.displayName}");
+
+    try {
+      // Check if already has preview (race condition check)
+      try {
+        final playlist = await getPlaylist(file);
+        if (playlist != null) {
+          _logger.info("[BG] ${file.displayName} already has preview");
+          await uploadLocksDB.removeFromBgStreamQueue(file.uploadedFileID!);
+          return;
+        }
+      } catch (_) {
+        // No preview exists, continue processing
+      }
+
+      // Process the video
+      await chunkAndUploadVideo(
+        null,
+        file,
+        continuation: false,
+        forceUpload: false,
+        isBackground: true, // Mark as background processing
+      );
+
+      // If successful, remove from background queue
+      await uploadLocksDB.removeFromBgStreamQueue(file.uploadedFileID!);
+      _logger.info("[BG] Successfully processed ${file.displayName}");
+    } catch (e, s) {
+      _logger.warning("[BG] Failed to process ${file.displayName}", e, s);
+
+      // Check if it was a cancellation due to device conditions
+      if (!computeController.isDeviceHealthy) {
+        _logger.info("[BG] Device unhealthy, will retry later");
+        bgFileQueue[file.uploadedFileID!] =
+            file; // Re-queue without incrementing retry
+      } else {
+        // Increment retry count for actual failures
+        await uploadLocksDB.incrementBgRetryCount(file.uploadedFileID!);
+
+        final retryCount =
+            await uploadLocksDB.getBgRetryCount(file.uploadedFileID!);
+        if (retryCount >= _maxBgRetryCount) {
+          _logger.info(
+            "[BG] Max retries reached for ${file.displayName}, removing from queue",
+          );
+          await uploadLocksDB.removeFromBgStreamQueue(file.uploadedFileID!);
+        } else {
+          _logger.info(
+            "[BG] Will retry ${file.displayName} (attempt ${retryCount}/$_maxBgRetryCount)",
+          );
+        }
+      }
+    } finally {
+      bgUploadingFileId = -1;
+
+      // Process next file after a delay (longer if device was unhealthy)
+      final delay = computeController.isDeviceHealthy
+          ? const Duration(seconds: 5)
+          : const Duration(seconds: 30);
+      Future.delayed(delay, () {
+        _processNextBackgroundFile();
+      });
+    }
   }
 }
