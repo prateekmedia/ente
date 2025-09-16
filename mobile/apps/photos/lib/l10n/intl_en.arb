@@ -1941,5 +1941,9 @@
   "closeBy": "Close",
   "@closeBy": {
     "description": "Appears in the similar images page, to indicate that the images are close in terms of appearance"
-  }
+  },
+  "createNewAlbum": "Create new album",
+  "createNewSubAlbum": "Create new sub-album",
+  "albumName": "Album name",
+  "noAlbumsFound": "No albums found"
 }
