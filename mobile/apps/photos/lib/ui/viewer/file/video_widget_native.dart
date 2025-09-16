@@ -25,6 +25,7 @@ import "package:photos/module/download/task.dart";
 import "package:photos/service_locator.dart";
 import "package:photos/services/files_service.dart";
 import "package:photos/services/airplay_service.dart";
+import "package:photos/services/m3u8_server_service.dart";
 import "package:photos/services/wake_lock_service.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart";
@@ -96,6 +97,7 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       _captionUpdatedSubscription;
   StreamSubscription<LoopVideoEvent>? _loopVideoEventSubscription;
   bool _shouldLoop = false;
+  StreamSubscription<bool>? _airPlayStateSubscription;
   int position = 0;
 
   @override
@@ -164,6 +166,19 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       }
     });
     
+    if (Platform.isIOS) {
+      _airPlayStateSubscription = AirPlayService.instance.isAirPlayingStream
+          .listen((isAirPlaying) async {
+        if (mounted) {
+          _logger.info('AirPlay state changed: $isAirPlaying');
+          if (isAirPlaying && _filePath?.toLowerCase().endsWith('.m3u8') == true) {
+            _logger.info('AirPlay activated for m3u8 file, reloading with HTTP URL');
+            await setVideoSource();
+          }
+        }
+      });
+    }
+    
     EnteWakeLockService.instance
         .updateWakeLock(enable: true, wakeLockFor: WakeLockFor.videoPlayback);
   }
@@ -174,10 +189,31 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       await _controller?.stop();
       return;
     }
-    final videoSource = VideoSource(
-      path: _filePath!,
-      type: VideoSourceType.file,
-    );
+    
+    VideoSource videoSource;
+    
+    if (_filePath!.toLowerCase().endsWith('.m3u8')) {
+      final httpUrl = M3u8ServerService.instance.getHttpUrlForM3u8(_filePath!);
+      if (httpUrl != null) {
+        _logger.info('Using HTTP URL for m3u8 file: $httpUrl');
+        videoSource = VideoSource(
+          path: httpUrl,
+          type: VideoSourceType.network,
+        );
+      } else {
+        _logger.warning('Failed to get HTTP URL for m3u8 file, falling back to file source');
+        videoSource = VideoSource(
+          path: _filePath!,
+          type: VideoSourceType.file,
+        );
+      }
+    } else {
+      videoSource = VideoSource(
+        path: _filePath!,
+        type: VideoSourceType.file,
+      );
+    }
+    
     await _controller?.loadVideo(videoSource);
     await _controller?.play();
 
@@ -264,6 +300,7 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
     _guestViewEventSubscription.cancel();
     pauseVideoSubscription.cancel();
     _loopVideoEventSubscription?.cancel();
+    _airPlayStateSubscription?.cancel();
     removeCallBack(widget.file);
     _progressNotifier.dispose();
     WidgetsBinding.instance.removeObserver(this);

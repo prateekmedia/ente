@@ -43,6 +43,7 @@ import 'package:photos/services/sync/remote_sync_service.dart';
 import "package:photos/services/sync/sync_service.dart";
 import "package:photos/services/video_preview_service.dart";
 import "package:photos/services/wake_lock_service.dart";
+import "package:photos/services/m3u8_server_service.dart";
 import "package:photos/src/rust/frb_generated.dart";
 import 'package:photos/ui/tools/app_lock.dart';
 import 'package:photos/ui/tools/lock_screen.dart';
@@ -295,6 +296,12 @@ Future<void> _init(bool isBackground, {String via = ''}) async {
     unawaited(MLService.instance.init());
     await PersonService.init(entityService, MLDataDB.instance, preferences);
     EnteWakeLockService.instance.init(preferences);
+    
+    if (Platform.isIOS && !isBackground) {
+      await M3u8ServerService.instance.initialize();
+      _logger.info("M3u8ServerService initialized $tlog");
+    }
+    
     logLocalSettings();
     initComplete = true;
     _stopHearBeat = true;
