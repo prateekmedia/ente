@@ -15,6 +15,7 @@ import { Readable } from "node:stream";
 import { z } from "zod/v4";
 import type { FFmpegCommand } from "../../types/ipc";
 import log from "../log-worker";
+import { StreamVersion, getKeySizeForVersion } from "./stream-version";
 import { messagePortMainEndpoint } from "../utils/comlink";
 import { nullToUndefined, wait } from "../utils/common";
 import { execAsyncWorker } from "../utils/exec-worker";
@@ -378,8 +379,15 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
     // dimensions.
     const stderrPath = path.join(outputPathPrefix, "stderr.txt");
 
-    // Generate a cryptographically secure random key (16 bytes).
-    const keyBytes = randomBytes(16);
+    // Determine stream version (enhanced streaming feature flag would be checked here)
+    // For now, default to legacy for backward compatibility
+    const streamVersion = StreamVersion.LEGACY; // TODO: Use feature flag to enable ENHANCED
+    
+    // Generate a cryptographically secure random key
+    // Version 1 (Legacy): 16 bytes (AES-128)
+    // Version 2 (Enhanced): 32 bytes (AES-256)
+    const keySize = getKeySizeForVersion(streamVersion);
+    const keyBytes = randomBytes(keySize);
     const keyB64 = keyBytes.toString("base64");
 
     // Convert it to a data: URI that will be added to the playlist.
@@ -396,6 +404,7 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
     // - the first line specifies the key URI that is written into the playlist.
     // - the second line specifies the path to the local file system file from
     //   where ffmpeg should read the key.
+    // - the third line (optional) specifies the IV for enhanced version
     //
     // [Note: ffmpeg newlines]
     //
@@ -408,7 +417,16 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
     // - The HLS key info file, expected as an input by ffmpeg, works fine when
     //   \n separated even on Windows.
     //
-    const keyInfo = [keyURI, keyPath].join("\n");
+    let keyInfo: string;
+    if (streamVersion === StreamVersion.ENHANCED) {
+        // Generate random IV for enhanced version (16 bytes for AES)
+        const ivBytes = randomBytes(16);
+        const ivHex = '0x' + ivBytes.toString('hex').toUpperCase();
+        keyInfo = [keyURI, keyPath, ivHex].join("\n");
+    } else {
+        // Legacy version: no IV specified (defaults to 0x00000000...)
+        keyInfo = [keyURI, keyPath].join("\n");
+    }
 
     // Overview:
     //
@@ -446,11 +464,11 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
                       // enough bitrate to require rescaling anyways.
                       rescaleVideo || tonemap
                           ? [
-                                // Scales the video to maximum 720p height,
-                                // keeping aspect ratio and the calculated
-                                // dimension divisible by 2 (some of the other
-                                // operations require an even pixel count).
-                                "scale=-2:'min(720,ih)'",
+                                // Scale video to max 720p on the longer dimension while maintaining aspect ratio
+                                // For landscape: scale=-2:'min(720,ih)' (limit height to 720)
+                                // For portrait: scale='min(720,iw)':-2 (limit width to 720)
+                                // The -2 ensures dimensions are divisible by 2 (required for video encoding)
+                                "scale='if(gt(iw,ih),min(iw,720),-2)':'if(gt(iw,ih),-2,min(ih,720))'",
                                 // Convert the video to a constant 30 fps,
                                 // duplicating or dropping frames as necessary.
                                 "fps=30",
@@ -495,21 +513,21 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
         reencodeVideo
             ? // Video codec H.264
               //
-              // - `-c:v libx264` converts the video stream to the H.264 codec.
+              // Version 1 (Legacy): Uses CRF 23 for quality
+              // Version 2 (Enhanced): Uses 2000kbps bitrate control
               //
-              // - We don't supply a bitrate, instead it uses the default CRF
-              //   ("23") as recommended in the ffmpeg trac.
-              //
-              // - We don't supply a preset, it'll use the default ("medium").
-              ["-c:v", "libx264"]
+              streamVersion === StreamVersion.ENHANCED
+                  ? // Enhanced: Use bitrate control
+                    ["-c:v", "libx264", "-b:v", "2000k", "-maxrate", "2500k", "-bufsize", "4000k", "-preset", "medium"]
+                  : // Legacy: Use CRF (default 23)
+                    ["-c:v", "libx264"]
             : // Keep the video stream unchanged
               ["-c:v", "copy"],
         // Audio codec AAC
         //
         // - `-c:a aac` converts the audio stream to use the AAC codec
-        //
-        // - We don't supply a bitrate, it'll use the AAC default 128k bps.
-        ["-c:a", "aac"],
+        // - Explicitly set 128k bitrate for consistency
+        ["-c:a", "aac", "-b:a", "128k"],
         // Generate a HLS playlist.
         ["-f", "hls"],
         // Tell ffmpeg where to find the key, and the URI for the key to write
