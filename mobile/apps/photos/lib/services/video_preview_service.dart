@@ -99,13 +99,20 @@ class VideoPreviewService {
     return serviceLocator.prefs.getBool(_videoStreamingEnabled) ?? false;
   }
 
+  bool get isBackgroundStreamingEnabled {
+    // Only enable background streaming for internal users
+    return isVideoStreamingEnabled && flagService.internalUser;
+  }
+
   Future<void> setIsVideoStreamingEnabled(bool value) async {
     serviceLocator.prefs.setBool(_videoStreamingEnabled, value).ignore();
     Bus.instance.fire(VideoStreamingChanged());
 
     if (isVideoStreamingEnabled) {
       queueFiles(duration: Duration.zero);
-      queueBackgroundStreaming(); // Also start background streaming
+      if (isBackgroundStreamingEnabled) {
+        queueBackgroundStreaming(); // Start background streaming for internal users
+      }
     } else {
       clearQueue();
       // Clear background queue
@@ -315,10 +322,10 @@ class VideoPreviewService {
         return;
       }
     } else {
-      // For background, only check if device is healthy
-      if (!computeController.isDeviceHealthy || !isVideoStreamingEnabled) {
+      // For background, check device health and internal user flag
+      if (!computeController.isDeviceHealthy || !isBackgroundStreamingEnabled) {
         _logger.info(
-          "[BG] Cannot process - device not healthy or streaming disabled",
+          "[BG] Cannot process - device not healthy or not internal user",
         );
         return;
       }
@@ -641,9 +648,11 @@ class VideoPreviewService {
           computeController.releaseCompute(stream: true);
           uploadingFileId = -1;
 
-          // Start background processing when regular queue is empty
-          if (isVideoStreamingEnabled) {
-            _logger.info("Starting background processing for small videos");
+          // Start background processing when regular queue is empty (internal users only)
+          if (isBackgroundStreamingEnabled) {
+            _logger.info(
+              "[Internal] Starting background processing for small videos",
+            );
             queueBackgroundStreaming();
           }
         }
@@ -1251,10 +1260,10 @@ class VideoPreviewService {
     });
   }
 
-  // Start background streaming for small videos
+  // Start background streaming for small videos (internal users only)
   void queueBackgroundStreaming() {
     Future.delayed(const Duration(seconds: 10), () async {
-      if (!isVideoStreamingEnabled || bgUploadingFileId >= 0) return;
+      if (!isBackgroundStreamingEnabled || bgUploadingFileId >= 0) return;
 
       // Only run background streaming if device is healthy and not running regular streaming
       if (!computeController.isDeviceHealthy || uploadingFileId >= 0) return;
@@ -1331,8 +1340,10 @@ class VideoPreviewService {
       );
       return;
     }
-    if (!isVideoStreamingEnabled || !computeController.isDeviceHealthy) {
-      _logger.info("[BG] Cannot process - conditions not met");
+    if (!isBackgroundStreamingEnabled || !computeController.isDeviceHealthy) {
+      _logger.info(
+        "[BG] Cannot process - conditions not met or not internal user",
+      );
       return;
     }
 

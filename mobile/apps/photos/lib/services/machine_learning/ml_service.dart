@@ -165,8 +165,7 @@ class MLService {
       _isRunningML = false;
       computeController.releaseCompute(ml: true);
       VideoPreviewService.instance.queueFiles();
-      VideoPreviewService.instance
-          .queueBackgroundStreaming(); // Also trigger background streaming
+      // Background streaming will be triggered internally if user is internal
     }
   }
 
