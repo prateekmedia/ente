@@ -1,3 +1,4 @@
+- Prateek: (i) Add compute controller cancellation for video streaming - quit immediately on poor device conditions
 - Neeraj: Simplify location display in file info - show "Location" title with "Add location" chip
 - Laurens: Fix edge case bug in similar images cache when user hasn't indexed ML yet
 - Neeraj: (i) Show shared albums in widget selection screen

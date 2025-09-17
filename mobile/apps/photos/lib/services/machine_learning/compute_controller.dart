@@ -8,6 +8,8 @@ import "package:flutter/foundation.dart";
 import "package:logging/logging.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/compute_control_event.dart";
+import "package:photos/models/compute/cancel_token.dart";
+import "package:photos/service_locator.dart";
 import "package:thermal/thermal.dart";
 
 enum ComputeRunState {
@@ -46,6 +48,12 @@ class ComputeController {
   bool _waitingToRunML = false;
 
   bool get isDeviceHealthy => _isDeviceHealthy;
+
+  /// Cancellation tokens for different compute types
+  final Map<ComputeRunState, CancelToken> _cancelTokens = {};
+
+  /// Callbacks to register for cleanup when compute is cancelled
+  final Map<ComputeRunState, Function?> _cleanupCallbacks = {};
 
   ComputeController() {
     _logger.info('ComputeController constructor');
@@ -97,6 +105,7 @@ class ComputeController {
     bool stream = false,
     bool bypassInteractionCheck = false,
     bool bypassMLWaiting = false,
+    Function? cleanupCallback,
   }) {
     _logger.info(
       "Requesting compute: ml: $ml, stream: $stream, bypassInteraction: $bypassInteractionCheck, bypassMLWaiting: $bypassMLWaiting",
@@ -116,8 +125,18 @@ class ComputeController {
     bool result = false;
     if (ml) {
       result = _requestML();
+      if (result &&
+          cleanupCallback != null &&
+          flagService.computeControllerCancellation) {
+        _cleanupCallbacks[ComputeRunState.runningML] = cleanupCallback;
+      }
     } else if (stream) {
       result = _requestStream(bypassMLWaiting);
+      if (result &&
+          cleanupCallback != null &&
+          flagService.computeControllerCancellation) {
+        _cleanupCallbacks[ComputeRunState.generatingStream] = cleanupCallback;
+      }
     } else {
       _logger.severe("No compute request specified, denying request.");
     }
@@ -132,6 +151,9 @@ class ComputeController {
     if (_currentRunState == ComputeRunState.idle) {
       _currentRunState = ComputeRunState.runningML;
       _waitingToRunML = false;
+      if (flagService.computeControllerCancellation) {
+        _cancelTokens[ComputeRunState.runningML] = CancelToken();
+      }
       _logger.info("ML request granted");
       return true;
     } else if (_currentRunState == ComputeRunState.runningML) {
@@ -149,6 +171,9 @@ class ComputeController {
         (bypassMLWaiting || !_waitingToRunML)) {
       _logger.info("Stream request granted");
       _currentRunState = ComputeRunState.generatingStream;
+      if (flagService.computeControllerCancellation) {
+        _cancelTokens[ComputeRunState.generatingStream] = CancelToken();
+      }
       return true;
     }
     _logger.info(
@@ -165,11 +190,15 @@ class ComputeController {
     if (ml) {
       if (_currentRunState == ComputeRunState.runningML) {
         _currentRunState = ComputeRunState.idle;
+        _cancelTokens.remove(ComputeRunState.runningML);
+        _cleanupCallbacks.remove(ComputeRunState.runningML);
       }
       _waitingToRunML = false;
     } else if (stream) {
       if (_currentRunState == ComputeRunState.generatingStream) {
         _currentRunState = ComputeRunState.idle;
+        _cancelTokens.remove(ComputeRunState.generatingStream);
+        _cleanupCallbacks.remove(ComputeRunState.generatingStream);
       }
     }
   }
@@ -213,6 +242,12 @@ class ComputeController {
       _logger.info(
         "Firing event: $shouldRunCompute      (device health: $_isDeviceHealthy, user interaction: $_isUserInteracting, mlInteractionOverride: $interactionOverride, blockers: $_computeBlocks)",
       );
+
+      // If compute should stop, cancel ongoing operations immediately
+      if (!shouldRunCompute && flagService.computeControllerCancellation) {
+        _cancelOngoingCompute();
+      }
+
       Bus.instance.fire(ComputeControlEvent(shouldRunCompute));
     }
   }
@@ -297,5 +332,46 @@ class ComputeController {
 
   bool _isBatteryHealthyAndroid() {
     return !kUnhealthyStates.contains(_androidLastBatteryInfo?.health ?? "");
+  }
+
+  void _cancelOngoingCompute() {
+    _logger.info("Cancelling ongoing compute operations");
+
+    // Cancel the current running task based on state
+    if (_currentRunState != ComputeRunState.idle) {
+      final cancelToken = _cancelTokens[_currentRunState];
+      if (cancelToken != null && !cancelToken.isCancelled) {
+        _logger.info("Cancelling $_currentRunState operations");
+        cancelToken.cancel();
+
+        // Execute cleanup callback if registered
+        final cleanupCallback = _cleanupCallbacks[_currentRunState];
+        if (cleanupCallback != null) {
+          _logger.info("Executing cleanup callback for $_currentRunState");
+          try {
+            cleanupCallback();
+          } catch (e, s) {
+            _logger.severe("Error during cleanup callback", e, s);
+          }
+        }
+      }
+    }
+  }
+
+  /// Get cancellation token for current compute state
+  CancelToken? getCancelToken() {
+    if (!flagService.computeControllerCancellation) {
+      return null;
+    }
+    return _cancelTokens[_currentRunState];
+  }
+
+  /// Check if current compute operation has been cancelled
+  bool get isCancelled {
+    if (!flagService.computeControllerCancellation) {
+      return false;
+    }
+    final token = _cancelTokens[_currentRunState];
+    return token?.isCancelled ?? false;
   }
 }

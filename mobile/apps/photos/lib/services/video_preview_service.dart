@@ -280,6 +280,13 @@ class VideoPreviewService {
     // not used currently
     bool forceUpload = false,
   }) async {
+    // Check if compute has been cancelled before starting
+    if (flagService.computeControllerCancellation &&
+        computeController.isCancelled) {
+      _logger.info("Compute cancelled, stopping video preview generation");
+      _handleCancellation();
+      return;
+    }
     final bool isManual =
         await uploadLocksDB.isInStreamQueue(enteFile.uploadedFileID!);
     final canStream = _isPermissionGranted();
@@ -292,6 +299,11 @@ class VideoPreviewService {
       clearQueue();
       return;
     }
+
+    // Get cancellation token for monitoring
+    final cancelToken = flagService.computeControllerCancellation
+        ? computeController.getCancelToken()
+        : null;
 
     Object? error;
     bool removeFile = false;
@@ -461,6 +473,15 @@ class VideoPreviewService {
 
       _logger.info(command);
 
+      // Check cancellation before starting heavy FFmpeg operation
+      if (flagService.computeControllerCancellation &&
+          (cancelToken?.isCancelled ?? false)) {
+        _logger.info("Operation cancelled before FFmpeg processing");
+        _handleCancellation();
+        Directory(prefix).delete(recursive: true).ignore();
+        return;
+      }
+
       final playlistGenResult = await ffmpegService
           .runFfmpeg(
         // input file path
@@ -474,6 +495,15 @@ class VideoPreviewService {
         _logger.warning("FFmpeg command failed", error, stackTrace);
         return {};
       });
+
+      // Check if cancelled during FFmpeg operation
+      if (flagService.computeControllerCancellation &&
+          (cancelToken?.isCancelled ?? false)) {
+        _logger.info("Operation cancelled during FFmpeg processing");
+        _handleCancellation();
+        Directory(prefix).delete(recursive: true).ignore();
+        return;
+      }
 
       final playlistGenReturnCode = playlistGenResult["returnCode"] as int?;
 
@@ -1170,7 +1200,12 @@ class VideoPreviewService {
 
   bool _allowStream() {
     return isVideoStreamingEnabled &&
-        computeController.requestCompute(stream: true);
+        computeController.requestCompute(
+          stream: true,
+          cleanupCallback: flagService.computeControllerCancellation
+              ? _handleCancellation
+              : null,
+        );
   }
 
   bool _allowManualStream() {
@@ -1179,6 +1214,9 @@ class VideoPreviewService {
           stream: true,
           bypassInteractionCheck: true,
           bypassMLWaiting: true,
+          cleanupCallback: flagService.computeControllerCancellation
+              ? _handleCancellation
+              : null,
         );
   }
 
@@ -1207,5 +1245,37 @@ class VideoPreviewService {
         computeController.releaseCompute(stream: true);
       }
     });
+  }
+
+  void _handleCancellation() {
+    _logger.info("Handling video streaming cancellation");
+
+    // Cancel any ongoing FFmpeg operations
+    ffmpegService.cancelAllOperations();
+
+    // Mark current file as cancelled if processing
+    if (uploadingFileId >= 0) {
+      _logger.info("Cancelling processing for file $uploadingFileId");
+
+      // Fire cancelled state for current file
+      _fireVideoPreviewStateChange(
+        uploadingFileId,
+        PreviewItemStatus.inQueue, // Put back in queue for later
+      );
+
+      // Add current file back to queue for retry later
+      final currentItem = _items[uploadingFileId];
+      if (currentItem != null) {
+        fileQueue[uploadingFileId] = currentItem.file;
+      }
+    }
+
+    // Clear upload state
+    uploadingFileId = -1;
+
+    // Release compute resources
+    computeController.releaseCompute(stream: true);
+
+    _logger.info("Video streaming cancelled and cleaned up");
   }
 }
