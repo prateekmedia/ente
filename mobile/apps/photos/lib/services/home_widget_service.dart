@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart' as hw;
 import 'package:home_widget/home_widget.dart';
@@ -36,7 +37,7 @@ class HomeWidgetService {
   // Constants
   static const double THUMBNAIL_SIZE = 512.0; // Legacy size for compatibility
   static const double WIDGET_IMAGE_SIZE =
-      2048.0; // Enhanced size for better quality
+      1280.0; // Optimal size for mobile widgets (xxxhdpi screens)
   static const String WIDGET_DIRECTORY = 'home_widget';
 
   // URI schemes for different widget types
@@ -141,9 +142,7 @@ class HomeWidgetService {
   ) async {
     try {
       // Get widget image with proper EXIF handling
-      // Use enhanced quality for internal users, legacy size for others
-      final imageSize =
-          flagService.enhancedWidgetImage ? WIDGET_IMAGE_SIZE : THUMBNAIL_SIZE;
+      const imageSize = WIDGET_IMAGE_SIZE; // 1280px for optimal quality
       final imageData = await getWidgetImage(
         file,
         maxSize: imageSize,
@@ -176,10 +175,12 @@ class HomeWidgetService {
         creationTime: file.creationTime!,
       );
 
-      // Add quality indicator for debugging
-      final qualityIndicator =
-          imageSize == WIDGET_IMAGE_SIZE ? "2048px" : "512px";
-      final subText = "$baseSubText • $qualityIndicator";
+      // In debug mode, show actual image size with (i) suffix
+      String subText = baseSubText;
+      if (kDebugMode) {
+        final qualityIndicator = "${imageSize.toInt()}px";
+        subText = "$baseSubText • $qualityIndicator (i)";
+      }
 
       // Create metadata
       final Map<String, dynamic> metadata = {

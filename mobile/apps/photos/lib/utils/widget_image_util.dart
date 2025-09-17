@@ -23,26 +23,27 @@ Future<Uint8List?> getWidgetImage(
   int quality = WidgetImageOperations.kDefaultQuality,
 }) async {
   try {
-    // Priority order:
-    // 1. Check in-memory cache for high-res version
-    final memCached = ThumbnailInMemoryLruCache.get(file, maxSize.toInt());
-    if (memCached != null && memCached.isNotEmpty) {
-      return memCached;
+    // For low-res requests, use cache
+    if (maxSize <= 512) {
+      // For requests <= 512px, use cache or thumbnail
+      // Check memory cache
+      final memCached = ThumbnailInMemoryLruCache.get(file, maxSize.toInt());
+      if (memCached != null && memCached.isNotEmpty) {
+        return memCached;
+      }
+      
+      // Check disk cache
+      final cachedImage = await _getHighResCachedImage(file, maxSize.toInt());
+      if (cachedImage != null) {
+        ThumbnailInMemoryLruCache.put(file, cachedImage, maxSize.toInt());
+        return cachedImage;
+      }
     }
-
-    // 2. Check if high-res cached version exists (from main app viewing)
-    final cachedImage = await _getHighResCachedImage(file, maxSize.toInt());
-    if (cachedImage != null) {
-      // Store in memory cache for quick access
-      ThumbnailInMemoryLruCache.put(file, cachedImage, maxSize.toInt());
-      return cachedImage;
-    }
-
-    // 3. For local files: Get original and process in isolate
+    
+    // For local files: Get original and process
     if (!file.isRemoteFile) {
       final processedImage = await _processLocalFile(file, maxSize, quality);
       if (processedImage != null) {
-        // Cache the processed image
         await WidgetImageCache.cacheWidgetImage(
             file, processedImage, maxSize.toInt());
         ThumbnailInMemoryLruCache.put(file, processedImage, maxSize.toInt());
@@ -50,15 +51,64 @@ Future<Uint8List?> getWidgetImage(
       }
     }
 
-    // 4. For remote files: Try existing thumbnail first
+    // For remote files requesting > 512px: Download and process original with retries
+    if (file.isRemoteFile && maxSize > 512) {
+      const maxAttempts = 2;
+      for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          final originalFile = await getFile(file, isOrigin: true);
+          if (originalFile != null) {
+            final processedImage = await _processFileInIsolate(
+              originalFile.path,
+              null,
+              maxSize,
+              quality,
+            );
+
+            // Clean up the downloaded file
+            if (originalFile.existsSync()) {
+              await originalFile.delete();
+            }
+
+            if (processedImage != null) {
+              await WidgetImageCache.cacheWidgetImage(
+                  file, processedImage, maxSize.toInt());
+              ThumbnailInMemoryLruCache.put(file, processedImage, maxSize.toInt());
+              return processedImage;
+            }
+          }
+          
+          // If getFile returned null and we have attempts left, retry
+          if (attempt < maxAttempts) {
+            await Future.delayed(const Duration(seconds: 1));
+            continue;
+          }
+        } catch (e) {
+          // Check if it's a network unavailable error
+          if (e.toString().contains('Failed host lookup') || 
+              e.toString().contains('network') || 
+              e.toString().contains('Connection')) {
+            _logger.warning(
+                "Network unavailable for ${file.displayName}, skipping retries");
+            break; // Don't retry on network errors
+          }
+          
+          if (attempt < maxAttempts) {
+            await Future.delayed(const Duration(seconds: 1));
+          }
+        }
+      }
+    }
+
+    // Fallback: Use server thumbnail (512px)
     final thumbnail = await getThumbnail(file);
     if (thumbnail != null && thumbnail.isNotEmpty) {
-      // Check if thumbnail quality is acceptable
-      if (_isThumbnailQualityAcceptable(thumbnail, maxSize.toInt())) {
+      // For low quality requests or as fallback, use thumbnail directly
+      if (maxSize <= 512) {
         return thumbnail;
       }
 
-      // Try to enhance the thumbnail in isolate
+      // Try to enhance the thumbnail in isolate for larger sizes (fallback)
       final enhanced = await _enhanceThumbnail(thumbnail, maxSize, quality);
       if (enhanced != null) {
         await WidgetImageCache.cacheWidgetImage(
@@ -67,33 +117,8 @@ Future<Uint8List?> getWidgetImage(
         return enhanced;
       }
 
-      // Use original thumbnail as fallback
+      // Use original thumbnail as last resort
       return thumbnail;
-    }
-
-    // 5. Last resort for remote files: Download original (expensive!)
-    if (file.isRemoteFile) {
-      final originalFile = await getFile(file, isOrigin: true);
-      if (originalFile != null) {
-        final processedImage = await _processFileInIsolate(
-          originalFile.path,
-          null,
-          maxSize,
-          quality,
-        );
-
-        // Clean up the downloaded file if it's remote
-        if (file.isRemoteFile && originalFile.existsSync()) {
-          await originalFile.delete();
-        }
-
-        if (processedImage != null) {
-          await WidgetImageCache.cacheWidgetImage(
-              file, processedImage, maxSize.toInt());
-          ThumbnailInMemoryLruCache.put(file, processedImage, maxSize.toInt());
-          return processedImage;
-        }
-      }
     }
 
     _logger.warning("Failed to get widget image for ${file.displayName}");
@@ -173,9 +198,6 @@ Future<Uint8List?> _processFileInIsolate(
   int quality,
 ) async {
   try {
-    _logger.info(
-        "Processing image in isolate: ${imagePath != null ? 'from path' : 'from bytes'}, maxSize: $maxSize, quality: $quality");
-
     final params = <String, dynamic>{
       if (imagePath != null) 'imagePath': imagePath,
       if (imageBytes != null) 'imageBytes': imageBytes,
@@ -190,11 +212,9 @@ Future<Uint8List?> _processFileInIsolate(
     );
 
     if (result != null) {
-      _logger.info(
-          "Successfully processed image in isolate, result size: ${result.length} bytes");
+      // Successfully processed image
     } else {
-      _logger.warning(
-          "Image processing returned null - check isolate logs for details");
+      _logger.warning("Image processing returned null");
     }
 
     return result;
@@ -219,17 +239,14 @@ Future<Uint8List?> _enhanceThumbnail(
 }
 
 bool _isThumbnailQualityAcceptable(Uint8List imageData, int minSize) {
-  // Simple heuristic: larger file size usually means higher quality
-  // For a 512x512 JPEG at quality 85, expect ~50-100KB
-  // For a 1024x1024 JPEG at quality 85, expect ~150-300KB
-
-  if (minSize <= 512) {
-    return imageData.length > 30000; // ~30KB minimum for 512px
-  } else if (minSize <= 768) {
-    return imageData.length > 75000; // ~75KB minimum for 768px
-  } else {
-    return imageData.length > 100000; // ~100KB minimum for 1024px+
+  // Never accept a 512px thumbnail for requests larger than 512px
+  // Server thumbnails are always 512px, so we can't use them for higher quality
+  if (minSize > 512) {
+    return false;
   }
+
+  // For 512px or smaller, check file size as quality indicator
+  return imageData.length > 30000; // ~30KB minimum for acceptable quality
 }
 
 /// Batch process multiple widget images in parallel isolates
