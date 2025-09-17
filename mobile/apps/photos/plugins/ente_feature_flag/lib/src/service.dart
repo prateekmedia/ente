@@ -69,6 +69,11 @@ class FlagService {
   bool get addToAlbumFeature => internalUser;
 
   bool get widgetSharedAlbums => internalUser;
+  
+  bool get isEnhancedStreamingEnabled {
+    // Start with internal users, can be expanded later
+    return internalUser || _prefs.getBool('enhancedStreaming') ?? false;
+  }
 
   bool hasSyncedAccountFlags() {
     return _prefs.containsKey("remote_flags");

@@ -10,3 +10,6 @@
 - Neeraj: (i) Option to send qr for link
 - Neeraj: (i) Debug option to enable logViewer
 - Neeraj: Potential fix for ios in-app payment
+- Prateek: (i) Add AES-256 encryption and random IV support for video streaming (v2)
+- Prateek: (i) Switch from CRF to bitrate control (2000kbps) for consistent quality
+- Prateek: (i) Fix portrait video scaling to limit longer dimension to 720p

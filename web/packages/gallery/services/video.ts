@@ -26,6 +26,7 @@ import {
     videoStreamDone,
     type GenerateHLSResult,
 } from "../utils/native-stream";
+import { StreamVersion, getVersionName } from "../utils/stream-version";
 import { downloadManager, isNetworkDownloadError } from "./download";
 import {
     fetchFileData,
@@ -230,6 +231,15 @@ const savedGenerateHLS = async () => await getKVB("generateHLS");
 const saveGenerateHLS = (enabled: boolean) => setKV("generateHLS", enabled);
 
 /**
+ * Check if enhanced streaming (v2) is enabled.
+ * Set NEXT_PUBLIC_ENTE_ENHANCED_STREAMING=true to enable AES-256 encryption
+ * with random IV and bitrate control for new video streams.
+ */
+const isEnhancedStreamingEnabled = (): boolean => {
+    return process.env.NEXT_PUBLIC_ENTE_ENHANCED_STREAMING === "true";
+};
+
+/**
  * Enable or disable (toggle) the HLS generation on this client.
  *
  * When HLS generation is enabled, this client will process videos to generate a
@@ -349,7 +359,11 @@ export const hlsPlaylistDataForFile = async (
         playlist: playlistTemplate,
         width,
         height,
+        version = StreamVersion.LEGACY, // Default to legacy version
     } = await decryptPlaylistJSON(playlistFileData, file);
+    
+    // Log the stream version being used
+    log.debug(() => `Playlist uses stream version: ${getVersionName(version)}`);
 
     // A playlist format the current client does not understand.
     if (type != "hls_video") return undefined;
@@ -368,6 +382,9 @@ export const hlsPlaylistDataForFile = async (
     // replaced with the URL of the actual encrypted video data. A single URL
     // pointing to the entire encrypted video data suffices; the individual
     // chunks are fetched by HTTP range requests.
+    //
+    // Version 1 (Legacy) uses AES-128 with a fixed IV (0x00000000...)
+    // Version 2 (Enhanced) uses AES-256 with a random IV per segment
     //
     // Here is an example of what the contents of the `playlist` variable might
     // look like at this point:
@@ -465,6 +482,12 @@ const PlaylistJSON = z.object({
      * segments that the playlist refers to.
      */
     size: z.number(),
+    /**
+     * The stream version (optional for backward compatibility).
+     * 1 = Legacy (AES-128 + CRF + Fixed IV)
+     * 2 = Enhanced (AES-256 + Bitrate + Random IV)
+     */
+    version: z.number().optional(),
 });
 
 type PlaylistJSON = z.infer<typeof PlaylistJSON>;
@@ -1029,11 +1052,17 @@ const processQueueItem = async ({
             (res) => res.text(),
         );
 
+        // Determine stream version based on feature flag
+        const streamVersion = isEnhancedStreamingEnabled()
+            ? StreamVersion.ENHANCED
+            : StreamVersion.LEGACY;
+        
         const playlistData = await encodePlaylistJSON({
             type: "hls_video",
             playlist,
             ...dimensions,
             size: videoSize,
+            version: streamVersion,
         });
 
         const encryptedPlaylist = await encryptBlob(playlistData, file.key);
