@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:async/async.dart';
 import "package:collection/collection.dart";
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -60,7 +61,20 @@ class MemoryHomeWidgetService {
 
   // Public methods
   Future<void> initMemoryHomeWidget() async {
+    // Cancel any ongoing widget operation before starting new one
+    await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+    
+    // Create a cancellable operation for this widget update
+    final completer = CancelableCompleter<void>();
+    HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+    
     await HomeWidgetService.instance.computeLock.synchronized(() async {
+      // Check if cancelled before starting
+      if (completer.isCanceled) {
+        _logger.info("Memories widget init cancelled before start");
+        return;
+      }
+      
       if (await _hasAnyBlockers()) {
         await clearWidget();
         return;
@@ -71,15 +85,21 @@ class MemoryHomeWidgetService {
       final bool forceFetchNewMemories = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewMemories) {
-        if (await _updateMemoriesWidgetCache()) {
-          await updateMemoryChanged(false);
-          _logger.info("Force fetch new memories complete");
+        if (await _updateMemoriesWidgetCacheWithCancellation(completer)) {
+          if (!completer.isCanceled) {
+            await updateMemoryChanged(false);
+            _logger.info("Force fetch new memories complete");
+          }
         }
       } else {
         await _refreshMemoriesWidget();
         _logger.info("Refresh memories widget complete");
       }
     });
+    
+    if (!completer.isCompleted && !completer.isCanceled) {
+      completer.complete();
+    }
   }
 
   Future<void> clearWidget() async {
@@ -265,8 +285,12 @@ class MemoryHomeWidgetService {
     await HomeWidgetService.instance.setData(TOTAL_MEMORIES_KEY, total);
   }
 
+  Future<bool> _updateMemoriesWidgetCacheWithCancellation(CancelableCompleter completer) async {
+    return _updateMemoriesWidgetCache(completer);
+  }
+  
   // _updateMemoriesWidgetCache will return false if no memories were cached
-  Future<bool> _updateMemoriesWidgetCache() async {
+  Future<bool> _updateMemoriesWidgetCache([CancelableCompleter? completer]) async {
     // TODO: Can update the method to fetch directly max limit random memories
     final memoriesWithFiles = await _getMemoriesWithFiles();
     if (memoriesWithFiles.isEmpty) {
@@ -288,6 +312,12 @@ class MemoryHomeWidgetService {
     final random = Random();
 
     while (renderedCount < limit && attemptsCount < maxAttempts) {
+      // Check if operation was cancelled
+      if (completer != null && completer.isCanceled) {
+        _logger.info("Memories widget update cancelled during rendering");
+        return false;
+      }
+      
       final randomEntry =
           memoriesWithFilesEntries[random.nextInt(memoriesWithFilesLength)];
 
@@ -311,6 +341,12 @@ class MemoryHomeWidgetService {
       });
 
       if (renderResult != null) {
+        // Check if cancelled before continuing
+        if (completer != null && completer.isCanceled) {
+          _logger.info("Memories widget update cancelled after rendering");
+          return false;
+        }
+        
         // Check for blockers again before continuing
         if (await _hasAnyBlockers()) {
           await clearWidget();

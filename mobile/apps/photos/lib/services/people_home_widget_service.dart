@@ -1,5 +1,6 @@
 import "dart:math";
 
+import 'package:async/async.dart';
 import "package:collection/collection.dart";
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -59,7 +60,20 @@ class PeopleHomeWidgetService {
   }
 
   Future<void> initPeopleHomeWidget() async {
+    // Cancel any ongoing widget operation before starting new one
+    await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+    
+    // Create a cancellable operation for this widget update
+    final completer = CancelableCompleter<void>();
+    HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+    
     await HomeWidgetService.instance.computeLock.synchronized(() async {
+      // Check if cancelled before starting
+      if (completer.isCanceled) {
+        _logger.info("People widget init cancelled before start");
+        return;
+      }
+      
       if (await _hasAnyBlockers()) {
         await clearWidget();
         return;
@@ -70,14 +84,20 @@ class PeopleHomeWidgetService {
       final bool forceFetchNewPeople = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewPeople) {
-        await _updatePeopleWidgetCache();
-        await updatePeopleChanged(false);
-        _logger.info("Force fetch new people complete");
+        await _updatePeopleWidgetCacheWithCancellation(completer);
+        if (!completer.isCanceled) {
+          await updatePeopleChanged(false);
+          _logger.info("Force fetch new people complete");
+        }
       } else {
         await _refreshPeopleWidget();
         _logger.info("Refresh people widget complete");
       }
     });
+    
+    if (!completer.isCompleted && !completer.isCanceled) {
+      completer.complete();
+    }
   }
 
   Future<void> clearWidget() async {
@@ -314,7 +334,11 @@ class PeopleHomeWidgetService {
     await HomeWidgetService.instance.setData(TOTAL_PEOPLE_KEY, total);
   }
 
-  Future<void> _updatePeopleWidgetCache() async {
+  Future<void> _updatePeopleWidgetCacheWithCancellation(CancelableCompleter completer) async {
+    return _updatePeopleWidgetCache(completer);
+  }
+  
+  Future<void> _updatePeopleWidgetCache([CancelableCompleter? completer]) async {
     final peopleIds = await _getEffectiveSelections();
     final peopleWithFiles = await _getPeople(peopleIds);
 
@@ -337,6 +361,12 @@ class PeopleHomeWidgetService {
     final random = Random();
 
     while (renderedCount < limit && attemptsCount < maxAttempts) {
+      // Check if operation was cancelled
+      if (completer != null && completer.isCanceled) {
+        _logger.info("People widget update cancelled during rendering");
+        return;
+      }
+      
       final randomEntry =
           peopleWithFilesEntries[random.nextInt(peopleWithFilesLength)];
 
@@ -361,6 +391,12 @@ class PeopleHomeWidgetService {
       });
 
       if (renderResult != null) {
+        // Check if cancelled before continuing
+        if (completer != null && completer.isCanceled) {
+          _logger.info("People widget update cancelled after rendering");
+          return;
+        }
+        
         // Check for blockers again before continuing
         if (await _hasAnyBlockers()) {
           return;

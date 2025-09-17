@@ -2,6 +2,7 @@ import "dart:async";
 import 'dart:convert';
 import "dart:math";
 
+import 'package:async/async.dart';
 import "package:collection/collection.dart";
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +62,20 @@ class AlbumHomeWidgetService {
   }
 
   Future<void> initAlbumHomeWidget(bool isBg) async {
+    // Cancel any ongoing widget operation before starting new one
+    await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+    
+    // Create a cancellable operation for this widget update
+    final completer = CancelableCompleter<void>();
+    HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+    
     await HomeWidgetService.instance.computeLock.synchronized(() async {
+      // Check if cancelled before starting
+      if (completer.isCanceled) {
+        _logger.info("Albums widget init cancelled before start");
+        return;
+      }
+      
       if (await _hasAnyBlockers(isBg)) {
         await clearWidget();
         return;
@@ -72,14 +86,20 @@ class AlbumHomeWidgetService {
       final bool forceFetchNewAlbums = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewAlbums) {
-        await _updateAlbumsWidgetCache();
-        await setSelectionChange(false);
-        _logger.info("Force fetch new albums complete");
+        await _updateAlbumsWidgetCacheWithCancellation(completer);
+        if (!completer.isCanceled) {
+          await setSelectionChange(false);
+          _logger.info("Force fetch new albums complete");
+        }
       } else {
         await _refreshAlbumsWidget();
         _logger.info("Refresh albums widget complete");
       }
     });
+    
+    if (!completer.isCompleted && !completer.isCanceled) {
+      completer.complete();
+    }
   }
 
   Future<void> clearWidget() async {
@@ -350,7 +370,11 @@ class AlbumHomeWidgetService {
     await HomeWidgetService.instance.setData(TOTAL_ALBUMS_KEY, total);
   }
 
-  Future<void> _updateAlbumsWidgetCache() async {
+  Future<void> _updateAlbumsWidgetCacheWithCancellation(CancelableCompleter completer) async {
+    return _updateAlbumsWidgetCache(completer);
+  }
+  
+  Future<void> _updateAlbumsWidgetCache([CancelableCompleter? completer]) async {
     final selectedAlbumIds = await _getEffectiveSelectedAlbumIds();
     final albumsWithFiles = await _getAlbumsWithFiles();
 
@@ -374,6 +398,12 @@ class AlbumHomeWidgetService {
     final random = Random();
 
     while (renderedCount < limit && attemptsCount < maxAttempts) {
+      // Check if operation was cancelled
+      if (completer != null && completer.isCanceled) {
+        _logger.info("Albums widget update cancelled during rendering");
+        return;
+      }
+      
       final randomEntry =
           albumsWithFilesEntries[random.nextInt(albumsWithFilesLength)];
 
@@ -398,6 +428,12 @@ class AlbumHomeWidgetService {
       });
 
       if (renderResult != null) {
+        // Check if cancelled before continuing
+        if (completer != null && completer.isCanceled) {
+          _logger.info("Albums widget update cancelled after rendering");
+          return;
+        }
+        
         // Check for blockers again before continuing
         if (await _hasAnyBlockers()) {
           await clearWidget();
