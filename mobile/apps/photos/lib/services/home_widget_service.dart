@@ -60,7 +60,9 @@ class HomeWidgetService {
   final Logger _logger = Logger((HomeWidgetService).toString());
   final computeLock = Lock();
   bool _isAppGroupSet = false;
-  CancelableOperation? _currentWidgetOperation;
+  
+  // Track separate operations for each widget type
+  final Map<String, CancelableOperation> _widgetOperations = {};
 
   Future<void> setAppGroup({String id = iOSGroupIDMemory}) async {
     if (!Platform.isIOS || _isAppGroupSet) return;
@@ -235,8 +237,10 @@ class HomeWidgetService {
   }
 
   Future<void> clearWidget(bool autoLogout) async {
-    // Cancel any ongoing widget operation
-    await cancelCurrentWidgetOperation();
+    // Cancel all ongoing widget operations
+    for (final widgetType in _widgetOperations.keys.toList()) {
+      await cancelWidgetOperation(widgetType);
+    }
     
     if (autoLogout) {
       await setAppGroup();
@@ -260,18 +264,19 @@ class HomeWidgetService {
     }
   }
 
-  /// Cancel any ongoing widget operation
-  Future<void> cancelCurrentWidgetOperation() async {
-    if (_currentWidgetOperation != null && !_currentWidgetOperation!.isCompleted) {
-      _logger.info("Cancelling ongoing widget operation");
-      _currentWidgetOperation!.cancel();
-      _currentWidgetOperation = null;
+  /// Cancel ongoing widget operation for a specific widget type
+  Future<void> cancelWidgetOperation(String widgetType) async {
+    final operation = _widgetOperations[widgetType];
+    if (operation != null && !operation.isCompleted) {
+      _logger.info("Cancelling ongoing $widgetType widget operation");
+      operation.cancel();
+      _widgetOperations.remove(widgetType);
     }
   }
 
-  /// Set the current widget operation
-  void setCurrentWidgetOperation(CancelableOperation operation) {
-    _currentWidgetOperation = operation;
+  /// Set the widget operation for a specific widget type
+  void setWidgetOperation(String widgetType, CancelableOperation operation) {
+    _widgetOperations[widgetType] = operation;
   }
 
   /// Handle app launch from a widget

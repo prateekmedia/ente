@@ -20,6 +20,7 @@ import 'package:synchronized/synchronized.dart';
 
 class PeopleHomeWidgetService {
   // Constants
+  static const String WIDGET_TYPE = "people"; // Identifier for this widget type
   static const String SELECTED_PEOPLE_KEY = "selectedPeopleHW";
   static const String PEOPLE_LAST_HASH_KEY = "peopleLastHash";
   static const String ANDROID_CLASS_NAME = "EntePeopleWidgetProvider";
@@ -71,12 +72,12 @@ class PeopleHomeWidgetService {
       final bool forceFetchNewPeople = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewPeople) {
-        // Only cancel and create new operation if we need to update
-        await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+        // Only cancel people operations, not other widget types
+        await HomeWidgetService.instance.cancelWidgetOperation(WIDGET_TYPE);
         
-        // Create a cancellable operation for this widget update
+        // Create a cancellable operation for this people widget update
         final completer = CancelableCompleter<void>();
-        HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+        HomeWidgetService.instance.setWidgetOperation(WIDGET_TYPE, completer.operation);
         
         await _updatePeopleWidgetCacheWithCancellation(completer);
         if (!completer.isCanceled) {

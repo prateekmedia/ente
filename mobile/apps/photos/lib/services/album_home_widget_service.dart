@@ -24,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AlbumHomeWidgetService {
   // Constants
+  static const String WIDGET_TYPE = "album"; // Identifier for this widget type
   static const String SELECTED_ALBUMS_KEY = "selectedAlbumsHW";
   static const String ALBUMS_LAST_HASH_KEY = "albumsLastHash";
   static const String ANDROID_CLASS_NAME = "EnteAlbumsWidgetProvider";
@@ -73,12 +74,12 @@ class AlbumHomeWidgetService {
       final bool forceFetchNewAlbums = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewAlbums) {
-        // Only cancel and create new operation if we need to update
-        await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+        // Only cancel album operations, not other widget types
+        await HomeWidgetService.instance.cancelWidgetOperation(WIDGET_TYPE);
         
-        // Create a cancellable operation for this widget update
+        // Create a cancellable operation for this album widget update
         final completer = CancelableCompleter<void>();
-        HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+        HomeWidgetService.instance.setWidgetOperation(WIDGET_TYPE, completer.operation);
         
         await _updateAlbumsWidgetCacheWithCancellation(completer);
         if (!completer.isCanceled) {

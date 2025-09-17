@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class MemoryHomeWidgetService {
   // Constants
+  static const String WIDGET_TYPE = "memory"; // Identifier for this widget type
   static const String SELECTED_LAST_YEAR_MEMORIES_KEY =
       "selectedLastYearMemoriesHW";
   static const String SELECTED_ML_MEMORIES_KEY = "selectedMLMemoriesHW";
@@ -72,12 +73,12 @@ class MemoryHomeWidgetService {
       final bool forceFetchNewMemories = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewMemories) {
-        // Only cancel and create new operation if we need to update
-        await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+        // Only cancel memory operations, not other widget types
+        await HomeWidgetService.instance.cancelWidgetOperation(WIDGET_TYPE);
         
-        // Create a cancellable operation for this widget update
+        // Create a cancellable operation for this memory widget update
         final completer = CancelableCompleter<void>();
-        HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+        HomeWidgetService.instance.setWidgetOperation(WIDGET_TYPE, completer.operation);
         
         if (await _updateMemoriesWidgetCacheWithCancellation(completer)) {
           if (!completer.isCanceled) {
