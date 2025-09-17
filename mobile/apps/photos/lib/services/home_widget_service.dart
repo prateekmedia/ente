@@ -14,9 +14,8 @@ import 'package:photos/services/album_home_widget_service.dart';
 import 'package:photos/services/memory_home_widget_service.dart';
 import 'package:photos/services/people_home_widget_service.dart';
 import 'package:photos/services/smart_memories_service.dart';
-import "package:synchronized/synchronized.dart";
-
 import 'package:photos/utils/widget_image_util.dart';
+import "package:synchronized/synchronized.dart";
 
 enum WidgetStatus {
   // notSynced means the widget is not initialized or has no data
@@ -37,7 +36,7 @@ class HomeWidgetService {
   // Constants
   static const double THUMBNAIL_SIZE = 512.0; // Legacy size for compatibility
   static const double WIDGET_IMAGE_SIZE =
-      1024.0; // Enhanced size for better quality
+      2048.0; // Enhanced size for better quality
   static const String WIDGET_DIRECTORY = 'home_widget';
 
   // URI schemes for different widget types
@@ -105,15 +104,13 @@ class HomeWidgetService {
     String title,
     String? mainKey,
   ) async {
-    final result = await _captureFile(file, key, title, mainKey);
-    if (!result) {
+    final actualSize = await _captureFile(file, key, title, mainKey);
+    if (actualSize == null) {
       _logger.warning("Failed to capture file ${file.displayName}");
       return null;
     }
 
-    final imageSize =
-        flagService.enhancedWidgetImage ? WIDGET_IMAGE_SIZE : THUMBNAIL_SIZE;
-    return Size(imageSize, imageSize);
+    return actualSize;
   }
 
   Future<int> countHomeWidgets(
@@ -136,7 +133,7 @@ class HomeWidgetService {
     return await hw.HomeWidget.getInstalledWidgets();
   }
 
-  Future<bool> _captureFile(
+  Future<Size?> _captureFile(
     EnteFile file,
     String key,
     String title,
@@ -150,13 +147,13 @@ class HomeWidgetService {
       final imageData = await getWidgetImage(
         file,
         maxSize: imageSize,
-        quality: flagService.enhancedWidgetImage ? 85 : 70,
+        quality: 100,
       );
 
       if (imageData == null) {
         _logger
             .warning("Failed to get widget image for file ${file.displayName}");
-        return false;
+        return null;
       }
 
       // Get appropriate directory for widget assets
@@ -175,9 +172,14 @@ class HomeWidgetService {
       await setData(key, thumbnailPath);
 
       // Format date for display
-      final subText = await SmartMemoriesService.getDateFormattedLocale(
+      final baseSubText = await SmartMemoriesService.getDateFormattedLocale(
         creationTime: file.creationTime!,
       );
+
+      // Add quality indicator for debugging
+      final qualityIndicator =
+          imageSize == WIDGET_IMAGE_SIZE ? "2048px" : "512px";
+      final subText = "$baseSubText • $qualityIndicator";
 
       // Create metadata
       final Map<String, dynamic> metadata = {
@@ -190,10 +192,10 @@ class HomeWidgetService {
       // Save metadata in platform-specific format
       await _saveWidgetMetadata(key, metadata);
 
-      return true;
+      return Size(imageSize, imageSize);
     } catch (error, stackTrace) {
       _logger.severe("Failed to save the thumbnail", error, stackTrace);
-      return false;
+      return null;
     }
   }
 

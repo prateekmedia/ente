@@ -10,16 +10,16 @@ import 'package:photos/core/cache/thumbnail_in_memory_cache.dart';
 import 'package:photos/models/file/file.dart';
 import 'package:photos/utils/file_util.dart';
 import 'package:photos/utils/isolate/widget_image_operations.dart';
-import 'package:photos/utils/thumbnail_util.dart';
+import "package:photos/utils/thumbnail_util.dart";
 
 final _logger = Logger("WidgetImageUtil");
 
 /// Smart widget image fetcher that checks multiple cache levels
 /// and processes images in isolate to avoid UI blocking
+
 Future<Uint8List?> getWidgetImage(
   EnteFile file, {
-  double maxSize =
-      1024.0, // Default size - controlled by caller via feature flag
+  double maxSize = 2048.0, // Enhanced size for better quality
   int quality = WidgetImageOperations.kDefaultQuality,
 }) async {
   try {
@@ -27,14 +27,12 @@ Future<Uint8List?> getWidgetImage(
     // 1. Check in-memory cache for high-res version
     final memCached = ThumbnailInMemoryLruCache.get(file, maxSize.toInt());
     if (memCached != null && memCached.isNotEmpty) {
-      _logger.info("Using in-memory cached image for ${file.displayName}");
       return memCached;
     }
 
     // 2. Check if high-res cached version exists (from main app viewing)
     final cachedImage = await _getHighResCachedImage(file, maxSize.toInt());
     if (cachedImage != null) {
-      _logger.info("Using cached high-res image for ${file.displayName}");
       // Store in memory cache for quick access
       ThumbnailInMemoryLruCache.put(file, cachedImage, maxSize.toInt());
       return cachedImage;
@@ -44,9 +42,9 @@ Future<Uint8List?> getWidgetImage(
     if (!file.isRemoteFile) {
       final processedImage = await _processLocalFile(file, maxSize, quality);
       if (processedImage != null) {
-        _logger.info("Processed local image for ${file.displayName}");
         // Cache the processed image
-        await WidgetImageCache.cacheWidgetImage(file, processedImage);
+        await WidgetImageCache.cacheWidgetImage(
+            file, processedImage, maxSize.toInt());
         ThumbnailInMemoryLruCache.put(file, processedImage, maxSize.toInt());
         return processedImage;
       }
@@ -57,15 +55,14 @@ Future<Uint8List?> getWidgetImage(
     if (thumbnail != null && thumbnail.isNotEmpty) {
       // Check if thumbnail quality is acceptable
       if (_isThumbnailQualityAcceptable(thumbnail, maxSize.toInt())) {
-        _logger.info("Using existing thumbnail for ${file.displayName}");
         return thumbnail;
       }
 
       // Try to enhance the thumbnail in isolate
       final enhanced = await _enhanceThumbnail(thumbnail, maxSize, quality);
       if (enhanced != null) {
-        _logger.info("Enhanced thumbnail for ${file.displayName}");
-        await WidgetImageCache.cacheWidgetImage(file, enhanced);
+        await WidgetImageCache.cacheWidgetImage(
+            file, enhanced, maxSize.toInt());
         ThumbnailInMemoryLruCache.put(file, enhanced, maxSize.toInt());
         return enhanced;
       }
@@ -76,8 +73,6 @@ Future<Uint8List?> getWidgetImage(
 
     // 5. Last resort for remote files: Download original (expensive!)
     if (file.isRemoteFile) {
-      _logger.warning(
-          "Downloading original file for widget: ${file.displayName} - This is expensive!");
       final originalFile = await getFile(file, isOrigin: true);
       if (originalFile != null) {
         final processedImage = await _processFileInIsolate(
@@ -93,7 +88,8 @@ Future<Uint8List?> getWidgetImage(
         }
 
         if (processedImage != null) {
-          await WidgetImageCache.cacheWidgetImage(file, processedImage);
+          await WidgetImageCache.cacheWidgetImage(
+              file, processedImage, maxSize.toInt());
           ThumbnailInMemoryLruCache.put(file, processedImage, maxSize.toInt());
           return processedImage;
         }
@@ -177,6 +173,9 @@ Future<Uint8List?> _processFileInIsolate(
   int quality,
 ) async {
   try {
+    _logger.info(
+        "Processing image in isolate: ${imagePath != null ? 'from path' : 'from bytes'}, maxSize: $maxSize, quality: $quality");
+
     final params = <String, dynamic>{
       if (imagePath != null) 'imagePath': imagePath,
       if (imageBytes != null) 'imageBytes': imageBytes,
@@ -185,12 +184,22 @@ Future<Uint8List?> _processFileInIsolate(
     };
 
     // Process in isolate to avoid UI blocking
-    return await Computer.shared().compute(
+    final result = await Computer.shared().compute(
       WidgetImageOperations.processWidgetImage,
       param: params,
     );
-  } catch (e) {
-    _logger.severe("Error processing image in isolate", e);
+
+    if (result != null) {
+      _logger.info(
+          "Successfully processed image in isolate, result size: ${result.length} bytes");
+    } else {
+      _logger.warning(
+          "Image processing returned null - check isolate logs for details");
+    }
+
+    return result;
+  } catch (e, stackTrace) {
+    _logger.severe("Error processing image in isolate", e, stackTrace);
     return null;
   }
 }
@@ -230,7 +239,9 @@ Future<void> refreshWidgetImages(List<EnteFile> files) async {
   final futures = files.map(
     (file) => getWidgetImage(file).catchError((e) {
       _logger.warning(
-          "Failed to refresh widget image for ${file.displayName}", e);
+        "Failed to refresh widget image for ${file.displayName}",
+        e,
+      );
       return null;
     }),
   );
@@ -248,7 +259,8 @@ class WidgetImageCache {
   static Future<Uint8List?> getCachedImage(EnteFile file, int minSize) async {
     try {
       final cacheDir = await _getCacheDirectory();
-      final cacheFile = File('${cacheDir.path}/${file.generatedID}.jpg');
+      final cacheFile =
+          File('${cacheDir.path}/${file.generatedID}_${minSize}px.jpg');
 
       if (await cacheFile.exists()) {
         final bytes = await cacheFile.readAsBytes();
@@ -263,10 +275,12 @@ class WidgetImageCache {
   }
 
   /// Cache processed widget image for future use
-  static Future<void> cacheWidgetImage(EnteFile file, Uint8List data) async {
+  static Future<void> cacheWidgetImage(
+      EnteFile file, Uint8List data, int size) async {
     try {
       final cacheDir = await _getCacheDirectory();
-      final cacheFile = File('${cacheDir.path}/${file.generatedID}.jpg');
+      final cacheFile =
+          File('${cacheDir.path}/${file.generatedID}_${size}px.jpg');
 
       // Ensure directory exists
       if (!await cacheDir.exists()) {
