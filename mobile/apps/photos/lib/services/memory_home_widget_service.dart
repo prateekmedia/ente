@@ -61,20 +61,7 @@ class MemoryHomeWidgetService {
 
   // Public methods
   Future<void> initMemoryHomeWidget() async {
-    // Cancel any ongoing widget operation before starting new one
-    await HomeWidgetService.instance.cancelCurrentWidgetOperation();
-    
-    // Create a cancellable operation for this widget update
-    final completer = CancelableCompleter<void>();
-    HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
-    
     await HomeWidgetService.instance.computeLock.synchronized(() async {
-      // Check if cancelled before starting
-      if (completer.isCanceled) {
-        _logger.info("Memories widget init cancelled before start");
-        return;
-      }
-      
       if (await _hasAnyBlockers()) {
         await clearWidget();
         return;
@@ -85,21 +72,28 @@ class MemoryHomeWidgetService {
       final bool forceFetchNewMemories = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewMemories) {
+        // Only cancel and create new operation if we need to update
+        await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+        
+        // Create a cancellable operation for this widget update
+        final completer = CancelableCompleter<void>();
+        HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+        
         if (await _updateMemoriesWidgetCacheWithCancellation(completer)) {
           if (!completer.isCanceled) {
             await updateMemoryChanged(false);
             _logger.info("Force fetch new memories complete");
           }
         }
+        
+        if (!completer.isCompleted && !completer.isCanceled) {
+          completer.complete();
+        }
       } else {
         await _refreshMemoriesWidget();
         _logger.info("Refresh memories widget complete");
       }
     });
-    
-    if (!completer.isCompleted && !completer.isCanceled) {
-      completer.complete();
-    }
   }
 
   Future<void> clearWidget() async {

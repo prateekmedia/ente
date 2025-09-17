@@ -60,20 +60,7 @@ class PeopleHomeWidgetService {
   }
 
   Future<void> initPeopleHomeWidget() async {
-    // Cancel any ongoing widget operation before starting new one
-    await HomeWidgetService.instance.cancelCurrentWidgetOperation();
-    
-    // Create a cancellable operation for this widget update
-    final completer = CancelableCompleter<void>();
-    HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
-    
     await HomeWidgetService.instance.computeLock.synchronized(() async {
-      // Check if cancelled before starting
-      if (completer.isCanceled) {
-        _logger.info("People widget init cancelled before start");
-        return;
-      }
-      
       if (await _hasAnyBlockers()) {
         await clearWidget();
         return;
@@ -84,20 +71,27 @@ class PeopleHomeWidgetService {
       final bool forceFetchNewPeople = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewPeople) {
+        // Only cancel and create new operation if we need to update
+        await HomeWidgetService.instance.cancelCurrentWidgetOperation();
+        
+        // Create a cancellable operation for this widget update
+        final completer = CancelableCompleter<void>();
+        HomeWidgetService.instance.setCurrentWidgetOperation(completer.operation);
+        
         await _updatePeopleWidgetCacheWithCancellation(completer);
         if (!completer.isCanceled) {
           await updatePeopleChanged(false);
           _logger.info("Force fetch new people complete");
+        }
+        
+        if (!completer.isCompleted && !completer.isCanceled) {
+          completer.complete();
         }
       } else {
         await _refreshPeopleWidget();
         _logger.info("Refresh people widget complete");
       }
     });
-    
-    if (!completer.isCompleted && !completer.isCanceled) {
-      completer.complete();
-    }
   }
 
   Future<void> clearWidget() async {
