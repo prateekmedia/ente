@@ -1,1 +1,3 @@
+- Improved home screen widget image quality
+- Faster widget updates when changing album selections
 - Bug fixes & performance improvements
