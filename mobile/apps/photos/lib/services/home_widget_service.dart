@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:async/async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart' as hw;
@@ -17,7 +18,6 @@ import 'package:photos/services/people_home_widget_service.dart';
 import 'package:photos/services/smart_memories_service.dart';
 import 'package:photos/utils/widget_image_util.dart';
 import "package:synchronized/synchronized.dart";
-import 'package:async/async.dart';
 
 enum WidgetStatus {
   // notSynced means the widget is not initialized or has no data
@@ -60,9 +60,19 @@ class HomeWidgetService {
   final Logger _logger = Logger((HomeWidgetService).toString());
   final computeLock = Lock();
   bool _isAppGroupSet = false;
-  
+
   // Track separate operations for each widget type
   final Map<String, CancelableOperation> _widgetOperations = {};
+
+  // Track last widget sync time to prevent rapid consecutive syncs
+  DateTime? _lastWidgetSyncTime;
+  static const Duration _minSyncInterval = Duration(seconds: 10);
+
+  // Global circuit breaker for widget operations
+  int _consecutiveFailures = 0;
+  static const int _maxConsecutiveFailures = 5;
+  DateTime? _circuitBreakerOpenedAt;
+  static const Duration _circuitBreakerResetDuration = Duration(minutes: 5);
 
   Future<void> setAppGroup({String id = iOSGroupIDMemory}) async {
     if (!Platform.isIOS || _isAppGroupSet) return;
@@ -77,6 +87,31 @@ class HomeWidgetService {
   }
 
   Future<void> initHomeWidget([bool isBg = false]) async {
+    // Prevent rapid consecutive widget syncs
+    final now = DateTime.now();
+    if (_lastWidgetSyncTime != null) {
+      final timeSinceLastSync = now.difference(_lastWidgetSyncTime!);
+      if (timeSinceLastSync < _minSyncInterval) {
+        _logger.info(
+          "Skipping widget sync, too soon since last sync "
+          "(${timeSinceLastSync.inSeconds}s < ${_minSyncInterval.inSeconds}s)",
+        );
+        return;
+      }
+    }
+    _lastWidgetSyncTime = now;
+
+    // Circuit breaker improvements for enhanced widget feature
+    if (flagService.enhancedWidgetImage) {
+      // Clear failed attempts for HEIC files to allow retrying with new fix
+      clearAllFailedAttempts();
+      // Reset circuit breaker if it was triggered
+      if (_circuitBreakerOpenedAt != null) {
+        _logger.info("[Enhanced] Resetting circuit breaker for widget sync");
+        _resetCircuitBreaker();
+      }
+    }
+
     await setAppGroup();
     await AlbumHomeWidgetService.instance.initAlbumHomeWidget(isBg);
     await PeopleHomeWidgetService.instance.initPeopleHomeWidget();
@@ -109,12 +144,49 @@ class HomeWidgetService {
     String title,
     String? mainKey,
   ) async {
+    // Check circuit breaker (enhanced widget feature)
+    if (flagService.enhancedWidgetImage) {
+      if (_circuitBreakerOpenedAt != null) {
+        final timeSinceOpened =
+            DateTime.now().difference(_circuitBreakerOpenedAt!);
+        if (timeSinceOpened < _circuitBreakerResetDuration) {
+          _logger.info(
+            "[Enhanced] Widget circuit breaker is open, skipping render "
+            "(${timeSinceOpened.inSeconds}s / ${_circuitBreakerResetDuration.inSeconds}s)",
+          );
+          return null;
+        } else {
+          // Reset circuit breaker
+          _logger.info(
+            "[Enhanced] Resetting widget circuit breaker after timeout",
+          );
+          _circuitBreakerOpenedAt = null;
+          _consecutiveFailures = 0;
+        }
+      }
+    }
     final actualSize = await _captureFile(file, key, title, mainKey);
     if (actualSize == null) {
-      _logger.warning("Failed to capture file ${file.displayName}");
+      _consecutiveFailures++;
+      _logger.warning(
+        "Failed to capture file ${file.displayName} "
+        "(consecutive failures: $_consecutiveFailures/$_maxConsecutiveFailures)",
+      );
+
+      // Open circuit breaker if too many failures (enhanced widget feature)
+      if (flagService.enhancedWidgetImage &&
+          _consecutiveFailures >= _maxConsecutiveFailures) {
+        _circuitBreakerOpenedAt = DateTime.now();
+        _logger.severe(
+          "[Enhanced] Too many consecutive widget failures, opening circuit breaker for "
+          "${_circuitBreakerResetDuration.inMinutes} minutes",
+        );
+      }
       return null;
     }
 
+    // Reset failure count on success
+    _consecutiveFailures = 0;
     return actualSize;
   }
 
@@ -147,15 +219,30 @@ class HomeWidgetService {
     try {
       // Get widget image with proper EXIF handling
       const imageSize = WIDGET_IMAGE_SIZE; // 1280px for optimal quality
-      final imageData = await getWidgetImage(
-        file,
-        maxSize: imageSize,
-        quality: 100,
-      );
+      _logger.info("Calling getWidgetImage for ${file.displayName}");
+
+      Uint8List? imageData;
+      try {
+        imageData = await getWidgetImage(
+          file,
+          maxSize: imageSize,
+          quality: 100,
+        );
+      } catch (e, stackTrace) {
+        _logger.severe(
+          "Exception in getWidgetImage for ${file.displayName}",
+          e,
+          stackTrace,
+        );
+        return null;
+      }
 
       if (imageData == null) {
-        _logger
-            .warning("Failed to get widget image for file ${file.displayName}");
+        _logger.severe(
+          "Failed to get widget image for file ${file.displayName} "
+          "(type: ${file.fileType}, localID: ${file.localID}, "
+          "uploadedID: ${file.uploadedFileID}, isRemote: ${file.isRemoteFile})",
+        );
         return null;
       }
 
@@ -197,7 +284,7 @@ class HomeWidgetService {
       // Save metadata in platform-specific format
       await _saveWidgetMetadata(key, metadata);
 
-      return Size(imageSize, imageSize);
+      return const Size(imageSize, imageSize);
     } catch (error, stackTrace) {
       _logger.severe("Failed to save the thumbnail", error, stackTrace);
       return null;
@@ -241,7 +328,7 @@ class HomeWidgetService {
     for (final widgetType in _widgetOperations.keys.toList()) {
       await cancelWidgetOperation(widgetType);
     }
-    
+
     if (autoLogout) {
       await setAppGroup();
     }
@@ -262,7 +349,7 @@ class HomeWidgetService {
     } catch (e) {
       _logger.severe("Failed to clear widget directory", e);
     }
-    
+
     // Clear widget image cache
     try {
       await WidgetCacheManager().emptyCache();
@@ -270,6 +357,17 @@ class HomeWidgetService {
     } catch (e) {
       _logger.severe("Failed to clear widget cache", e);
     }
+
+    // Reset circuit breaker when clearing widget
+    _resetCircuitBreaker();
+  }
+
+  /// Reset the circuit breaker (useful after fixing issues)
+  void _resetCircuitBreaker() {
+    _consecutiveFailures = 0;
+    _circuitBreakerOpenedAt = null;
+    clearAllFailedAttempts(); // Also clear failed attempts when resetting
+    _logger.info("Circuit breaker and failed attempts cache reset");
   }
 
   /// Cancel ongoing widget operation for a specific widget type
@@ -277,7 +375,7 @@ class HomeWidgetService {
     final operation = _widgetOperations[widgetType];
     if (operation != null && !operation.isCompleted) {
       _logger.info("Cancelling ongoing $widgetType widget operation");
-      operation.cancel();
+      await operation.cancel();
       _widgetOperations.remove(widgetType);
     }
   }
