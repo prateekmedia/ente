@@ -112,9 +112,7 @@ class HomeWidgetService {
       return null;
     }
 
-    final imageSize =
-        flagService.enhancedWidgetImage ? WIDGET_IMAGE_SIZE : THUMBNAIL_SIZE;
-    return Size(imageSize, imageSize);
+    return Size(WIDGET_IMAGE_SIZE, WIDGET_IMAGE_SIZE);
   }
 
   Future<int> countHomeWidgets(
@@ -149,7 +147,7 @@ class HomeWidgetService {
       final imageData = await getWidgetImage(
         file,
         maxSize: imageSize,
-        quality: flagService.enhancedWidgetImage ? 85 : 70,
+        quality: 85,
       );
 
       if (imageData == null) {
