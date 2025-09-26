@@ -25,9 +25,7 @@ class MemoryHomeWidgetService {
   static const String MEMORY_LAST_REFRESH_KEY = "memoryLastRefresh";
   static const String TOTAL_MEMORIES_KEY = "totalMemories";
   // Widget optimization constants (internal users only)
-  static const int MAX_MEMORIES_LIMIT_INTERNAL =
-      10; // Optimized for 6-hour refresh
-  static const int MAX_MEMORIES_LIMIT_DEFAULT = 50; // Original limit
+  static const int MAX_MEMORIES_LIMIT = 50; // Memory limit
   static const Duration REFRESH_INTERVAL =
       Duration(hours: 6); // Refresh every 6 hours
 
@@ -234,35 +232,32 @@ class MemoryHomeWidgetService {
     // Update widget cache when memories were changed
     if (isMemoryChanged() == true) return true;
 
-    // Widget optimization for enhanced widget feature
-    if (flagService.enhancedWidgetImage) {
-      // Check if we already have all available images (less than limit)
-      // If the last sync was successful and we had less than the limit, no need to refresh
-      final lastStatus = getMemoriesStatus();
-      final totalMemories = await _getTotalMemories();
-      const maxLimit = MAX_MEMORIES_LIMIT_INTERNAL;
+    // Check if we already have all available images (less than limit)
+    // If the last sync was successful and we had less than the limit, no need to refresh
+    final lastStatus = getMemoriesStatus();
+    final totalMemories = await _getTotalMemories();
+    const maxLimit = MAX_MEMORIES_LIMIT;
 
-      if (lastStatus == WidgetStatus.syncedAll &&
-          totalMemories != null &&
-          totalMemories < maxLimit) {
-        _logger.info(
-          "[Enhanced] Skipping refresh: already have all available images ($totalMemories < $maxLimit)",
-        );
-        return false;
-      }
+    if (lastStatus == WidgetStatus.syncedAll &&
+        totalMemories != null &&
+        totalMemories < maxLimit) {
+      _logger.info(
+        "Skipping refresh: already have all available images ($totalMemories < $maxLimit)",
+      );
+      return false;
+    }
 
-      // Check if enough time has passed for a refresh (even if content hasn't changed)
-      final lastRefreshStr = _prefs.getString(MEMORY_LAST_REFRESH_KEY);
-      if (lastRefreshStr != null) {
-        final lastRefresh = DateTime.tryParse(lastRefreshStr);
-        if (lastRefresh != null) {
-          final timeSinceRefresh = DateTime.now().difference(lastRefresh);
-          if (timeSinceRefresh >= REFRESH_INTERVAL) {
-            _logger.info(
-              "[Enhanced] Time-based refresh triggered (last refresh: ${timeSinceRefresh.inHours} hours ago)",
-            );
-            return true;
-          }
+    // Check if enough time has passed for a refresh (even if content hasn't changed)
+    final lastRefreshStr = _prefs.getString(MEMORY_LAST_REFRESH_KEY);
+    if (lastRefreshStr != null) {
+      final lastRefresh = DateTime.tryParse(lastRefreshStr);
+      if (lastRefresh != null) {
+        final timeSinceRefresh = DateTime.now().difference(lastRefresh);
+        if (timeSinceRefresh >= REFRESH_INTERVAL) {
+          _logger.info(
+            "Time-based refresh triggered (last refresh: ${timeSinceRefresh.inHours} hours ago)",
+          );
+          return true;
         }
       }
     }
@@ -369,19 +364,14 @@ class MemoryHomeWidgetService {
     }
 
     final bool isWidgetPresent = await countHomeWidgets() > 0;
-    // Use optimized limits for enhanced widget feature
-    final maxLimit = flagService.enhancedWidgetImage
-        ? MAX_MEMORIES_LIMIT_INTERNAL
-        : MAX_MEMORIES_LIMIT_DEFAULT;
+    final maxLimit = MAX_MEMORIES_LIMIT;
     final limit = isWidgetPresent ? maxLimit : 5;
 
-    // Record the refresh time for enhanced widget feature
-    if (flagService.enhancedWidgetImage) {
-      await _prefs.setString(
-        MEMORY_LAST_REFRESH_KEY,
-        DateTime.now().toIso8601String(),
-      );
-    }
+    // Record the refresh time
+    await _prefs.setString(
+      MEMORY_LAST_REFRESH_KEY,
+      DateTime.now().toIso8601String(),
+    );
     final maxAttempts =
         limit * 3; // Reduce max attempts to avoid excessive retries
 

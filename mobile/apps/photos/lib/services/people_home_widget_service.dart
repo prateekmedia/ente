@@ -28,9 +28,7 @@ class PeopleHomeWidgetService {
   static const String PEOPLE_LAST_REFRESH_KEY = "peopleLastRefresh";
   static const String TOTAL_PEOPLE_KEY = "totalPeople";
   // Widget optimization constants (internal users only)
-  static const int MAX_PEOPLE_LIMIT_INTERNAL =
-      10; // Optimized for 6-hour refresh
-  static const int MAX_PEOPLE_LIMIT_DEFAULT = 50; // Original limit
+  static const int MAX_PEOPLE_LIMIT = 50; // People limit
   static const Duration REFRESH_INTERVAL =
       Duration(hours: 6); // Refresh every 6 hours
 
@@ -294,35 +292,32 @@ class PeopleHomeWidgetService {
       return true;
     }
 
-    // Widget optimization for enhanced widget feature
-    if (flagService.enhancedWidgetImage) {
-      // Check if we already have all available images (less than limit)
-      // If the last sync was successful and we had less than the limit, no need to refresh
-      final lastStatus = getPeopleStatus();
-      final totalPeople = await _getTotalPeople();
-      const maxLimit = MAX_PEOPLE_LIMIT_INTERNAL;
+    // Check if we already have all available images (less than limit)
+    // If the last sync was successful and we had less than the limit, no need to refresh
+    final lastStatus = getPeopleStatus();
+    final totalPeople = await _getTotalPeople();
+    const maxLimit = MAX_PEOPLE_LIMIT;
 
-      if (lastStatus == WidgetStatus.syncedAll &&
-          totalPeople != null &&
-          totalPeople < maxLimit) {
-        _logger.info(
-          "[Enhanced] Skipping refresh: already have all available images ($totalPeople < $maxLimit)",
-        );
-        return false;
-      }
+    if (lastStatus == WidgetStatus.syncedAll &&
+        totalPeople != null &&
+        totalPeople < maxLimit) {
+      _logger.info(
+        "Skipping refresh: already have all available images ($totalPeople < $maxLimit)",
+      );
+      return false;
+    }
 
-      // Check if enough time has passed for a refresh (even if content hasn't changed)
-      final lastRefreshStr = _prefs.getString(PEOPLE_LAST_REFRESH_KEY);
-      if (lastRefreshStr != null) {
-        final lastRefresh = DateTime.tryParse(lastRefreshStr);
-        if (lastRefresh != null) {
-          final timeSinceRefresh = DateTime.now().difference(lastRefresh);
-          if (timeSinceRefresh >= REFRESH_INTERVAL) {
-            _logger.info(
-              "[Enhanced] Time-based refresh triggered (last refresh: ${timeSinceRefresh.inHours} hours ago)",
-            );
-            return true;
-          }
+    // Check if enough time has passed for a refresh (even if content hasn't changed)
+    final lastRefreshStr = _prefs.getString(PEOPLE_LAST_REFRESH_KEY);
+    if (lastRefreshStr != null) {
+      final lastRefresh = DateTime.tryParse(lastRefreshStr);
+      if (lastRefresh != null) {
+        final timeSinceRefresh = DateTime.now().difference(lastRefresh);
+        if (timeSinceRefresh >= REFRESH_INTERVAL) {
+          _logger.info(
+            "Time-based refresh triggered (last refresh: ${timeSinceRefresh.inHours} hours ago)",
+          );
+          return true;
         }
       }
     }
@@ -402,20 +397,15 @@ class PeopleHomeWidgetService {
       return;
     }
 
-    // Use optimized limits for enhanced widget feature
-    final limit = flagService.enhancedWidgetImage
-        ? MAX_PEOPLE_LIMIT_INTERNAL
-        : MAX_PEOPLE_LIMIT_DEFAULT;
+    final limit = MAX_PEOPLE_LIMIT;
     final maxAttempts =
         limit * 3; // Reduce max attempts to avoid excessive retries
 
-    // Record the refresh time for enhanced widget feature
-    if (flagService.enhancedWidgetImage) {
-      await _prefs.setString(
-        PEOPLE_LAST_REFRESH_KEY,
-        DateTime.now().toIso8601String(),
-      );
-    }
+    // Record the refresh time
+    await _prefs.setString(
+      PEOPLE_LAST_REFRESH_KEY,
+      DateTime.now().toIso8601String(),
+    );
 
     int renderedCount = 0;
     int attemptsCount = 0;

@@ -165,40 +165,38 @@ Future<Uint8List?> _processLocalFile(
       return null;
     }
 
-    // HEIC handling improvement for enhanced widget feature
-    if (flagService.enhancedWidgetImage) {
-      // Check if this is a HEIC/HEIF file which the image package can't decode
-      final isHeic = file.displayName.toUpperCase().endsWith('.HEIC') ||
-          file.displayName.toUpperCase().endsWith('.HEIF');
+    // HEIC handling improvement
+    // Check if this is a HEIC/HEIF file which the image package can't decode
+    final isHeic = file.displayName.toUpperCase().endsWith('.HEIC') ||
+        file.displayName.toUpperCase().endsWith('.HEIF');
 
-      if (isHeic) {
-        // For HEIC files, use photo_manager's thumbnail generation
-        // which properly handles iOS HEIC format
-        _logger.info(
-          "[Enhanced] Using photo_manager for HEIC file: ${file.displayName}",
+    if (isHeic) {
+      // For HEIC files, use photo_manager's thumbnail generation
+      // which properly handles iOS HEIC format
+      _logger.info(
+        "Using photo_manager for HEIC file: ${file.displayName}",
+      );
+      try {
+        // Use thumbnailDataWithSize for HEIC files - it handles conversion to JPEG
+        final thumbData = await asset.thumbnailDataWithSize(
+          ThumbnailSize(maxSize.toInt(), maxSize.toInt()),
+          quality: quality,
         );
-        try {
-          // Use thumbnailDataWithSize for HEIC files - it handles conversion to JPEG
-          final thumbData = await asset.thumbnailDataWithSize(
-            ThumbnailSize(maxSize.toInt(), maxSize.toInt()),
-            quality: quality,
-          );
 
-          if (thumbData != null) {
-            _logger.info(
-              "[Enhanced] Successfully got thumbnail for HEIC file ${file.displayName} (${thumbData.length} bytes)",
-            );
-            return thumbData;
-          } else {
-            _logger.warning(
-              "[Enhanced] photo_manager returned null thumbnail for ${file.displayName}",
-            );
-          }
-        } catch (e) {
+        if (thumbData != null) {
+          _logger.info(
+            "Successfully got thumbnail for HEIC file ${file.displayName} (${thumbData.length} bytes)",
+          );
+          return thumbData;
+        } else {
           _logger.warning(
-            "[Enhanced] Failed to get thumbnail via photo_manager for ${file.displayName}: $e",
+            "photo_manager returned null thumbnail for ${file.displayName}",
           );
         }
+      } catch (e) {
+        _logger.warning(
+          "Failed to get thumbnail via photo_manager for ${file.displayName}: $e",
+        );
       }
     }
 

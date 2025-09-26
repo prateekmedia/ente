@@ -101,15 +101,13 @@ class HomeWidgetService {
     }
     _lastWidgetSyncTime = now;
 
-    // Circuit breaker improvements for enhanced widget feature
-    if (flagService.enhancedWidgetImage) {
-      // Clear failed attempts for HEIC files to allow retrying with new fix
-      clearAllFailedAttempts();
-      // Reset circuit breaker if it was triggered
-      if (_circuitBreakerOpenedAt != null) {
-        _logger.info("[Enhanced] Resetting circuit breaker for widget sync");
-        _resetCircuitBreaker();
-      }
+    // Circuit breaker improvements
+    // Clear failed attempts for HEIC files to allow retrying with new fix
+    clearAllFailedAttempts();
+    // Reset circuit breaker if it was triggered
+    if (_circuitBreakerOpenedAt != null) {
+      _logger.info("Resetting circuit breaker for widget sync");
+      _resetCircuitBreaker();
     }
 
     await setAppGroup();
@@ -144,25 +142,23 @@ class HomeWidgetService {
     String title,
     String? mainKey,
   ) async {
-    // Check circuit breaker (enhanced widget feature)
-    if (flagService.enhancedWidgetImage) {
-      if (_circuitBreakerOpenedAt != null) {
-        final timeSinceOpened =
-            DateTime.now().difference(_circuitBreakerOpenedAt!);
-        if (timeSinceOpened < _circuitBreakerResetDuration) {
-          _logger.info(
-            "[Enhanced] Widget circuit breaker is open, skipping render "
-            "(${timeSinceOpened.inSeconds}s / ${_circuitBreakerResetDuration.inSeconds}s)",
-          );
-          return null;
-        } else {
-          // Reset circuit breaker
-          _logger.info(
-            "[Enhanced] Resetting widget circuit breaker after timeout",
-          );
-          _circuitBreakerOpenedAt = null;
-          _consecutiveFailures = 0;
-        }
+    // Check circuit breaker
+    if (_circuitBreakerOpenedAt != null) {
+      final timeSinceOpened =
+          DateTime.now().difference(_circuitBreakerOpenedAt!);
+      if (timeSinceOpened < _circuitBreakerResetDuration) {
+        _logger.info(
+          "Widget circuit breaker is open, skipping render "
+          "(${timeSinceOpened.inSeconds}s / ${_circuitBreakerResetDuration.inSeconds}s)",
+        );
+        return null;
+      } else {
+        // Reset circuit breaker
+        _logger.info(
+          "Resetting widget circuit breaker after timeout",
+        );
+        _circuitBreakerOpenedAt = null;
+        _consecutiveFailures = 0;
       }
     }
     final actualSize = await _captureFile(file, key, title, mainKey);
@@ -173,12 +169,11 @@ class HomeWidgetService {
         "(consecutive failures: $_consecutiveFailures/$_maxConsecutiveFailures)",
       );
 
-      // Open circuit breaker if too many failures (enhanced widget feature)
-      if (flagService.enhancedWidgetImage &&
-          _consecutiveFailures >= _maxConsecutiveFailures) {
+      // Open circuit breaker if too many failures
+      if (_consecutiveFailures >= _maxConsecutiveFailures) {
         _circuitBreakerOpenedAt = DateTime.now();
         _logger.severe(
-          "[Enhanced] Too many consecutive widget failures, opening circuit breaker for "
+          "Too many consecutive widget failures, opening circuit breaker for "
           "${_circuitBreakerResetDuration.inMinutes} minutes",
         );
       }
