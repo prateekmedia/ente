@@ -43,12 +43,9 @@ class PeopleHomeWidgetService {
   final Logger _logger = Logger((PeopleHomeWidgetService).toString());
   SharedPreferences get _prefs => ServiceLocator.instance.prefs;
   final peopleChangedLock = Lock();
-<<<<<<< HEAD
-=======
 
   // Track the latest request generation to skip outdated operations
   int _requestGeneration = 0;
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
 
   // Public methods
   List<String>? getSelectedPeople() {
@@ -71,9 +68,6 @@ class PeopleHomeWidgetService {
   }
 
   Future<void> initPeopleHomeWidget() async {
-<<<<<<< HEAD
-    await HomeWidgetService.instance.computeLock.synchronized(() async {
-=======
     // Increment generation for this request
     final currentGeneration = ++_requestGeneration;
 
@@ -85,7 +79,6 @@ class PeopleHomeWidgetService {
         );
         return;
       }
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
       if (await _hasAnyBlockers()) {
         await clearWidget();
         return;
@@ -96,11 +89,6 @@ class PeopleHomeWidgetService {
       final bool forceFetchNewPeople = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewPeople) {
-<<<<<<< HEAD
-        await _updatePeopleWidgetCache();
-        await updatePeopleChanged(false);
-        _logger.info("Force fetch new people complete");
-=======
         // Only cancel people operations, not other widget types
         await HomeWidgetService.instance.cancelWidgetOperation(WIDGET_TYPE);
 
@@ -118,7 +106,6 @@ class PeopleHomeWidgetService {
         if (!completer.isCompleted && !completer.isCanceled) {
           completer.complete();
         }
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
       } else {
         await _refreshPeopleWidget();
         _logger.info("Refresh people widget complete");
@@ -397,9 +384,6 @@ class PeopleHomeWidgetService {
     await HomeWidgetService.instance.setData(TOTAL_PEOPLE_KEY, total);
   }
 
-<<<<<<< HEAD
-  Future<void> _updatePeopleWidgetCache() async {
-=======
   Future<void> _updatePeopleWidgetCacheWithCancellation(
     CancelableCompleter completer,
   ) async {
@@ -409,7 +393,6 @@ class PeopleHomeWidgetService {
   Future<void> _updatePeopleWidgetCache([
     CancelableCompleter? completer,
   ]) async {
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
     final peopleIds = await _getEffectiveSelections();
     final peopleWithFiles = await _getPeople(peopleIds);
 
@@ -446,15 +429,11 @@ class PeopleHomeWidgetService {
     final random = Random();
 
     while (renderedCount < limit && attemptsCount < maxAttempts) {
-<<<<<<< HEAD
-=======
       // Check if operation was cancelled
       if (completer != null && completer.isCanceled) {
         _logger.info("People widget update cancelled during rendering");
         return;
       }
-
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
       final randomEntry =
           peopleWithFilesEntries[random.nextInt(peopleWithFilesLength)];
 
@@ -488,15 +467,11 @@ class PeopleHomeWidgetService {
       });
 
       if (renderResult != null) {
-<<<<<<< HEAD
-=======
         // Check if cancelled before continuing
         if (completer != null && completer.isCanceled) {
           _logger.info("People widget update cancelled after rendering");
           return;
         }
-
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
         // Check for blockers again before continuing
         if (await _hasAnyBlockers()) {
           return;

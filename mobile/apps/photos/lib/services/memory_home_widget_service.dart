@@ -39,12 +39,9 @@ class MemoryHomeWidgetService {
   // Properties
   final Logger _logger = Logger((MemoryHomeWidgetService).toString());
   SharedPreferences get _prefs => ServiceLocator.instance.prefs;
-<<<<<<< HEAD
-=======
 
   // Track the latest request generation to skip outdated operations
   int _requestGeneration = 0;
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
 
   // Debounce timer to prevent rapid consecutive widget sync calls
   Timer? _debounceTimer;
@@ -77,9 +74,6 @@ class MemoryHomeWidgetService {
 
   // Public methods
   Future<void> initMemoryHomeWidget() async {
-<<<<<<< HEAD
-    await HomeWidgetService.instance.computeLock.synchronized(() async {
-=======
     // Cancel any pending debounced calls
     _debounceTimer?.cancel();
 
@@ -101,7 +95,6 @@ class MemoryHomeWidgetService {
         );
         return;
       }
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
       if (await _hasAnyBlockers()) {
         await clearWidget();
         return;
@@ -112,11 +105,6 @@ class MemoryHomeWidgetService {
       final bool forceFetchNewMemories = await _shouldUpdateWidgetCache();
 
       if (forceFetchNewMemories) {
-<<<<<<< HEAD
-        if (await _updateMemoriesWidgetCache()) {
-          await updateMemoryChanged(false);
-          _logger.info("Force fetch new memories complete");
-=======
         // Only cancel memory operations, not other widget types
         await HomeWidgetService.instance.cancelWidgetOperation(WIDGET_TYPE);
 
@@ -134,7 +122,6 @@ class MemoryHomeWidgetService {
 
         if (!completer.isCompleted && !completer.isCanceled) {
           completer.complete();
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
         }
       } else {
         await _refreshMemoriesWidget();
@@ -364,10 +351,6 @@ class MemoryHomeWidgetService {
     await HomeWidgetService.instance.setData(TOTAL_MEMORIES_KEY, total);
   }
 
-<<<<<<< HEAD
-  // _updateMemoriesWidgetCache will return false if no memories were cached
-  Future<bool> _updateMemoriesWidgetCache() async {
-=======
   Future<bool> _updateMemoriesWidgetCacheWithCancellation(
     CancelableCompleter completer,
   ) async {
@@ -378,7 +361,6 @@ class MemoryHomeWidgetService {
   Future<bool> _updateMemoriesWidgetCache([
     CancelableCompleter? completer,
   ]) async {
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
     // TODO: Can update the method to fetch directly max limit random memories
     final memoriesWithFiles = await _getMemoriesWithFiles();
     if (memoriesWithFiles.isEmpty) {
@@ -415,15 +397,11 @@ class MemoryHomeWidgetService {
     final random = Random();
 
     while (renderedCount < limit && attemptsCount < maxAttempts) {
-<<<<<<< HEAD
-=======
       // Check if operation was cancelled
       if (completer != null && completer.isCanceled) {
         _logger.info("Memories widget update cancelled during rendering");
         return false;
       }
-
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
       final randomEntry =
           memoriesWithFilesEntries[random.nextInt(memoriesWithFilesLength)];
 
@@ -456,15 +434,11 @@ class MemoryHomeWidgetService {
       });
 
       if (renderResult != null) {
-<<<<<<< HEAD
-=======
         // Check if cancelled before continuing
         if (completer != null && completer.isCanceled) {
           _logger.info("Memories widget update cancelled after rendering");
           return false;
         }
-
->>>>>>> c92c9c9013 (feat: add enhanced widget feature with HEIC support and time-based refresh)
         // Check for blockers again before continuing
         if (await _hasAnyBlockers()) {
           await clearWidget();
