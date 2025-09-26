@@ -14,6 +14,7 @@ import 'package:photos/services/memory_home_widget_service.dart';
 import 'package:photos/services/people_home_widget_service.dart';
 import 'package:photos/services/smart_memories_service.dart';
 import 'package:photos/utils/thumbnail_util.dart';
+import 'package:photos/utils/widget_image_util.dart';
 import "package:synchronized/synchronized.dart";
 
 enum WidgetStatus {
@@ -235,7 +236,7 @@ class HomeWidgetService {
     } catch (e) {
       _logger.severe("Failed to clear widget directory", e);
     }
-    
+
     // Clear widget image cache
     try {
       await WidgetCacheManager().emptyCache();
