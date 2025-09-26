@@ -1,3 +1,4 @@
+- Prateek: (i) Widget improvements - HEIC support for iOS, 6-hour refresh cycle with 10 image cache, circuit breaker protection, optimized hash calculation, higher image quality (1280px), cancellation mechanism. FLAG=enhancedWidgetImage
 - Ashil: Downgrade flutter secure storage back to version used before v1.2.4 release
 - Neeraj: Fix sorting for large files viewer
 - Anand: Option to change public album layout
