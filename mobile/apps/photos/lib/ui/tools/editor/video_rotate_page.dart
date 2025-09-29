@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import "package:photos/ente_theme_data.dart";
 import "package:photos/generated/l10n.dart";
+import "package:photos/ui/tools/editor/video_editor/rotated_video_preview.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
@@ -31,11 +32,10 @@ class VideoRotatePage extends StatelessWidget {
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
-                child: RotatedBox(
-                  quarterTurns: quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.preview(
-                    controller: controller,
-                  ),
+                child: RotatedVideoPreview(
+                  controller: controller,
+                  quarterTurnsForRotationCorrection:
+                      quarterTurnsForRotationCorrection,
                 ),
               ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import "package:photos/ente_theme_data.dart";
 import "package:photos/generated/l10n.dart";
 import "package:photos/ui/tools/editor/video_editor/crop_value.dart";
+import "package:photos/ui/tools/editor/video_editor/rotated_video_preview.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
@@ -36,13 +37,13 @@ class _VideoCropPageState extends State<VideoCropPage> {
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
-                child: RotatedBox(
-                  quarterTurns: widget.quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.edit(
-                    controller: widget.controller,
-                    rotateCropArea: false,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
+                child: RotatedVideoPreview(
+                  controller: widget.controller,
+                  quarterTurnsForRotationCorrection:
+                      widget.quarterTurnsForRotationCorrection,
+                  isEditMode: true,
+                  rotateCropArea: false,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import "package:photos/ente_theme_data.dart";
 import "package:photos/generated/l10n.dart";
+import "package:photos/ui/tools/editor/video_editor/rotated_video_preview.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_player_control.dart";
 import 'package:video_editor/video_editor.dart';
@@ -41,11 +42,10 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
-                child: RotatedBox(
-                  quarterTurns: widget.quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.preview(
-                    controller: widget.controller,
-                  ),
+                child: RotatedVideoPreview(
+                  controller: widget.controller,
+                  quarterTurnsForRotationCorrection:
+                      widget.quarterTurnsForRotationCorrection,
                 ),
               ),
             ),

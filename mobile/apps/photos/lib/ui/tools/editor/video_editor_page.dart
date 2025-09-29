@@ -18,6 +18,7 @@ import "package:photos/ui/common/linear_progress_dialog.dart";
 import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/tools/editor/export_video_service.dart";
 import 'package:photos/ui/tools/editor/video_crop_page.dart';
+import "package:photos/ui/tools/editor/video_editor/rotated_video_preview.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
@@ -135,12 +136,10 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                               Expanded(
                                 child: Hero(
                                   tag: "video-editor-preview",
-                                  child: RotatedBox(
-                                    quarterTurns:
+                                  child: RotatedVideoPreview(
+                                    controller: _controller!,
+                                    quarterTurnsForRotationCorrection:
                                         _quarterTurnsForRotationCorrection!,
-                                    child: CropGridViewer.preview(
-                                      controller: _controller!,
-                                    ),
                                   ),
                                 ),
                               ),
@@ -356,10 +355,11 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
     }
   }
 
-  void _doRotationCorrectionIfAndroid() {
+  Future<void> _doRotationCorrectionIfAndroid() async {
     if (Platform.isAndroid) {
-      getVideoPropsAsync(widget.ioFile).then((props) async {
+      await getVideoPropsAsync(widget.ioFile).then((props) async {
         if (props?.rotation != null) {
+          // Negative rotation for clockwise correction on Android
           _quarterTurnsForRotationCorrection = -(props!.rotation! / 90).round();
         } else {
           _quarterTurnsForRotationCorrection = 0;
