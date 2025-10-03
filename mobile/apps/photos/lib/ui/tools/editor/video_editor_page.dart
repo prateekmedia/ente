@@ -12,12 +12,14 @@ import "package:photos/ente_theme_data.dart";
 import "package:photos/events/local_photos_updated_event.dart";
 import "package:photos/generated/l10n.dart";
 import "package:photos/models/file/file.dart";
+import "package:photos/models/ffmpeg/ffprobe_props.dart";
 import "package:photos/models/location/location.dart";
 import "package:photos/services/sync/sync_service.dart";
 import "package:photos/ui/common/linear_progress_dialog.dart";
 import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/tools/editor/export_video_service.dart";
 import 'package:photos/ui/tools/editor/video_crop_page.dart';
+import "package:photos/ui/tools/editor/video_editor/video_editor_aspect_ratio.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
@@ -56,6 +58,9 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
   int? _quarterTurnsForRotationCorrection;
 
   VideoEditorController? _controller;
+  bool _loggedLoadingOnce = false;
+  double? _videoWidthOverride;
+  double? _videoHeightOverride;
 
   @override
   void initState() {
@@ -83,13 +88,19 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
         ),
       );
 
-      _controller!.initialize().then((_) => setState(() {})).catchError(
+      _controller!.addListener(_handleControllerUpdate);
+
+      _controller!.initialize().catchError(
         (error) {
-          // handle minumum duration bigger than video duration error
+          if (!mounted) {
+            return;
+          }
           Navigator.pop(context);
         },
         test: (e) => e is VideoMinDurationError,
       );
+
+      _prefetchVideoProps();
     });
 
     _doRotationCorrectionIfAndroid();
@@ -98,13 +109,42 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
   @override
   void dispose() async {
     _isExporting.dispose();
+    _controller?.removeListener(_handleControllerUpdate);
     _controller?.dispose().ignore();
     ExportService.dispose().ignore();
     super.dispose();
   }
 
+  Duration? get _fallbackVideoDuration {
+    final seconds = widget.file.duration;
+    if (seconds != null && seconds > 0) {
+      return Duration(seconds: seconds);
+    }
+    return null;
+  }
+
+  void _handleControllerUpdate() {
+    if (!mounted || _controller == null) {
+      return;
+    }
+    if (_controller!.initialized) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (!_loggedLoadingOnce) {
+      final shouldShowLoader = !(_controller != null &&
+          _quarterTurnsForRotationCorrection != null);
+      if (shouldShowLoader) {
+        _loggedLoadingOnce = true;
+        _logger.info(
+          '[VideoEditorPage] Showing loader. controller=null? ${_controller == null}, rotationSet=${_quarterTurnsForRotationCorrection != null}',
+        );
+      }
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -122,7 +162,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
           toolbarHeight: 0,
         ),
         body: _controller != null &&
-                _controller!.initialized &&
                 _quarterTurnsForRotationCorrection != null
             ? SafeArea(
                 child: Stack(
@@ -135,17 +174,24 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                               Expanded(
                                 child: Hero(
                                   tag: "video-editor-preview",
-                                  child: RotatedBox(
-                                    quarterTurns:
-                                        _quarterTurnsForRotationCorrection!,
-                                    child: CropGridViewer.preview(
-                                      controller: _controller!,
-                                    ),
+                                  child: AnimatedBuilder(
+                                    animation: _controller!,
+                                    builder: (_, __) {
+                                      final overrideDims = _rawOverrideDimensions();
+                                      return _buildRotatedPreview(
+                                        CropGridViewer.preview(
+                                          controller: _controller!,
+                                          overrideWidth: overrideDims?.width,
+                                          overrideHeight: overrideDims?.height,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
                               VideoEditorPlayerControl(
                                 controller: _controller!,
+                                fallbackDuration: _fallbackVideoDuration,
                               ),
                               VideoEditorMainActions(
                                 children: [
@@ -159,7 +205,10 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                         builder: (context) => VideoTrimPage(
                                           controller: _controller!,
                                           quarterTurnsForRotationCorrection:
-                                              _quarterTurnsForRotationCorrection!,
+                                              _effectiveQuarterTurns(),
+                                          fallbackDuration: _fallbackVideoDuration,
+                                          overrideWidth: _videoWidthOverride,
+                                          overrideHeight: _videoHeightOverride,
                                         ),
                                       ),
                                     ),
@@ -175,7 +224,10 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                         builder: (context) => VideoCropPage(
                                           controller: _controller!,
                                           quarterTurnsForRotationCorrection:
-                                              _quarterTurnsForRotationCorrection!,
+                                              _effectiveQuarterTurns(),
+                                          fallbackDuration: _fallbackVideoDuration,
+                                          overrideWidth: _videoWidthOverride,
+                                          overrideHeight: _videoHeightOverride,
                                         ),
                                       ),
                                     ),
@@ -191,7 +243,10 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                         builder: (context) => VideoRotatePage(
                                           controller: _controller!,
                                           quarterTurnsForRotationCorrection:
-                                              _quarterTurnsForRotationCorrection!,
+                                              _effectiveQuarterTurns(),
+                                          fallbackDuration: _fallbackVideoDuration,
+                                          overrideWidth: _videoWidthOverride,
+                                          overrideHeight: _videoHeightOverride,
                                         ),
                                       ),
                                     ),
@@ -220,6 +275,69 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
             : const Center(child: CircularProgressIndicator()),
       ),
     );
+  }
+
+  Widget _buildRotatedPreview(Widget child) {
+    final normalizedQuarterTurns = _effectiveQuarterTurns();
+
+    final controller = _controller;
+    final dimension = controller?.videoDimension;
+
+    double? aspectRatio;
+    if (dimension != null && dimension.width > 0 && dimension.height > 0) {
+      aspectRatio = dimension.width / dimension.height;
+    } else if (_videoWidthOverride != null &&
+        _videoHeightOverride != null &&
+        _videoWidthOverride! > 0 &&
+        _videoHeightOverride! > 0) {
+      aspectRatio = _videoWidthOverride! / _videoHeightOverride!;
+    }
+
+    if (aspectRatio == null) {
+      return child;
+    }
+
+    return Center(
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: child,
+      ),
+    );
+  }
+
+  int _effectiveQuarterTurns() {
+    final rawQuarterTurns = _quarterTurnsForRotationCorrection ?? 0;
+    return ((rawQuarterTurns % 4) + 4) % 4;
+  }
+
+  Size? _rawOverrideDimensions() {
+    if (_videoWidthOverride == null || _videoHeightOverride == null) {
+      return null;
+    }
+    return Size(_videoWidthOverride!, _videoHeightOverride!);
+  }
+
+  void _prefetchVideoProps() {
+    getVideoPropsAsync(widget.ioFile).then((props) {
+      if (!mounted) {
+        return;
+      }
+      _applyVideoProps(props);
+    });
+  }
+
+  void _applyVideoProps(FFProbeProps? props) {
+    if (props?.width != null && props?.height != null) {
+      final width = props!.width!.toDouble();
+      final height = props.height!.toDouble();
+      setState(() {
+        _videoWidthOverride = width;
+        _videoHeightOverride = height;
+      });
+      _logger.info(
+        '[VideoEditorPage] Prefetched dimensions width=$width height=$height rotation=${props.rotation}',
+      );
+    }
   }
 
   void exportVideo() async {
@@ -358,7 +476,13 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
 
   void _doRotationCorrectionIfAndroid() {
     if (Platform.isAndroid) {
+      if (_quarterTurnsForRotationCorrection == null) {
+        setState(() {
+          _quarterTurnsForRotationCorrection = 0;
+        });
+      }
       getVideoPropsAsync(widget.ioFile).then((props) async {
+        _applyVideoProps(props);
         if (props?.rotation != null) {
           _quarterTurnsForRotationCorrection = -(props!.rotation! / 90).round();
         } else {
@@ -367,7 +491,9 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
         setState(() {});
       });
     } else {
-      _quarterTurnsForRotationCorrection = 0;
+      setState(() {
+        _quarterTurnsForRotationCorrection = 0;
+      });
     }
   }
 }

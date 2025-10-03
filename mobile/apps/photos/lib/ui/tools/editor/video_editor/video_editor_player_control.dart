@@ -6,33 +6,29 @@ class VideoEditorPlayerControl extends StatelessWidget {
   const VideoEditorPlayerControl({
     super.key,
     required this.controller,
+    this.fallbackDuration,
   });
 
   final VideoEditorController controller;
+  final Duration? fallbackDuration;
 
   @override
   Widget build(BuildContext context) {
     return Hero(
       tag: "video_editor_player_control",
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          controller,
-          controller.video,
-        ]),
+        animation: controller,
         builder: (_, __) {
-          final duration = controller.trimmedDuration;
-          final pos = Duration(
-            seconds: (controller.videoPosition.inSeconds -
-                controller.startTrim.inSeconds),
-          );
+          final totalDuration = _effectiveTotalDuration(controller);
+          final positionDuration = _effectivePosition(controller, totalDuration);
           final isPlaying = controller.isPlaying;
 
           return GestureDetector(
             onTap: () {
               if (controller.isPlaying) {
-                controller.video.pause();
+                controller.nativeController?.pause();
               } else {
-                controller.video.play();
+                controller.nativeController?.play();
               }
             },
             child: Container(
@@ -55,7 +51,7 @@ class VideoEditorPlayerControl extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    "${formatter(pos)} / ${formatter(duration)}",
+                    "${_durationLabel(positionDuration)} / ${_durationLabel(totalDuration, allowZero: false)}",
                     // ignore: prefer_const_constructors
                     style: TextStyle(
                       fontSize: 12,
@@ -69,6 +65,53 @@ class VideoEditorPlayerControl extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Duration _effectiveTotalDuration(VideoEditorController controller) {
+    final trimmed = controller.trimmedDuration;
+    if (trimmed > Duration.zero) {
+      return trimmed;
+    }
+    final max = controller.maxDuration;
+    if (max > Duration.zero) {
+      return max;
+    }
+    final video = controller.videoDuration;
+    if (video > Duration.zero) {
+      return video;
+    }
+    if (fallbackDuration != null && fallbackDuration! > Duration.zero) {
+      return fallbackDuration!;
+    }
+    return Duration.zero;
+  }
+
+  Duration _effectivePosition(
+    VideoEditorController controller,
+    Duration total,
+  ) {
+    if (total == Duration.zero) {
+      return Duration.zero;
+    }
+
+    final rawPosition = controller.videoPosition - controller.startTrim;
+    if (rawPosition.isNegative) {
+      return Duration.zero;
+    }
+    if (rawPosition > total) {
+      return total;
+    }
+    return rawPosition;
+  }
+
+  String _durationLabel(Duration duration, {bool allowZero = true}) {
+    if (duration < Duration.zero) {
+      duration = Duration.zero;
+    }
+    if (duration == Duration.zero) {
+      return allowZero ? formatter(Duration.zero) : "--:--";
+    }
+    return formatter(duration);
   }
 
   String formatter(Duration duration) => [

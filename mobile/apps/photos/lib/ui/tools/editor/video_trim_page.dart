@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
 import "package:photos/ente_theme_data.dart";
 import "package:photos/generated/l10n.dart";
+import "package:photos/ui/tools/editor/video_editor/video_editor_aspect_ratio.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_player_control.dart";
 import 'package:video_editor/video_editor.dart';
 
 class VideoTrimPage extends StatefulWidget {
   final int quarterTurnsForRotationCorrection;
+  final Duration? fallbackDuration;
+  final double? overrideWidth;
+  final double? overrideHeight;
   const VideoTrimPage({
     super.key,
     required this.controller,
     required this.quarterTurnsForRotationCorrection,
+    this.fallbackDuration,
+    this.overrideWidth,
+    this.overrideHeight,
   });
 
   final VideoEditorController controller;
@@ -21,11 +28,31 @@ class VideoTrimPage extends StatefulWidget {
 
 class _VideoTrimPageState extends State<VideoTrimPage> {
   final double height = 60;
+  late double _initialMinTrim;
+  late double _initialMaxTrim;
+
+  @override
+  void initState() {
+    super.initState();
+    _cacheInitialTrim();
+  }
+
+  @override
+  void didUpdateWidget(covariant VideoTrimPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      _cacheInitialTrim();
+    }
+  }
+
+  void _cacheInitialTrim() {
+    _initialMinTrim = widget.controller.minTrim;
+    _initialMaxTrim = widget.controller.maxTrim;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final minTrim = widget.controller.minTrim;
-    final maxTrim = widget.controller.maxTrim;
+
 
     return Scaffold(
       appBar: AppBar(
@@ -37,14 +64,19 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
           children: [
             VideoEditorPlayerControl(
               controller: widget.controller,
+              fallbackDuration: widget.fallbackDuration,
             ),
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
-                child: RotatedBox(
-                  quarterTurns: widget.quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.preview(
-                    controller: widget.controller,
+                child: AnimatedBuilder(
+                  animation: widget.controller,
+                  builder: (_, __) => _buildRotatedPreview(
+                    CropGridViewer.preview(
+                      controller: widget.controller,
+                      overrideWidth: widget.overrideWidth,
+                      overrideHeight: widget.overrideHeight,
+                    ),
                   ),
                 ),
               ),
@@ -55,8 +87,11 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
               color: Theme.of(context).colorScheme.videoPlayerPrimaryColor,
               secondaryText: AppLocalizations.of(context).done,
               onPrimaryPressed: () {
-                // reset trim
-                widget.controller.updateTrim(minTrim, maxTrim);
+                widget.controller.updateTrim(
+                  _initialMinTrim,
+                  _initialMaxTrim,
+                );
+                widget.controller.isTrimming = false;
                 Navigator.pop(context);
               },
               onSecondaryPressed: () {
@@ -85,6 +120,31 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
         ),
       ),
     ];
+  }
+
+  Widget _buildRotatedPreview(Widget child) {
+    final normalizedQuarterTurns = widget.controller.displayQuarterTurns;
+    double? aspectRatio;
+    if (widget.overrideWidth != null &&
+        widget.overrideHeight != null &&
+        widget.overrideWidth! > 0 &&
+        widget.overrideHeight! > 0) {
+      aspectRatio = widget.overrideWidth! / widget.overrideHeight!;
+    } else {
+      aspectRatio =
+          effectiveAspectRatio(widget.controller, normalizedQuarterTurns);
+    }
+
+    if (aspectRatio == null) {
+      return child;
+    }
+
+    return Center(
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: child,
+      ),
+    );
   }
 
   String formatter(Duration duration) => [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import "package:photos/ente_theme_data.dart";
 import "package:photos/generated/l10n.dart";
 import "package:photos/ui/tools/editor/video_editor/crop_value.dart";
+import "package:photos/ui/tools/editor/video_editor/video_editor_aspect_ratio.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
@@ -10,10 +11,16 @@ import 'package:video_editor/video_editor.dart';
 
 class VideoCropPage extends StatefulWidget {
   final int quarterTurnsForRotationCorrection;
+  final Duration? fallbackDuration;
+  final double? overrideWidth;
+  final double? overrideHeight;
   const VideoCropPage({
     super.key,
     required this.controller,
     required this.quarterTurnsForRotationCorrection,
+    this.fallbackDuration,
+    this.overrideWidth,
+    this.overrideHeight,
   });
 
   final VideoEditorController controller;
@@ -36,18 +43,23 @@ class _VideoCropPageState extends State<VideoCropPage> {
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
-                child: RotatedBox(
-                  quarterTurns: widget.quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.edit(
-                    controller: widget.controller,
-                    rotateCropArea: false,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                child: AnimatedBuilder(
+                  animation: widget.controller,
+                  builder: (_, __) => _buildRotatedPreview(
+                    CropGridViewer.edit(
+                      controller: widget.controller,
+                      rotateCropArea: false,
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      overrideWidth: widget.overrideWidth,
+                      overrideHeight: widget.overrideHeight,
+                    ),
                   ),
                 ),
               ),
             ),
             VideoEditorPlayerControl(
               controller: widget.controller,
+              fallbackDuration: widget.fallbackDuration,
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -128,6 +140,31 @@ class _VideoCropPageState extends State<VideoCropPage> {
         }
       },
       svgPath: "assets/video-editor/video-crop-${value.name}-action.svg",
+    );
+  }
+
+  Widget _buildRotatedPreview(Widget child) {
+    final normalizedQuarterTurns = widget.controller.displayQuarterTurns;
+    double? aspectRatio;
+    if (widget.overrideWidth != null &&
+        widget.overrideHeight != null &&
+        widget.overrideWidth! > 0 &&
+        widget.overrideHeight! > 0) {
+      aspectRatio = widget.overrideWidth! / widget.overrideHeight!;
+    } else {
+      aspectRatio =
+          effectiveAspectRatio(widget.controller, normalizedQuarterTurns);
+    }
+
+    if (aspectRatio == null) {
+      return child;
+    }
+
+    return Center(
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: child,
+      ),
     );
   }
 }

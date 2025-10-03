@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import "package:photos/ente_theme_data.dart";
 import "package:photos/generated/l10n.dart";
+import "package:photos/ui/tools/editor/video_editor/video_editor_aspect_ratio.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
@@ -9,10 +10,16 @@ import 'package:video_editor/video_editor.dart';
 
 class VideoRotatePage extends StatelessWidget {
   final int quarterTurnsForRotationCorrection;
+  final Duration? fallbackDuration;
+  final double? overrideWidth;
+  final double? overrideHeight;
   const VideoRotatePage({
     super.key,
     required this.controller,
     required this.quarterTurnsForRotationCorrection,
+    this.fallbackDuration,
+    this.overrideWidth,
+    this.overrideHeight,
   });
 
   final VideoEditorController controller;
@@ -31,16 +38,21 @@ class VideoRotatePage extends StatelessWidget {
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
-                child: RotatedBox(
-                  quarterTurns: quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.preview(
-                    controller: controller,
+                child: AnimatedBuilder(
+                  animation: controller,
+                  builder: (_, __) => _buildRotatedPreview(
+                    CropGridViewer.preview(
+                      controller: controller,
+                      overrideWidth: overrideWidth,
+                      overrideHeight: overrideHeight,
+                    ),
                   ),
                 ),
               ),
             ),
             VideoEditorPlayerControl(
               controller: controller,
+              fallbackDuration: fallbackDuration,
             ),
             VideoEditorMainActions(
               children: [
@@ -75,6 +87,30 @@ class VideoRotatePage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildRotatedPreview(Widget child) {
+    final normalizedQuarterTurns = controller.displayQuarterTurns;
+    double? aspectRatio;
+    if (overrideWidth != null &&
+        overrideHeight != null &&
+        overrideWidth! > 0 &&
+        overrideHeight! > 0) {
+      aspectRatio = overrideWidth! / overrideHeight!;
+    } else {
+      aspectRatio = effectiveAspectRatio(controller, normalizedQuarterTurns);
+    }
+
+    if (aspectRatio == null) {
+      return child;
+    }
+
+    return Center(
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: child,
       ),
     );
   }
