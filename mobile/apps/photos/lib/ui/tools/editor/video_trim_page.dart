@@ -9,15 +9,11 @@ import 'package:video_editor/video_editor.dart';
 class VideoTrimPage extends StatefulWidget {
   final int quarterTurnsForRotationCorrection;
   final Duration? fallbackDuration;
-  final double? overrideWidth;
-  final double? overrideHeight;
   const VideoTrimPage({
     super.key,
     required this.controller,
     required this.quarterTurnsForRotationCorrection,
     this.fallbackDuration,
-    this.overrideWidth,
-    this.overrideHeight,
   });
 
   final VideoEditorController controller;
@@ -74,8 +70,6 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
                   builder: (_, __) => _buildRotatedPreview(
                     CropGridViewer.preview(
                       controller: widget.controller,
-                      overrideWidth: widget.overrideWidth,
-                      overrideHeight: widget.overrideHeight,
                     ),
                   ),
                 ),
@@ -125,15 +119,8 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
   Widget _buildRotatedPreview(Widget child) {
     final normalizedQuarterTurns = widget.controller.displayQuarterTurns;
     double? aspectRatio;
-    if (widget.overrideWidth != null &&
-        widget.overrideHeight != null &&
-        widget.overrideWidth! > 0 &&
-        widget.overrideHeight! > 0) {
-      aspectRatio = widget.overrideWidth! / widget.overrideHeight!;
-    } else {
-      aspectRatio =
-          effectiveAspectRatio(widget.controller, normalizedQuarterTurns);
-    }
+    aspectRatio =
+        effectiveAspectRatio(widget.controller, normalizedQuarterTurns);
 
     if (aspectRatio == null) {
       return child;

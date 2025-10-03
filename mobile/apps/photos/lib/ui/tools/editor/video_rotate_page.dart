@@ -11,15 +11,11 @@ import 'package:video_editor/video_editor.dart';
 class VideoRotatePage extends StatelessWidget {
   final int quarterTurnsForRotationCorrection;
   final Duration? fallbackDuration;
-  final double? overrideWidth;
-  final double? overrideHeight;
   const VideoRotatePage({
     super.key,
     required this.controller,
     required this.quarterTurnsForRotationCorrection,
     this.fallbackDuration,
-    this.overrideWidth,
-    this.overrideHeight,
   });
 
   final VideoEditorController controller;
@@ -43,8 +39,6 @@ class VideoRotatePage extends StatelessWidget {
                   builder: (_, __) => _buildRotatedPreview(
                     CropGridViewer.preview(
                       controller: controller,
-                      overrideWidth: overrideWidth,
-                      overrideHeight: overrideHeight,
                     ),
                   ),
                 ),
@@ -94,14 +88,7 @@ class VideoRotatePage extends StatelessWidget {
   Widget _buildRotatedPreview(Widget child) {
     final normalizedQuarterTurns = controller.displayQuarterTurns;
     double? aspectRatio;
-    if (overrideWidth != null &&
-        overrideHeight != null &&
-        overrideWidth! > 0 &&
-        overrideHeight! > 0) {
-      aspectRatio = overrideWidth! / overrideHeight!;
-    } else {
-      aspectRatio = effectiveAspectRatio(controller, normalizedQuarterTurns);
-    }
+    aspectRatio = effectiveAspectRatio(controller, normalizedQuarterTurns);
 
     if (aspectRatio == null) {
       return child;

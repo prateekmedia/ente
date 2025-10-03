@@ -59,8 +59,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
 
   VideoEditorController? _controller;
   bool _loggedLoadingOnce = false;
-  double? _videoWidthOverride;
-  double? _videoHeightOverride;
 
   @override
   void initState() {
@@ -207,8 +205,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                           quarterTurnsForRotationCorrection:
                                               _effectiveQuarterTurns(),
                                           fallbackDuration: _fallbackVideoDuration,
-                                          overrideWidth: _videoWidthOverride,
-                                          overrideHeight: _videoHeightOverride,
                                         ),
                                       ),
                                     ),
@@ -226,8 +222,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                           quarterTurnsForRotationCorrection:
                                               _effectiveQuarterTurns(),
                                           fallbackDuration: _fallbackVideoDuration,
-                                          overrideWidth: _videoWidthOverride,
-                                          overrideHeight: _videoHeightOverride,
                                         ),
                                       ),
                                     ),
@@ -245,8 +239,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                           quarterTurnsForRotationCorrection:
                                               _effectiveQuarterTurns(),
                                           fallbackDuration: _fallbackVideoDuration,
-                                          overrideWidth: _videoWidthOverride,
-                                          overrideHeight: _videoHeightOverride,
                                         ),
                                       ),
                                     ),
@@ -286,11 +278,7 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
     double? aspectRatio;
     if (dimension != null && dimension.width > 0 && dimension.height > 0) {
       aspectRatio = dimension.width / dimension.height;
-    } else if (_videoWidthOverride != null &&
-        _videoHeightOverride != null &&
-        _videoWidthOverride! > 0 &&
-        _videoHeightOverride! > 0) {
-      aspectRatio = _videoWidthOverride! / _videoHeightOverride!;
+      _logger.info('[VideoEditorPage] View aspect ratio from controller dimensions ${dimension.width}x${dimension.height} -> $aspectRatio');
     }
 
     if (aspectRatio == null) {
@@ -310,13 +298,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
     return ((rawQuarterTurns % 4) + 4) % 4;
   }
 
-  Size? _rawOverrideDimensions() {
-    if (_videoWidthOverride == null || _videoHeightOverride == null) {
-      return null;
-    }
-    return Size(_videoWidthOverride!, _videoHeightOverride!);
-  }
-
   void _prefetchVideoProps() {
     getVideoPropsAsync(widget.ioFile).then((props) {
       if (!mounted) {
@@ -330,10 +311,7 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
     if (props?.width != null && props?.height != null) {
       final width = props!.width!.toDouble();
       final height = props.height!.toDouble();
-      setState(() {
-        _videoWidthOverride = width;
-        _videoHeightOverride = height;
-      });
+      _controller?.setVideoDimensionFallback(Size(width, height));
       _logger.info(
         '[VideoEditorPage] Prefetched dimensions width=$width height=$height rotation=${props.rotation}',
       );
