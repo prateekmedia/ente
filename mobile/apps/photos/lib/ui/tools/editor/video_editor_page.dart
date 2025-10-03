@@ -1,35 +1,34 @@
-import "dart:async";
+import 'dart:async';
 import 'dart:io';
-import "dart:math";
+import 'dart:math';
 
 import 'package:flutter/material.dart';
-import "package:logging/logging.dart";
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
-import "package:photo_manager/photo_manager.dart";
-import "package:photos/core/event_bus.dart";
-import "package:photos/db/files_db.dart";
-import "package:photos/ente_theme_data.dart";
-import "package:photos/events/local_photos_updated_event.dart";
-import "package:photos/generated/l10n.dart";
-import "package:photos/models/file/file.dart";
-import "package:photos/models/ffmpeg/ffprobe_props.dart";
-import "package:photos/models/location/location.dart";
-import "package:photos/services/sync/sync_service.dart";
-import "package:photos/ui/common/linear_progress_dialog.dart";
-import "package:photos/ui/notification/toast.dart";
-import "package:photos/ui/tools/editor/export_video_service.dart";
+import 'package:photo_manager/photo_manager.dart';
+import 'package:photos/core/event_bus.dart';
+import 'package:photos/db/files_db.dart';
+import 'package:photos/ente_theme_data.dart';
+import 'package:photos/events/local_photos_updated_event.dart';
+import 'package:photos/generated/l10n.dart';
+import 'package:photos/models/ffmpeg/ffprobe_props.dart';
+import 'package:photos/models/file/file.dart';
+import 'package:photos/models/location/location.dart';
+import 'package:photos/services/sync/sync_service.dart';
+import 'package:photos/ui/common/linear_progress_dialog.dart';
+import 'package:photos/ui/notification/toast.dart';
+import 'package:photos/ui/tools/editor/export_video_service.dart';
 import 'package:photos/ui/tools/editor/video_crop_page.dart';
-import "package:photos/ui/tools/editor/video_editor/video_editor_aspect_ratio.dart";
-import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
-import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
-import "package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart";
-import "package:photos/ui/tools/editor/video_editor/video_editor_player_control.dart";
-import "package:photos/ui/tools/editor/video_rotate_page.dart";
-import "package:photos/ui/tools/editor/video_trim_page.dart";
-import "package:photos/ui/viewer/file/detail_page.dart";
-import "package:photos/utils/exif_util.dart";
-import "package:photos/utils/navigation_util.dart";
-import "package:video_editor/video_editor.dart";
+import 'package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart';
+import 'package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart';
+import 'package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart';
+import 'package:photos/ui/tools/editor/video_editor/video_editor_player_control.dart';
+import 'package:photos/ui/tools/editor/video_rotate_page.dart';
+import 'package:photos/ui/tools/editor/video_trim_page.dart';
+import 'package:photos/ui/viewer/file/detail_page.dart';
+import 'package:photos/utils/exif_util.dart';
+import 'package:photos/utils/navigation_util.dart';
+import 'package:video_editor/video_editor.dart';
 
 class VideoEditorPage extends StatefulWidget {
   const VideoEditorPage({
@@ -265,8 +264,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
   }
 
   Widget _buildRotatedPreview(Widget child) {
-    final normalizedQuarterTurns = _effectiveQuarterTurns();
-
     final controller = _controller;
     final dimension = controller?.videoDimension;
 
