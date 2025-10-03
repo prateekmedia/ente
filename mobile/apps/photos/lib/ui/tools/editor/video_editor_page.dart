@@ -174,16 +174,11 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                   tag: "video-editor-preview",
                                   child: AnimatedBuilder(
                                     animation: _controller!,
-                                    builder: (_, __) {
-                                      final overrideDims = _rawOverrideDimensions();
-                                      return _buildRotatedPreview(
-                                        CropGridViewer.preview(
-                                          controller: _controller!,
-                                          overrideWidth: overrideDims?.width,
-                                          overrideHeight: overrideDims?.height,
-                                        ),
-                                      );
-                                    },
+                                    builder: (_, __) => _buildRotatedPreview(
+                                      CropGridViewer.preview(
+                                        controller: _controller!,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
