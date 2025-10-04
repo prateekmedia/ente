@@ -164,14 +164,9 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     packageInfo,
   );
 
-  // Start foreground service if user is internal (Android only)
-  bool fgServiceStarted = false;
-  if (Platform.isAndroid && flagService.internalUser) {
-    _logger.info('BG Service: Starting for internal user');
-    fgServiceStarted = await BgTaskUtils.startForegroundService();
-  } else if (Platform.isAndroid) {
-    _logger.info('BG Service: Skipping (not internal user)');
-  }
+  // Note: Foreground service is not started in background tasks
+  // Method channels are not available in background isolates
+  // Foreground service is only used for debugging internal users in foreground
 
   try {
     await CollectionsService.instance.init(prefs);
@@ -264,15 +259,8 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
       }
     }
   } finally {
-    // ALWAYS stop foreground service, even on fatal crash
-    // This prevents persistent notification from annoying the user
-    if (fgServiceStarted) {
-      try {
-        await BgTaskUtils.stopForegroundService();
-      } catch (e) {
-        _logger.warning('Failed to stop foreground service in cleanup: $e');
-      }
-    }
+    // Note: Foreground service is not used in background tasks
+    // No cleanup needed for background isolate
   }
 }
 

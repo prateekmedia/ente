@@ -35,6 +35,24 @@ void callbackDispatcher() {
       Breadcrumb(message: 'Background WorkManager task started'),
     );
 
+    // Set up foreground notification for long-running background work (Android only)
+    if (Platform.isAndroid) {
+      try {
+        await workmanager.Workmanager().setForeground(
+          workmanager.SetForegroundOptions(
+            notificationTitle: 'Ente Photos',
+            notificationText: 'Syncing…',
+            channelId: 'ente_sync',
+            channelName: 'Ente Sync',
+          ),
+        );
+        BgTaskUtils.$.info('BG Task: Foreground notification set successfully');
+      } catch (e) {
+        BgTaskUtils.$.warning('BG Task: Failed to set foreground notification: $e');
+        // Continue even if foreground notification fails
+      }
+    }
+
     try {
       await runWithLogs(
         () async {
