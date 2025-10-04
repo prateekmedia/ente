@@ -1,5 +1,7 @@
 import 'package:logging/logging.dart';
 import 'package:media_extension/media_extension_action_types.dart';
+import "package:photos/main.dart";
+import "package:photos/services/sync/sync_service.dart";
 import "package:shared_preferences/shared_preferences.dart";
 
 class AppLifecycleService {
@@ -33,6 +35,10 @@ class AppLifecycleService {
 
   void onAppInBackground(String reason) {
     _logger.info("App in background $reason");
+    // If FG sync is running, request stop so BG can proceed
+    if (!isProcessBg && SyncService.instance.isSyncInProgress()) {
+      SyncService.instance.stopSync();
+    }
     _preferences.setInt(
       keyLastAppOpenTime,
       DateTime.now().microsecondsSinceEpoch,

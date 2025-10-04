@@ -1,14 +1,18 @@
 import "dart:io";
 
 import "package:flutter/foundation.dart";
+import "package:flutter/services.dart";
 import "package:logging/logging.dart";
 import "package:permission_handler/permission_handler.dart";
 import "package:photos/db/upload_locks_db.dart";
 import "package:photos/extensions/stop_watch.dart";
 import "package:photos/main.dart";
+import "package:photos/services/sync/sync_run_guard.dart";
 import "package:photos/utils/file_uploader.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:workmanager/workmanager.dart" as workmanager;
+
+const _fgCh = MethodChannel('io.ente.photos/fgservice');
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -17,32 +21,51 @@ void callbackDispatcher() {
     Future<bool> result = Future.error("Task didn't run");
     final prefs = await SharedPreferences.getInstance();
 
-    await runWithLogs(
-      () async {
+    // Start foreground service on Android to prevent task from being killed
+    if (Platform.isAndroid) {
+      try {
+        await _fgCh.invokeMethod('start', {
+          'title': 'Ente - Uploading photos',
+          'text': 'Preparing for upload…',
+        });
+      } catch (_) {}
+    }
+
+    try {
+      await runWithLogs(
+        () async {
+          try {
+            BgTaskUtils.$.info('Task started $tlog');
+            await runBackgroundTask(taskName, tlog).timeout(
+              Platform.isIOS ? kBGTaskTimeout : const Duration(hours: 1),
+              onTimeout: () async {
+                BgTaskUtils.$.warning(
+                  "TLE, committing seppuku for taskID: $taskName",
+                );
+                await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
+              },
+            );
+            BgTaskUtils.$.info('Task run successful $tlog');
+            result = Future.value(true);
+          } catch (e) {
+            BgTaskUtils.$.warning('Task error: $e');
+            await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
+            result = Future.error(e.toString());
+          }
+        },
+        prefix: "[bg]",
+      ).onError((_, __) {
+        result = Future.error("Didn't finished correctly!");
+        return;
+      });
+    } finally {
+      // Stop foreground service on Android
+      if (Platform.isAndroid) {
         try {
-          BgTaskUtils.$.info('Task started $tlog');
-          await runBackgroundTask(taskName, tlog).timeout(
-            Platform.isIOS ? kBGTaskTimeout : const Duration(hours: 1),
-            onTimeout: () async {
-              BgTaskUtils.$.warning(
-                "TLE, committing seppuku for taskID: $taskName",
-              );
-              await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
-            },
-          );
-          BgTaskUtils.$.info('Task run successful $tlog');
-          result = Future.value(true);
-        } catch (e) {
-          BgTaskUtils.$.warning('Task error: $e');
-          await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
-          result = Future.error(e.toString());
-        }
-      },
-      prefix: "[bg]",
-    ).onError((_, __) {
-      result = Future.error("Didn't finished correctly!");
-      return;
-    });
+          await _fgCh.invokeMethod('stop');
+        } catch (_) {}
+      }
+    }
 
     return result;
   });
@@ -59,6 +82,7 @@ class BgTaskUtils {
       ProcessType.background.toString(),
       DateTime.now().microsecondsSinceEpoch,
     );
+    await SyncRunGuard.clearIfStale();
     await prefs.remove(kLastBGTaskHeartBeatTime);
   }
 

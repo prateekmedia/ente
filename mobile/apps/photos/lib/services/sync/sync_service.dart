@@ -19,6 +19,7 @@ import "package:photos/services/language_service.dart";
 import 'package:photos/services/notification_service.dart';
 import 'package:photos/services/sync/local_sync_service.dart';
 import 'package:photos/services/sync/remote_sync_service.dart';
+import 'package:photos/services/sync/sync_run_guard.dart';
 import 'package:photos/utils/file_uploader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -78,6 +79,12 @@ class SyncService {
     if (_existingSync != null) {
       _logger.warning("Sync already in progress, skipping.");
       return _existingSync!.future;
+    }
+    // Acquire persisted guard; return if not acquired
+    final acquired = await SyncRunGuard.tryAcquire(isProcessBg ? 'bg' : 'fg');
+    if (!acquired) {
+      _logger.warning("Sync run guard held, skipping.");
+      return Future.value(false);
     }
     _existingSync = Completer<bool>();
     bool successful = false;
@@ -146,6 +153,9 @@ class SyncService {
       Bus.instance.fire(SyncStatusUpdate(SyncStatus.error));
       rethrow;
     } finally {
+      try {
+        await SyncRunGuard.release();
+      } catch (_) {}
       _existingSync?.complete(successful);
       _existingSync = null;
       _lastSyncStatusEvent = null;
