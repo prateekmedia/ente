@@ -1,6 +1,7 @@
 import "dart:async";
 import "dart:io";
 
+import "package:device_info_plus/device_info_plus.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/services.dart";
 import "package:logging/logging.dart";
@@ -119,8 +120,8 @@ class BgTaskUtils {
 
     // Check notification permission on Android 13+ (API 33+)
     // Foreground service requires notification permission to display notification
-    final androidVersion = int.tryParse(Platform.operatingSystemVersion.split('.').first.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    if (androidVersion >= 33) {
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    if (androidInfo.version.sdkInt >= 33) {
       final notificationStatus = await Permission.notification.status;
       if (!notificationStatus.isGranted) {
         $.warning(
