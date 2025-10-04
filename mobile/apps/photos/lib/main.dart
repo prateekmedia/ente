@@ -173,99 +173,106 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     _logger.info('BG Service: Skipping (not internal user)');
   }
 
-  await CollectionsService.instance.init(prefs);
-
-  // Upload & Sync Related
-  await FileUploader.instance.init(prefs, true);
-  LocalFileUpdateService.instance.init(prefs);
-  await LocalSyncService.instance.init(prefs);
-  RemoteSyncService.instance.init(prefs);
-  await SyncService.instance.init(prefs);
-
-  // Misc Services
-  await UserService.instance.init();
-  NotificationService.instance.init(prefs);
-
-  // Begin Execution
-  // only runs for android
-  updateService.showUpdateNotification().ignore();
-
-  // Sync process with error capture
   try {
-    _logger.info('BG Sync: Starting main sync process');
-    await _sync('bgTaskActiveProcess');
-    _logger.info('BG Sync: Main sync completed');
-  } catch (e, s) {
-    _logger.severe('BG Sync: Failed with error', e, s);
+    await CollectionsService.instance.init(prefs);
+
+    // Upload & Sync Related
+    await FileUploader.instance.init(prefs, true);
+    LocalFileUpdateService.instance.init(prefs);
+    await LocalSyncService.instance.init(prefs);
+    RemoteSyncService.instance.init(prefs);
+    await SyncService.instance.init(prefs);
+
+    // Misc Services
+    await UserService.instance.init();
+    NotificationService.instance.init(prefs);
+
+    // Begin Execution
+    // only runs for android
+    updateService.showUpdateNotification().ignore();
+
+    // Sync process with error capture
     try {
-      unawaited(
-        Sentry.captureException(
-          e,
-          stackTrace: s,
-          withScope: (scope) => scope.level = SentryLevel.error,
-        ),
-      );
-    } catch (sentryError) {
-      _logger.warning(
-        'Failed to capture exception in Sentry (likely network issue): $sentryError',
-      );
+      _logger.info('BG Sync: Starting main sync process');
+      await _sync('bgTaskActiveProcess');
+      _logger.info('BG Sync: Main sync completed');
+    } catch (e, s) {
+      _logger.severe('BG Sync: Failed with error', e, s);
+      try {
+        unawaited(
+          Sentry.captureException(
+            e,
+            stackTrace: s,
+            withScope: (scope) => scope.level = SentryLevel.error,
+          ),
+        );
+      } catch (sentryError) {
+        _logger.warning(
+          'Failed to capture exception in Sentry (likely network issue): $sentryError',
+        );
+      }
     }
-  }
 
-  final locale = await getLocale();
-  await initializeDateFormatting(locale?.languageCode ?? "en");
+    final locale = await getLocale();
+    await initializeDateFormatting(locale?.languageCode ?? "en");
 
-  // Home widget sync with error capture (only for android)
-  try {
-    _logger.info('BG Home Widget Sync: Starting');
-    await _homeWidgetSync(true);
-    _logger.info('BG Home Widget Sync: Completed');
-  } catch (e, s) {
-    _logger.severe('BG Home Widget Sync: Failed with error', e, s);
+    // Home widget sync with error capture (only for android)
     try {
-      unawaited(
-        Sentry.captureException(
-          e,
-          stackTrace: s,
-          withScope: (scope) => scope.level = SentryLevel.error,
-        ),
-      );
-    } catch (sentryError) {
-      _logger.warning(
-        'Failed to capture exception in Sentry (likely network issue): $sentryError',
-      );
+      _logger.info('BG Home Widget Sync: Starting');
+      await _homeWidgetSync(true);
+      _logger.info('BG Home Widget Sync: Completed');
+    } catch (e, s) {
+      _logger.severe('BG Home Widget Sync: Failed with error', e, s);
+      try {
+        unawaited(
+          Sentry.captureException(
+            e,
+            stackTrace: s,
+            withScope: (scope) => scope.level = SentryLevel.error,
+          ),
+        );
+      } catch (sentryError) {
+        _logger.warning(
+          'Failed to capture exception in Sentry (likely network issue): $sentryError',
+        );
+      }
     }
-  }
 
-  // await MLService.instance.init();
-  // await PersonService.init(entityService, MLDataDB.instance, prefs);
-  // await MLService.instance.runAllML(force: true);
+    // await MLService.instance.init();
+    // await PersonService.init(entityService, MLDataDB.instance, prefs);
+    // await MLService.instance.runAllML(force: true);
 
-  // Smart albums sync with error capture
-  try {
-    _logger.info('BG Smart Albums Sync: Starting');
-    await smartAlbumsService.syncSmartAlbums();
-    _logger.info('BG Smart Albums Sync: Completed');
-  } catch (e, s) {
-    _logger.severe('BG Smart Albums Sync: Failed with error', e, s);
+    // Smart albums sync with error capture
     try {
-      unawaited(
-        Sentry.captureException(
-          e,
-          stackTrace: s,
-          withScope: (scope) => scope.level = SentryLevel.error,
-        ),
-      );
-    } catch (sentryError) {
-      _logger.warning(
-        'Failed to capture exception in Sentry (likely network issue): $sentryError',
-      );
+      _logger.info('BG Smart Albums Sync: Starting');
+      await smartAlbumsService.syncSmartAlbums();
+      _logger.info('BG Smart Albums Sync: Completed');
+    } catch (e, s) {
+      _logger.severe('BG Smart Albums Sync: Failed with error', e, s);
+      try {
+        unawaited(
+          Sentry.captureException(
+            e,
+            stackTrace: s,
+            withScope: (scope) => scope.level = SentryLevel.error,
+          ),
+        );
+      } catch (sentryError) {
+        _logger.warning(
+          'Failed to capture exception in Sentry (likely network issue): $sentryError',
+        );
+      }
     }
-  }
-
-  // Stop foreground service if it was actually started
-  if (fgServiceStarted) {
-    await BgTaskUtils.stopForegroundService();
+  } finally {
+    // ALWAYS stop foreground service, even on fatal crash
+    // This prevents persistent notification from annoying the user
+    if (fgServiceStarted) {
+      try {
+        await BgTaskUtils.stopForegroundService();
+      } catch (e) {
+        _logger.warning('Failed to stop foreground service in cleanup: $e');
+      }
+    }
   }
 }
 
