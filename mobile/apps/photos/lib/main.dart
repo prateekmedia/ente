@@ -46,6 +46,7 @@ import "package:photos/services/wake_lock_service.dart";
 import "package:photos/src/rust/frb_generated.dart";
 import 'package:photos/ui/tools/app_lock.dart';
 import 'package:photos/ui/tools/lock_screen.dart';
+import "package:photos/utils/bg_task_utils.dart";
 import "package:photos/utils/email_util.dart";
 import 'package:photos/utils/file_uploader.dart';
 import "package:photos/utils/lock_screen_settings.dart";
@@ -163,6 +164,14 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     packageInfo,
   );
 
+  // Start foreground service if user is internal (Android only)
+  if (Platform.isAndroid && flagService.internalUser) {
+    _logger.info('BG Service: Starting for internal user');
+    await BgTaskUtils.startForegroundService();
+  } else if (Platform.isAndroid) {
+    _logger.info('BG Service: Skipping (not internal user)');
+  }
+
   await CollectionsService.instance.init(prefs);
 
   // Upload & Sync Related
@@ -251,6 +260,11 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
         'Failed to capture exception in Sentry (likely network issue): $sentryError',
       );
     }
+  }
+
+  // Stop foreground service if it was started
+  if (Platform.isAndroid && flagService.internalUser) {
+    await BgTaskUtils.stopForegroundService();
   }
 }
 

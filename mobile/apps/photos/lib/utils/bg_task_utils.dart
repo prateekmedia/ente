@@ -14,8 +14,6 @@ import "package:sentry_flutter/sentry_flutter.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:workmanager/workmanager.dart" as workmanager;
 
-const _fgCh = MethodChannel('io.ente.photos/fgservice');
-
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   workmanager.Workmanager().executeTask((taskName, inputData) async {
@@ -36,54 +34,6 @@ void callbackDispatcher() {
     BgTaskUtils.addSentryBreadcrumb(
       Breadcrumb(message: 'Background WorkManager task started'),
     );
-
-    // Start foreground service on Android to prevent task from being killed
-    // Only for internal users
-    if (Platform.isAndroid) {
-      BgTaskUtils.$.info(
-        'BG Service: Checking feature flag for foreground service',
-      );
-
-      // Check if user is internal (feature flag check happens in service locator after init)
-      const shouldUseForegroundService =
-          kDebugMode; // Will be checked again after flagService is initialized
-
-      if (shouldUseForegroundService) {
-        try {
-          BgTaskUtils.$.info(
-            'BG Service: Starting foreground service (internal user)',
-          );
-          await _fgCh.invokeMethod('start', {
-            'title': 'Ente - Uploading photos',
-            'text': 'Preparing for upload…',
-          });
-          BgTaskUtils.$.info(
-            'BG Service: Foreground service started successfully',
-          );
-          BgTaskUtils.addSentryBreadcrumb(
-            Breadcrumb(message: 'Foreground service started'),
-          );
-        } catch (e, s) {
-          BgTaskUtils.$.warning(
-            'BG Service: Failed to start foreground service: $e',
-          );
-          BgTaskUtils.captureSentryException(
-            e,
-            stackTrace: s,
-            level: SentryLevel.warning,
-          );
-        }
-      } else {
-        BgTaskUtils.$.info(
-          'BG Service: Skipping foreground service (not internal user)',
-        );
-        BgTaskUtils.addSentryBreadcrumb(
-          Breadcrumb(
-            message: 'Foreground service skipped (not internal user)',
-          ),
-        );
-      }
-    }
 
     try {
       await runWithLogs(
@@ -148,27 +98,6 @@ void callbackDispatcher() {
         return;
       });
     } finally {
-      // Stop foreground service on Android
-      if (Platform.isAndroid) {
-        try {
-          BgTaskUtils.$.info('BG Service: Stopping foreground service');
-          await _fgCh.invokeMethod('stop');
-          BgTaskUtils.$.info('BG Service: Foreground service stopped');
-          BgTaskUtils.addSentryBreadcrumb(
-            Breadcrumb(message: 'Foreground service stopped'),
-          );
-        } catch (e, s) {
-          BgTaskUtils.$.warning(
-            'BG Service: Failed to stop foreground service: $e',
-          );
-          BgTaskUtils.captureSentryException(
-            e,
-            stackTrace: s,
-            level: SentryLevel.warning,
-          );
-        }
-      }
-
       final isSuccess = await result.then((_) => true).catchError((_) => false);
       BgTaskUtils.$.info(
         'BG WorkManager: Task returning with result: ${isSuccess ? "success" : "failure"}',
@@ -181,6 +110,44 @@ void callbackDispatcher() {
 
 class BgTaskUtils {
   static final $ = Logger("BgTaskUtils");
+  static const _fgCh = MethodChannel('io.ente.photos/fgservice');
+
+  /// Start foreground service on Android for internal users
+  static Future<void> startForegroundService() async {
+    if (!Platform.isAndroid) return;
+
+    try {
+      $.info('BG Service: Starting foreground service (internal user)');
+      await _fgCh.invokeMethod('start', {
+        'title': 'Ente - Uploading photos',
+        'text': 'Preparing for upload…',
+      });
+      $.info('BG Service: Foreground service started successfully');
+      addSentryBreadcrumb(
+        Breadcrumb(message: 'Foreground service started'),
+      );
+    } catch (e, s) {
+      $.warning('BG Service: Failed to start foreground service: $e');
+      captureSentryException(e, stackTrace: s, level: SentryLevel.warning);
+    }
+  }
+
+  /// Stop foreground service on Android
+  static Future<void> stopForegroundService() async {
+    if (!Platform.isAndroid) return;
+
+    try {
+      $.info('BG Service: Stopping foreground service');
+      await _fgCh.invokeMethod('stop');
+      $.info('BG Service: Foreground service stopped');
+      addSentryBreadcrumb(
+        Breadcrumb(message: 'Foreground service stopped'),
+      );
+    } catch (e, s) {
+      $.warning('BG Service: Failed to stop foreground service: $e');
+      captureSentryException(e, stackTrace: s, level: SentryLevel.warning);
+    }
+  }
 
   /// Safely capture exception to Sentry with network error handling
   static void captureSentryException(
