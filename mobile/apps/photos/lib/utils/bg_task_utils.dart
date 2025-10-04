@@ -113,8 +113,27 @@ class BgTaskUtils {
   static const _fgCh = MethodChannel('io.ente.photos/fgservice');
 
   /// Start foreground service on Android for internal users
-  static Future<void> startForegroundService() async {
-    if (!Platform.isAndroid) return;
+  /// Returns true if service was started successfully, false otherwise
+  static Future<bool> startForegroundService() async {
+    if (!Platform.isAndroid) return false;
+
+    // Check notification permission on Android 13+ (API 33+)
+    // Foreground service requires notification permission to display notification
+    final androidVersion = int.tryParse(Platform.operatingSystemVersion.split('.').first.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    if (androidVersion >= 33) {
+      final notificationStatus = await Permission.notification.status;
+      if (!notificationStatus.isGranted) {
+        $.warning(
+          'BG Service: Skipping foreground service - notification permission not granted (Android 13+)',
+        );
+        addSentryBreadcrumb(
+          Breadcrumb(
+            message: 'Foreground service skipped - no notification permission',
+          ),
+        );
+        return false;
+      }
+    }
 
     try {
       $.info('BG Service: Starting foreground service (internal user)');
@@ -126,9 +145,11 @@ class BgTaskUtils {
       addSentryBreadcrumb(
         Breadcrumb(message: 'Foreground service started'),
       );
+      return true;
     } catch (e, s) {
       $.warning('BG Service: Failed to start foreground service: $e');
       captureSentryException(e, stackTrace: s, level: SentryLevel.warning);
+      return false;
     }
   }
 

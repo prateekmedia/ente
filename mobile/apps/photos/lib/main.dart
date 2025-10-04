@@ -165,9 +165,10 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
   );
 
   // Start foreground service if user is internal (Android only)
+  bool fgServiceStarted = false;
   if (Platform.isAndroid && flagService.internalUser) {
     _logger.info('BG Service: Starting for internal user');
-    await BgTaskUtils.startForegroundService();
+    fgServiceStarted = await BgTaskUtils.startForegroundService();
   } else if (Platform.isAndroid) {
     _logger.info('BG Service: Skipping (not internal user)');
   }
@@ -262,8 +263,8 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     }
   }
 
-  // Stop foreground service if it was started
-  if (Platform.isAndroid && flagService.internalUser) {
+  // Stop foreground service if it was actually started
+  if (fgServiceStarted) {
     await BgTaskUtils.stopForegroundService();
   }
 }
