@@ -2,7 +2,6 @@ import "dart:async";
 import "dart:io";
 
 import "package:device_info_plus/device_info_plus.dart";
-import "package:flutter/foundation.dart";
 import "package:flutter/services.dart";
 import "package:logging/logging.dart";
 import "package:permission_handler/permission_handler.dart";
@@ -139,8 +138,8 @@ class BgTaskUtils {
     try {
       $.info('BG Service: Starting foreground service (internal user)');
       await _fgCh.invokeMethod('start', {
-        'title': 'Ente - Uploading photos',
-        'text': 'Preparing for upload…',
+        'title': 'Ente Photos',
+        'text': 'Syncing…',
       });
       $.info('BG Service: Foreground service started successfully');
       addSentryBreadcrumb(
@@ -244,7 +243,8 @@ class BgTaskUtils {
         frequency: Platform.isIOS
             ? const Duration(minutes: 30)
             : const Duration(minutes: 15),
-        initialDelay: kDebugMode ? Duration.zero : const Duration(minutes: 10),
+        initialDelay: Duration
+            .zero, // TODO: Change back to: kDebugMode ? Duration.zero : const Duration(minutes: 10),
         constraints: workmanager.Constraints(
           networkType: workmanager.NetworkType.connected,
           requiresCharging: false,
