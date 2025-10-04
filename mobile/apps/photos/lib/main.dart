@@ -49,6 +49,7 @@ import 'package:photos/ui/tools/lock_screen.dart';
 import "package:photos/utils/email_util.dart";
 import 'package:photos/utils/file_uploader.dart';
 import "package:photos/utils/lock_screen_settings.dart";
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final _logger = Logger("main");
@@ -178,17 +179,43 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
   // Begin Execution
   // only runs for android
   updateService.showUpdateNotification().ignore();
-  await _sync('bgTaskActiveProcess');
+
+  // Sync process with error capture
+  try {
+    _logger.info('BG Sync: Starting main sync process');
+    await _sync('bgTaskActiveProcess');
+    _logger.info('BG Sync: Main sync completed');
+  } catch (e, s) {
+    _logger.severe('BG Sync: Failed with error', e, s);
+    unawaited(Sentry.captureException(e, stackTrace: s));
+  }
 
   final locale = await getLocale();
   await initializeDateFormatting(locale?.languageCode ?? "en");
-  // only runs for android
-  await _homeWidgetSync(true);
+
+  // Home widget sync with error capture (only for android)
+  try {
+    _logger.info('BG Home Widget Sync: Starting');
+    await _homeWidgetSync(true);
+    _logger.info('BG Home Widget Sync: Completed');
+  } catch (e, s) {
+    _logger.severe('BG Home Widget Sync: Failed with error', e, s);
+    unawaited(Sentry.captureException(e, stackTrace: s));
+  }
 
   // await MLService.instance.init();
   // await PersonService.init(entityService, MLDataDB.instance, prefs);
   // await MLService.instance.runAllML(force: true);
-  await smartAlbumsService.syncSmartAlbums();
+
+  // Smart albums sync with error capture
+  try {
+    _logger.info('BG Smart Albums Sync: Starting');
+    await smartAlbumsService.syncSmartAlbums();
+    _logger.info('BG Smart Albums Sync: Completed');
+  } catch (e, s) {
+    _logger.severe('BG Smart Albums Sync: Failed with error', e, s);
+    unawaited(Sentry.captureException(e, stackTrace: s));
+  }
 }
 
 Future<void> _init(bool isBackground, {String via = ''}) async {
