@@ -18,7 +18,7 @@ import "package:workmanager/workmanager.dart" as workmanager;
 void callbackDispatcher() {
   workmanager.Workmanager().executeTask((taskName, inputData) async {
     final TimeLogger tlog = TimeLogger();
-    Future<bool> result = Future.error("Task didn't run");
+    bool success = false;
     final prefs = await SharedPreferences.getInstance();
 
     // Set up Sentry context for background task
@@ -68,7 +68,7 @@ void callbackDispatcher() {
             BgTaskUtils.addSentryBreadcrumb(
               Breadcrumb(message: 'Background task completed successfully'),
             );
-            result = Future.value(true);
+            success = true;
           } catch (e, s) {
             BgTaskUtils.$.warning('BG Task: Failed with error: $e');
             BgTaskUtils.captureSentryException(
@@ -83,7 +83,6 @@ void callbackDispatcher() {
               ),
             );
             await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
-            result = Future.error(e.toString());
           }
         },
         prefix: "[bg]",
@@ -94,17 +93,15 @@ void callbackDispatcher() {
           stackTrace: s,
           level: SentryLevel.fatal,
         );
-        result = Future.error("Didn't finished correctly!");
         return;
       });
     } finally {
-      final isSuccess = await result.then((_) => true).catchError((_) => false);
       BgTaskUtils.$.info(
-        'BG WorkManager: Task returning with result: ${isSuccess ? "success" : "failure"}',
+        'BG WorkManager: Task returning with result: ${success ? "success" : "failure"}',
       );
     }
 
-    return result;
+    return success;
   });
 }
 
