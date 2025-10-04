@@ -187,7 +187,19 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     _logger.info('BG Sync: Main sync completed');
   } catch (e, s) {
     _logger.severe('BG Sync: Failed with error', e, s);
-    unawaited(Sentry.captureException(e, stackTrace: s));
+    try {
+      unawaited(
+        Sentry.captureException(
+          e,
+          stackTrace: s,
+          withScope: (scope) => scope.level = SentryLevel.error,
+        ),
+      );
+    } catch (sentryError) {
+      _logger.warning(
+        'Failed to capture exception in Sentry (likely network issue): $sentryError',
+      );
+    }
   }
 
   final locale = await getLocale();
@@ -200,7 +212,19 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     _logger.info('BG Home Widget Sync: Completed');
   } catch (e, s) {
     _logger.severe('BG Home Widget Sync: Failed with error', e, s);
-    unawaited(Sentry.captureException(e, stackTrace: s));
+    try {
+      unawaited(
+        Sentry.captureException(
+          e,
+          stackTrace: s,
+          withScope: (scope) => scope.level = SentryLevel.error,
+        ),
+      );
+    } catch (sentryError) {
+      _logger.warning(
+        'Failed to capture exception in Sentry (likely network issue): $sentryError',
+      );
+    }
   }
 
   // await MLService.instance.init();
@@ -214,7 +238,19 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     _logger.info('BG Smart Albums Sync: Completed');
   } catch (e, s) {
     _logger.severe('BG Smart Albums Sync: Failed with error', e, s);
-    unawaited(Sentry.captureException(e, stackTrace: s));
+    try {
+      unawaited(
+        Sentry.captureException(
+          e,
+          stackTrace: s,
+          withScope: (scope) => scope.level = SentryLevel.error,
+        ),
+      );
+    } catch (sentryError) {
+      _logger.warning(
+        'Failed to capture exception in Sentry (likely network issue): $sentryError',
+      );
+    }
   }
 }
 

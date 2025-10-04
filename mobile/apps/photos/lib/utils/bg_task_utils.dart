@@ -33,10 +33,8 @@ void callbackDispatcher() {
         'platform': Platform.operatingSystem,
       });
     });
-    unawaited(
-      Sentry.addBreadcrumb(
-        Breadcrumb(message: 'Background WorkManager task started'),
-      ),
+    BgTaskUtils.addSentryBreadcrumb(
+      Breadcrumb(message: 'Background WorkManager task started'),
     );
 
     // Start foreground service on Android to prevent task from being killed
@@ -62,26 +60,26 @@ void callbackDispatcher() {
           BgTaskUtils.$.info(
             'BG Service: Foreground service started successfully',
           );
-          unawaited(
-            Sentry.addBreadcrumb(
-              Breadcrumb(message: 'Foreground service started'),
-            ),
+          BgTaskUtils.addSentryBreadcrumb(
+            Breadcrumb(message: 'Foreground service started'),
           );
         } catch (e, s) {
           BgTaskUtils.$.warning(
             'BG Service: Failed to start foreground service: $e',
           );
-          unawaited(Sentry.captureException(e, stackTrace: s));
+          BgTaskUtils.captureSentryException(
+            e,
+            stackTrace: s,
+            level: SentryLevel.warning,
+          );
         }
       } else {
         BgTaskUtils.$.info(
           'BG Service: Skipping foreground service (not internal user)',
         );
-        unawaited(
-          Sentry.addBreadcrumb(
-            Breadcrumb(
-              message: 'Foreground service skipped (not internal user)',
-            ),
+        BgTaskUtils.addSentryBreadcrumb(
+          Breadcrumb(
+            message: 'Foreground service skipped (not internal user)',
           ),
         );
       }
@@ -92,10 +90,8 @@ void callbackDispatcher() {
         () async {
           try {
             BgTaskUtils.$.info('BG Task: Started $tlog');
-            unawaited(
-              Sentry.addBreadcrumb(
-                Breadcrumb(message: 'Background task execution started'),
-              ),
+            BgTaskUtils.addSentryBreadcrumb(
+              Breadcrumb(message: 'Background task execution started'),
             );
 
             await runBackgroundTask(taskName, tlog).timeout(
@@ -106,37 +102,34 @@ void callbackDispatcher() {
                 );
                 final timeoutError =
                     TimeoutException('Background task exceeded timeout');
-                unawaited(
-                  Sentry.captureException(
-                    timeoutError,
-                    stackTrace: StackTrace.current,
-                  ),
+                BgTaskUtils.captureSentryException(
+                  timeoutError,
+                  stackTrace: StackTrace.current,
+                  level: SentryLevel.fatal,
                 );
-                unawaited(
-                  Sentry.addBreadcrumb(
-                    Breadcrumb(message: 'Background task timed out'),
-                  ),
+                BgTaskUtils.addSentryBreadcrumb(
+                  Breadcrumb(message: 'Background task timed out'),
                 );
                 await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
               },
             );
 
             BgTaskUtils.$.info('BG Task: Completed successfully $tlog');
-            unawaited(
-              Sentry.addBreadcrumb(
-                Breadcrumb(message: 'Background task completed successfully'),
-              ),
+            BgTaskUtils.addSentryBreadcrumb(
+              Breadcrumb(message: 'Background task completed successfully'),
             );
             result = Future.value(true);
           } catch (e, s) {
             BgTaskUtils.$.warning('BG Task: Failed with error: $e');
-            unawaited(Sentry.captureException(e, stackTrace: s));
-            unawaited(
-              Sentry.addBreadcrumb(
-                Breadcrumb(
-                  message: 'Background task failed',
-                  data: {'error': e.toString()},
-                ),
+            BgTaskUtils.captureSentryException(
+              e,
+              stackTrace: s,
+              level: SentryLevel.error,
+            );
+            BgTaskUtils.addSentryBreadcrumb(
+              Breadcrumb(
+                message: 'Background task failed',
+                data: {'error': e.toString()},
               ),
             );
             await BgTaskUtils.releaseResourcesForKill(taskName, prefs);
@@ -146,7 +139,11 @@ void callbackDispatcher() {
         prefix: "[bg]",
       ).onError((e, s) {
         BgTaskUtils.$.severe("BG Task: Didn't finish correctly!");
-        unawaited(Sentry.captureException(e, stackTrace: s));
+        BgTaskUtils.captureSentryException(
+          e,
+          stackTrace: s,
+          level: SentryLevel.fatal,
+        );
         result = Future.error("Didn't finished correctly!");
         return;
       });
@@ -157,16 +154,18 @@ void callbackDispatcher() {
           BgTaskUtils.$.info('BG Service: Stopping foreground service');
           await _fgCh.invokeMethod('stop');
           BgTaskUtils.$.info('BG Service: Foreground service stopped');
-          unawaited(
-            Sentry.addBreadcrumb(
-              Breadcrumb(message: 'Foreground service stopped'),
-            ),
+          BgTaskUtils.addSentryBreadcrumb(
+            Breadcrumb(message: 'Foreground service stopped'),
           );
         } catch (e, s) {
           BgTaskUtils.$.warning(
             'BG Service: Failed to stop foreground service: $e',
           );
-          unawaited(Sentry.captureException(e, stackTrace: s));
+          BgTaskUtils.captureSentryException(
+            e,
+            stackTrace: s,
+            level: SentryLevel.warning,
+          );
         }
       }
 
@@ -182,6 +181,41 @@ void callbackDispatcher() {
 
 class BgTaskUtils {
   static final $ = Logger("BgTaskUtils");
+
+  /// Safely capture exception to Sentry with network error handling
+  static void captureSentryException(
+    dynamic exception, {
+    dynamic stackTrace,
+    SentryLevel? level,
+  }) {
+    try {
+      unawaited(
+        Sentry.captureException(
+          exception,
+          stackTrace: stackTrace,
+          withScope: (scope) {
+            if (level != null) {
+              scope.level = level;
+            }
+          },
+        ),
+      );
+    } catch (e) {
+      // Sentry failed (likely network issue) - log it but don't crash
+      $.warning(
+        'Failed to capture exception in Sentry (likely network issue): $e',
+      );
+    }
+  }
+
+  /// Safely add Sentry breadcrumb with network error handling
+  static void addSentryBreadcrumb(Breadcrumb breadcrumb) {
+    try {
+      unawaited(Sentry.addBreadcrumb(breadcrumb));
+    } catch (e) {
+      $.warning('Failed to add Sentry breadcrumb (likely network issue): $e');
+    }
+  }
 
   static Future<void> releaseResourcesForKill(
     String taskId,
