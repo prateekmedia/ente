@@ -1,3 +1,4 @@
+- Prateek: (i) Tag Sentry errors with execution_context for background vs foreground
 - Prateek: (i) Add battery optimization package and method channel for foreground checks
 - Prateek: (i) Improve WorkManager config with battery/storage constraints and exponential backoff
 - Prateek: (i) Add minimal logging to sync and collections services for debugging
