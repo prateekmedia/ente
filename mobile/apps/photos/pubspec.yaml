@@ -123,6 +123,8 @@ dependencies:
   local_auth: ^2.1.5
   local_auth_android:
   local_auth_ios:
+  battery_optimization:
+    path: ../../packages/battery_optimization
   log_viewer:
     path: ../../packages/log_viewer
   logging: ^1.3.0

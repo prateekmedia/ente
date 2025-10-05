@@ -21,6 +21,7 @@ void callbackDispatcher() {
       () async {
         try {
           BgTaskUtils.$.info('Task started $tlog');
+
           await runBackgroundTask(taskName, tlog).timeout(
             Platform.isIOS ? kBGTaskTimeout : const Duration(hours: 1),
             onTimeout: () async {
@@ -92,11 +93,12 @@ class BgTaskUtils {
         constraints: workmanager.Constraints(
           networkType: workmanager.NetworkType.connected,
           requiresCharging: false,
-          requiresStorageNotLow: false,
+          requiresStorageNotLow: true, // Don't run on low storage
+          requiresBatteryNotLow: true, // Don't run on low battery
           requiresDeviceIdle: false,
         ),
         existingWorkPolicy: workmanager.ExistingWorkPolicy.append,
-        backoffPolicy: workmanager.BackoffPolicy.linear,
+        backoffPolicy: workmanager.BackoffPolicy.exponential,
         backoffPolicyDelay: const Duration(minutes: 15),
       );
       $.info("WorkManager configured");
