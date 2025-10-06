@@ -1,34 +1,34 @@
-import 'dart:async';
+import "dart:async";
 import 'dart:io';
-import 'dart:math';
+import "dart:math";
 
 import 'package:flutter/material.dart';
-import 'package:logging/logging.dart';
+import "package:logging/logging.dart";
 import 'package:path/path.dart' as path;
-import 'package:photo_manager/photo_manager.dart';
-import 'package:photos/core/event_bus.dart';
-import 'package:photos/db/files_db.dart';
-import 'package:photos/ente_theme_data.dart';
-import 'package:photos/events/local_photos_updated_event.dart';
-import 'package:photos/generated/l10n.dart';
-import 'package:photos/models/ffmpeg/ffprobe_props.dart';
-import 'package:photos/models/file/file.dart';
-import 'package:photos/models/location/location.dart';
-import 'package:photos/services/sync/sync_service.dart';
-import 'package:photos/ui/common/linear_progress_dialog.dart';
-import 'package:photos/ui/notification/toast.dart';
-import 'package:photos/ui/tools/editor/export_video_service.dart';
+import "package:photo_manager/photo_manager.dart";
+import "package:photos/core/event_bus.dart";
+import "package:photos/db/files_db.dart";
+import "package:photos/ente_theme_data.dart";
+import "package:photos/events/local_photos_updated_event.dart";
+import "package:photos/generated/l10n.dart";
+import "package:photos/models/file/file.dart";
+import "package:photos/models/location/location.dart";
+import "package:photos/services/sync/sync_service.dart";
+import "package:photos/theme/ente_theme.dart";
+import "package:photos/ui/common/linear_progress_dialog.dart";
+import "package:photos/ui/notification/toast.dart";
+import "package:photos/ui/tools/editor/export_video_service.dart";
 import 'package:photos/ui/tools/editor/video_crop_page.dart';
-import 'package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart';
-import 'package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart';
-import 'package:photos/ui/tools/editor/video_editor/video_editor_navigation_options.dart';
-import 'package:photos/ui/tools/editor/video_editor/video_editor_player_control.dart';
-import 'package:photos/ui/tools/editor/video_rotate_page.dart';
-import 'package:photos/ui/tools/editor/video_trim_page.dart';
-import 'package:photos/ui/viewer/file/detail_page.dart';
-import 'package:photos/utils/exif_util.dart';
-import 'package:photos/utils/navigation_util.dart';
-import 'package:video_editor/video_editor.dart';
+import "package:photos/ui/tools/editor/video_editor/video_editor_app_bar.dart";
+import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
+import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
+import "package:photos/ui/tools/editor/video_editor/video_editor_player_control.dart";
+import "package:photos/ui/tools/editor/video_rotate_page.dart";
+import "package:photos/ui/tools/editor/video_trim_page.dart";
+import "package:photos/ui/viewer/file/detail_page.dart";
+import "package:photos/utils/exif_util.dart";
+import "package:photos/utils/navigation_util.dart";
+import "package:video_editor/video_editor.dart";
 
 class VideoEditorPage extends StatefulWidget {
   const VideoEditorPage({
@@ -57,48 +57,43 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
   int? _quarterTurnsForRotationCorrection;
 
   VideoEditorController? _controller;
-  bool _loggedLoadingOnce = false;
 
   @override
   void initState() {
     super.initState();
 
-    Future.microtask(() {
-      _controller = VideoEditorController.file(
-        widget.ioFile,
-        minDuration: const Duration(seconds: 1),
-        cropStyle: CropGridStyle(
-          background: Theme.of(context).colorScheme.surface,
-          selectedBoundariesColor:
-              const ColorScheme.dark().videoPlayerPrimaryColor,
-        ),
-        trimStyle: TrimSliderStyle(
-          onTrimmedColor: const ColorScheme.dark().videoPlayerPrimaryColor,
-          onTrimmingColor: const ColorScheme.dark().videoPlayerPrimaryColor,
-          background: Theme.of(context).colorScheme.editorBackgroundColor,
-          positionLineColor:
-              Theme.of(context).colorScheme.videoPlayerBorderColor,
-          lineColor: Theme.of(context)
-              .colorScheme
-              .videoPlayerBorderColor
-              .withValues(alpha: 0.6),
-        ),
-      );
+    Future.microtask(
+      () {
+        _controller = VideoEditorController.file(
+          widget.ioFile,
+          minDuration: const Duration(seconds: 1),
+          cropStyle: CropGridStyle(
+            background: Theme.of(context).colorScheme.surface,
+            selectedBoundariesColor:
+                const ColorScheme.dark().videoPlayerPrimaryColor,
+          ),
+          trimStyle: TrimSliderStyle(
+            onTrimmedColor: const ColorScheme.dark().videoPlayerPrimaryColor,
+            onTrimmingColor: const ColorScheme.dark().videoPlayerPrimaryColor,
+            background: Theme.of(context).colorScheme.editorBackgroundColor,
+            positionLineColor:
+                Theme.of(context).colorScheme.videoPlayerBorderColor,
+            lineColor: Theme.of(context)
+                .colorScheme
+                .videoPlayerBorderColor
+                .withValues(alpha: 0.6),
+          ),
+        );
 
-      _controller!.addListener(_handleControllerUpdate);
-
-      _controller!.initialize().catchError(
-        (error) {
-          if (!mounted) {
-            return;
-          }
-          Navigator.pop(context);
-        },
-        test: (e) => e is VideoMinDurationError,
-      );
-
-      _prefetchVideoProps();
-    });
+        _controller!.initialize().then((_) => setState(() {})).catchError(
+          (error) {
+            // handle minumum duration bigger than video duration error
+            Navigator.pop(context);
+          },
+          test: (e) => e is VideoMinDurationError,
+        );
+      },
+    );
 
     _doRotationCorrectionIfAndroid();
   }
@@ -106,208 +101,138 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
   @override
   void dispose() async {
     _isExporting.dispose();
-    _controller?.removeListener(_handleControllerUpdate);
     _controller?.dispose().ignore();
     ExportService.dispose().ignore();
     super.dispose();
   }
 
-  Duration? get _fallbackVideoDuration {
-    final seconds = widget.file.duration;
-    if (seconds != null && seconds > 0) {
-      return Duration(seconds: seconds);
-    }
-    return null;
-  }
-
-  void _handleControllerUpdate() {
-    if (!mounted || _controller == null) {
-      return;
-    }
-    if (_controller!.initialized) {
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (!_loggedLoadingOnce) {
-      final shouldShowLoader = !(_controller != null &&
-          _quarterTurnsForRotationCorrection != null);
-      if (shouldShowLoader) {
-        _loggedLoadingOnce = true;
-        _logger.info(
-          '[VideoEditorPage] Showing loader. controller=null? ${_controller == null}, rotationSet=${_quarterTurnsForRotationCorrection != null}',
-        );
-      }
-    }
-
+    final colorScheme = getEnteColorScheme(context);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          if (_isExporting.value) {
-            return;
-          } else {
-            replacePage(context, DetailPage(widget.detailPageConfig));
-          }
+        if (didPop) return;
+        if (_isExporting.value) {
+          return;
         }
+        replacePage(context, DetailPage(widget.detailPageConfig));
       },
-      child: Scaffold(
-        appBar: AppBar(
-          elevation: 0,
-          toolbarHeight: 0,
-        ),
-        body: _controller != null &&
-                _quarterTurnsForRotationCorrection != null
-            ? SafeArea(
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: Hero(
-                                  tag: "video-editor-preview",
-                                  child: AnimatedBuilder(
-                                    animation: _controller!,
-                                    builder: (_, __) => _buildRotatedPreview(
-                                      CropGridViewer.preview(
-                                        controller: _controller!,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              VideoEditorPlayerControl(
-                                controller: _controller!,
-                                fallbackDuration: _fallbackVideoDuration,
-                              ),
-                              VideoEditorMainActions(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _isExporting,
+        builder: (context, isExporting, _) {
+          final isReady = _controller != null &&
+              _controller!.initialized &&
+              _quarterTurnsForRotationCorrection != null;
+
+          return Scaffold(
+            backgroundColor: colorScheme.backgroundBase,
+            appBar: VideoEditorAppBar(
+              onCancel: () {
+                if (isExporting) return;
+                replacePage(context, DetailPage(widget.detailPageConfig));
+              },
+              primaryActionLabel: AppLocalizations.of(context).saveCopy,
+              onPrimaryAction: exportVideo,
+              isPrimaryEnabled: isReady && !isExporting,
+            ),
+            body: isReady
+                ? SafeArea(
+                    top: false,
+                    bottom: true,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: Stack(
+                                fit: StackFit.expand,
                                 children: [
-                                  VideoEditorBottomAction(
-                                    label: AppLocalizations.of(context).trim,
-                                    svgPath:
-                                        "assets/video-editor/video-editor-trim-action.svg",
-                                    onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute<void>(
-                                        builder: (context) => VideoTrimPage(
+                                  Positioned.fill(
+                                    child: Hero(
+                                      tag: "video-editor-preview",
+                                      child: RotatedBox(
+                                        quarterTurns:
+                                            _quarterTurnsForRotationCorrection!,
+                                        child: CropGridViewer.preview(
                                           controller: _controller!,
-                                          quarterTurnsForRotationCorrection:
-                                              _effectiveQuarterTurns(),
-                                          fallbackDuration: _fallbackVideoDuration,
                                         ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 40),
-                                  VideoEditorBottomAction(
-                                    label: AppLocalizations.of(context).crop,
-                                    svgPath:
-                                        "assets/video-editor/video-editor-crop-action.svg",
-                                    onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute<void>(
-                                        builder: (context) => VideoCropPage(
-                                          controller: _controller!,
-                                          quarterTurnsForRotationCorrection:
-                                              _effectiveQuarterTurns(),
-                                          fallbackDuration: _fallbackVideoDuration,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 40),
-                                  VideoEditorBottomAction(
-                                    label: AppLocalizations.of(context).rotate,
-                                    svgPath:
-                                        "assets/video-editor/video-editor-rotate-action.svg",
-                                    onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute<void>(
-                                        builder: (context) => VideoRotatePage(
-                                          controller: _controller!,
-                                          quarterTurnsForRotationCorrection:
-                                              _effectiveQuarterTurns(),
-                                          fallbackDuration: _fallbackVideoDuration,
-                                        ),
+                                  Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 24),
+                                      child: VideoEditorPlayerControl(
+                                        controller: _controller!,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 40),
-                              VideoEditorNavigationOptions(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .videoPlayerPrimaryColor,
-                                secondaryText:
-                                    AppLocalizations.of(context).saveCopy,
-                                onSecondaryPressed: () {
-                                  exportVideo();
-                                },
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          VideoEditorMainActions(
+                            children: [
+                              VideoEditorBottomAction(
+                                label: AppLocalizations.of(context).trim,
+                                svgPath:
+                                    "assets/video-editor/video-editor-trim-action.svg",
+                                onPressed: () => _openSubEditor(
+                                  VideoTrimPage(
+                                    controller: _controller!,
+                                    quarterTurnsForRotationCorrection:
+                                        _quarterTurnsForRotationCorrection!,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              VideoEditorBottomAction(
+                                label: AppLocalizations.of(context).crop,
+                                svgPath:
+                                    "assets/video-editor/video-editor-crop-action.svg",
+                                onPressed: () => _openSubEditor(
+                                  VideoCropPage(
+                                    controller: _controller!,
+                                    quarterTurnsForRotationCorrection:
+                                        _quarterTurnsForRotationCorrection!,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              VideoEditorBottomAction(
+                                label: AppLocalizations.of(context).rotate,
+                                svgPath:
+                                    "assets/video-editor/video-editor-rotate-action.svg",
+                                onPressed: () => _openSubEditor(
+                                  VideoRotatePage(
+                                    controller: _controller!,
+                                    quarterTurnsForRotationCorrection:
+                                        _quarterTurnsForRotationCorrection!,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              )
-            : const Center(child: CircularProgressIndicator()),
+                  )
+                : const Center(child: CircularProgressIndicator()),
+          );
+        },
       ),
     );
-  }
-
-  Widget _buildRotatedPreview(Widget child) {
-    final controller = _controller;
-    final dimension = controller?.videoDimension;
-
-    double? aspectRatio;
-    if (dimension != null && dimension.width > 0 && dimension.height > 0) {
-      aspectRatio = dimension.width / dimension.height;
-      _logger.info('[VideoEditorPage] View aspect ratio from controller dimensions ${dimension.width}x${dimension.height} -> $aspectRatio');
-    }
-
-    if (aspectRatio == null) {
-      return child;
-    }
-
-    return Center(
-      child: AspectRatio(
-        aspectRatio: aspectRatio,
-        child: child,
-      ),
-    );
-  }
-
-  int _effectiveQuarterTurns() {
-    final rawQuarterTurns = _quarterTurnsForRotationCorrection ?? 0;
-    return ((rawQuarterTurns % 4) + 4) % 4;
-  }
-
-  void _prefetchVideoProps() {
-    getVideoPropsAsync(widget.ioFile).then((props) {
-      if (!mounted) {
-        return;
-      }
-      _applyVideoProps(props);
-    });
-  }
-
-  void _applyVideoProps(FFProbeProps? props) {
-    if (props?.width != null && props?.height != null) {
-      final width = props!.width!.toDouble();
-      final height = props.height!.toDouble();
-      _controller?.setVideoDimensionFallback(Size(width, height));
-      _logger.info(
-        '[VideoEditorPage] Prefetched dimensions width=$width height=$height rotation=${props.rotation}',
-      );
-    }
   }
 
   void exportVideo() async {
@@ -373,8 +298,10 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
           await PhotoManager.stopChangeNotify();
 
           try {
-            final AssetEntity newAsset =
-                await (PhotoManager.editor.saveVideo(result, title: fileName));
+            final AssetEntity newAsset = await (PhotoManager.editor.saveVideo(
+              result,
+              title: fileName,
+            ));
 
             result.deleteSync();
 
@@ -444,15 +371,13 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
     }
   }
 
+  Future<void> _openSubEditor(Widget child) {
+    return Navigator.of(context).push(_VideoEditorSubPageRoute(child));
+  }
+
   void _doRotationCorrectionIfAndroid() {
     if (Platform.isAndroid) {
-      if (_quarterTurnsForRotationCorrection == null) {
-        setState(() {
-          _quarterTurnsForRotationCorrection = 0;
-        });
-      }
       getVideoPropsAsync(widget.ioFile).then((props) async {
-        _applyVideoProps(props);
         if (props?.rotation != null) {
           _quarterTurnsForRotationCorrection = -(props!.rotation! / 90).round();
         } else {
@@ -461,9 +386,29 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
         setState(() {});
       });
     } else {
-      setState(() {
-        _quarterTurnsForRotationCorrection = 0;
-      });
+      _quarterTurnsForRotationCorrection = 0;
     }
   }
+}
+
+class _VideoEditorSubPageRoute extends PageRouteBuilder<void> {
+  _VideoEditorSubPageRoute(this.child)
+      : super(
+          fullscreenDialog: true,
+          transitionDuration: const Duration(milliseconds: 220),
+          reverseTransitionDuration: const Duration(milliseconds: 180),
+          pageBuilder: (_, __, ___) => child,
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(
+              opacity: CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              ),
+              child: child,
+            );
+          },
+        );
+
+  final Widget child;
 }

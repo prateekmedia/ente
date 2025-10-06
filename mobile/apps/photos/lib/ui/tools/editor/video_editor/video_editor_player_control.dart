@@ -6,55 +6,59 @@ class VideoEditorPlayerControl extends StatelessWidget {
   const VideoEditorPlayerControl({
     super.key,
     required this.controller,
-    this.fallbackDuration,
   });
 
   final VideoEditorController controller;
-  final Duration? fallbackDuration;
 
   @override
   Widget build(BuildContext context) {
     return Hero(
       tag: "video_editor_player_control",
       child: AnimatedBuilder(
-        animation: controller,
+        animation: Listenable.merge([
+          controller,
+          controller.video,
+        ]),
         builder: (_, __) {
-          final totalDuration = _effectiveTotalDuration(controller);
-          final positionDuration = _effectivePosition(controller, totalDuration);
+          final duration = controller.trimmedDuration;
+          final pos = Duration(
+            seconds: (controller.videoPosition.inSeconds -
+                controller.startTrim.inSeconds),
+          );
           final isPlaying = controller.isPlaying;
 
           return GestureDetector(
             onTap: () {
               if (controller.isPlaying) {
-                controller.nativeController?.pause();
+                controller.video.pause();
               } else {
-                controller.nativeController?.play();
+                controller.video.play();
               }
             },
             child: Container(
-              height: 28,
               margin: const EdgeInsets.only(top: 24, bottom: 28),
               padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
+                horizontal: 14,
+                vertical: 8,
               ),
+              constraints: const BoxConstraints(minHeight: 36),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.editorBackgroundColor,
                 borderRadius: BorderRadius.circular(56),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(
                     !isPlaying ? Icons.play_arrow : Icons.pause,
-                    size: 21,
+                    size: 20,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 6),
                   Text(
-                    "${_durationLabel(positionDuration)} / ${_durationLabel(totalDuration, allowZero: false)}",
-                    // ignore: prefer_const_constructors
-                    style: TextStyle(
-                      fontSize: 12,
+                    "${formatter(pos)} / ${formatter(duration)}",
+                    style: const TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -65,53 +69,6 @@ class VideoEditorPlayerControl extends StatelessWidget {
         },
       ),
     );
-  }
-
-  Duration _effectiveTotalDuration(VideoEditorController controller) {
-    final trimmed = controller.trimmedDuration;
-    if (trimmed > Duration.zero) {
-      return trimmed;
-    }
-    final max = controller.maxDuration;
-    if (max > Duration.zero) {
-      return max;
-    }
-    final video = controller.videoDuration;
-    if (video > Duration.zero) {
-      return video;
-    }
-    if (fallbackDuration != null && fallbackDuration! > Duration.zero) {
-      return fallbackDuration!;
-    }
-    return Duration.zero;
-  }
-
-  Duration _effectivePosition(
-    VideoEditorController controller,
-    Duration total,
-  ) {
-    if (total == Duration.zero) {
-      return Duration.zero;
-    }
-
-    final rawPosition = controller.videoPosition - controller.startTrim;
-    if (rawPosition.isNegative) {
-      return Duration.zero;
-    }
-    if (rawPosition > total) {
-      return total;
-    }
-    return rawPosition;
-  }
-
-  String _durationLabel(Duration duration, {bool allowZero = true}) {
-    if (duration < Duration.zero) {
-      duration = Duration.zero;
-    }
-    if (duration == Duration.zero) {
-      return allowZero ? formatter(Duration.zero) : "--:--";
-    }
-    return formatter(duration);
   }
 
   String formatter(Duration duration) => [
