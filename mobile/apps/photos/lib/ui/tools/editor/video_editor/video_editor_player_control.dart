@@ -15,10 +15,7 @@ class VideoEditorPlayerControl extends StatelessWidget {
     return Hero(
       tag: "video_editor_player_control",
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          controller,
-          controller.video,
-        ]),
+        animation: controller,
         builder: (_, __) {
           final duration = controller.trimmedDuration;
           final pos = Duration(
@@ -29,10 +26,13 @@ class VideoEditorPlayerControl extends StatelessWidget {
 
           return GestureDetector(
             onTap: () {
-              if (controller.isPlaying) {
-                controller.video.pause();
-              } else {
-                controller.video.play();
+              final nativeController = controller.nativeController;
+              if (nativeController != null) {
+                if (controller.isPlaying) {
+                  nativeController.pause();
+                } else {
+                  nativeController.play();
+                }
               }
             },
             child: Container(

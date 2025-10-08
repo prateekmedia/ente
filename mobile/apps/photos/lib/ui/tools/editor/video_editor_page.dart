@@ -11,6 +11,7 @@ import "package:photos/db/files_db.dart";
 import "package:photos/ente_theme_data.dart";
 import "package:photos/events/local_photos_updated_event.dart";
 import "package:photos/generated/l10n.dart";
+import "package:photos/models/ffmpeg/ffprobe_props.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/models/location/location.dart";
 import "package:photos/services/sync/sync_service.dart";
@@ -50,23 +51,37 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
   final _isExporting = ValueNotifier<bool>(false);
   final _logger = Logger("VideoEditor");
 
-  /// Some videos have a non-zero 'rotation' property in exif which causes the
-  /// video to appear rotated in the video editor preview on Andoird.
-  /// This variable is used as a workaround to rotate the video back to its
-  /// expected orientation in the viewer.
-  int? _quarterTurnsForRotationCorrection;
-
   VideoEditorController? _controller;
+  bool _isMetadataLoaded = false;
+  FFProbeProps? _videoProps;
 
   @override
   void initState() {
     super.initState();
+    _loadVideoMetadata();
+  }
 
-    Future.microtask(
-      () {
+  /// Load video metadata from FFProbe FIRST, before creating controller
+  Future<void> _loadVideoMetadata() async {
+    try {
+      _logger.info('Loading video metadata from FFProbe...');
+      _videoProps = await getVideoPropsAsync(widget.ioFile);
+
+      if (_videoProps != null) {
+        _logger.info(
+          'Video metadata loaded: '
+          'duration=${_videoProps!.duration}, '
+          'aspectRatio=${_videoProps!.aspectRatio}, '
+          'width=${_videoProps!.width}, '
+          'height=${_videoProps!.height}, '
+          'rotation=${_videoProps!.rotation}',
+        );
+
+        // Create controller AFTER metadata is loaded
         _controller = VideoEditorController.file(
           widget.ioFile,
-          minDuration: const Duration(seconds: 1),
+          minDuration:
+              Duration.zero, // Don't validate until native player loads
           cropStyle: CropGridStyle(
             background: Theme.of(context).colorScheme.surface,
             selectedBoundariesColor:
@@ -85,22 +100,53 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
           ),
         );
 
-        _controller!.initialize().then((_) => setState(() {})).catchError(
-          (error) {
-            // handle minumum duration bigger than video duration error
-            Navigator.pop(context);
-          },
-          test: (e) => e is VideoMinDurationError,
+        // Set fallback metadata BEFORE VideoViewer is built
+        _controller!.setFallbackMetadata(
+          duration: _videoProps!.duration,
+          aspectRatio: _videoProps!.aspectRatio,
+          dimension: Size(
+            _videoProps!.width?.toDouble() ?? 0,
+            _videoProps!.height?.toDouble() ?? 0,
+          ),
         );
-      },
-    );
 
-    _doRotationCorrectionIfAndroid();
+        // Listen for initialization completion
+        _controller!.addListener(_onControllerUpdate);
+
+        setState(() {
+          _isMetadataLoaded = true;
+        });
+      } else {
+        _logger.severe('Failed to load video metadata');
+        Navigator.pop(context);
+      }
+    } catch (e, s) {
+      _logger.severe('Error loading video metadata', e, s);
+      Navigator.pop(context);
+    }
+  }
+
+  bool _hasInitialized = false;
+
+  void _onControllerUpdate() {
+    if (!mounted || _controller == null) return;
+
+    // Only handle initialization once
+    if (_controller!.initialized && !_hasInitialized) {
+      _hasInitialized = true;
+      _logger.info('Video editor initialized successfully');
+
+      // Remove listener to prevent further updates
+      _controller!.removeListener(_onControllerUpdate);
+
+      setState(() {});
+    }
   }
 
   @override
   void dispose() async {
     _isExporting.dispose();
+    // Listener already removed in _onControllerUpdate after initialization
     _controller?.dispose().ignore();
     ExportService.dispose().ignore();
     super.dispose();
@@ -121,9 +167,7 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
       child: ValueListenableBuilder<bool>(
         valueListenable: _isExporting,
         builder: (context, isExporting, _) {
-          final isReady = _controller != null &&
-              _controller!.initialized &&
-              _quarterTurnsForRotationCorrection != null;
+          final isReady = _isMetadataLoaded && _controller != null;
 
           return Scaffold(
             backgroundColor: colorScheme.backgroundBase,
@@ -134,7 +178,8 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
               },
               primaryActionLabel: AppLocalizations.of(context).saveCopy,
               onPrimaryAction: exportVideo,
-              isPrimaryEnabled: isReady && !isExporting,
+              isPrimaryEnabled:
+                  isReady && _controller!.initialized && !isExporting,
             ),
             body: isReady
                 ? SafeArea(
@@ -157,12 +202,8 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                   Positioned.fill(
                                     child: Hero(
                                       tag: "video-editor-preview",
-                                      child: RotatedBox(
-                                        quarterTurns:
-                                            _quarterTurnsForRotationCorrection!,
-                                        child: CropGridViewer.preview(
-                                          controller: _controller!,
-                                        ),
+                                      child: CropGridViewer.preview(
+                                        controller: _controller!,
                                       ),
                                     ),
                                   ),
@@ -190,8 +231,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                 onPressed: () => _openSubEditor(
                                   VideoTrimPage(
                                     controller: _controller!,
-                                    quarterTurnsForRotationCorrection:
-                                        _quarterTurnsForRotationCorrection!,
                                   ),
                                 ),
                               ),
@@ -203,8 +242,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                 onPressed: () => _openSubEditor(
                                   VideoCropPage(
                                     controller: _controller!,
-                                    quarterTurnsForRotationCorrection:
-                                        _quarterTurnsForRotationCorrection!,
                                   ),
                                 ),
                               ),
@@ -216,8 +253,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
                                 onPressed: () => _openSubEditor(
                                   VideoRotatePage(
                                     controller: _controller!,
-                                    quarterTurnsForRotationCorrection:
-                                        _quarterTurnsForRotationCorrection!,
                                   ),
                                 ),
                               ),
@@ -373,21 +408,6 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
 
   Future<void> _openSubEditor(Widget child) {
     return Navigator.of(context).push(_VideoEditorSubPageRoute(child));
-  }
-
-  void _doRotationCorrectionIfAndroid() {
-    if (Platform.isAndroid) {
-      getVideoPropsAsync(widget.ioFile).then((props) async {
-        if (props?.rotation != null) {
-          _quarterTurnsForRotationCorrection = -(props!.rotation! / 90).round();
-        } else {
-          _quarterTurnsForRotationCorrection = 0;
-        }
-        setState(() {});
-      });
-    } else {
-      _quarterTurnsForRotationCorrection = 0;
-    }
   }
 }
 

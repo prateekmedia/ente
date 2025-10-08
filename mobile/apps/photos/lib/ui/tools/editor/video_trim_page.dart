@@ -6,11 +6,9 @@ import "package:photos/ui/tools/editor/video_editor/video_editor_player_control.
 import 'package:video_editor/video_editor.dart';
 
 class VideoTrimPage extends StatefulWidget {
-  final int quarterTurnsForRotationCorrection;
   const VideoTrimPage({
     super.key,
     required this.controller,
-    required this.quarterTurnsForRotationCorrection,
   });
 
   final VideoEditorController controller;
@@ -21,18 +19,25 @@ class VideoTrimPage extends StatefulWidget {
 
 class _VideoTrimPageState extends State<VideoTrimPage> {
   final double height = 60;
+  late final double _originalMinTrim;
+  late final double _originalMaxTrim;
+
+  @override
+  void initState() {
+    super.initState();
+    _originalMinTrim = widget.controller.minTrim;
+    _originalMaxTrim = widget.controller.maxTrim;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final minTrim = widget.controller.minTrim;
-    final maxTrim = widget.controller.maxTrim;
     final colorScheme = getEnteColorScheme(context);
 
     return Scaffold(
       backgroundColor: colorScheme.backgroundBase,
       appBar: VideoEditorAppBar(
         onCancel: () {
-          widget.controller.updateTrim(minTrim, maxTrim);
+          widget.controller.updateTrim(_originalMinTrim, _originalMaxTrim);
           Navigator.pop(context);
         },
         primaryActionLabel: AppLocalizations.of(context).done,
@@ -58,12 +63,8 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
                       Positioned.fill(
                         child: Hero(
                           tag: "video-editor-preview",
-                          child: RotatedBox(
-                            quarterTurns:
-                                widget.quarterTurnsForRotationCorrection,
-                            child: CropGridViewer.preview(
-                              controller: widget.controller,
-                            ),
+                          child: CropGridViewer.preview(
+                            controller: widget.controller,
                           ),
                         ),
                       ),
