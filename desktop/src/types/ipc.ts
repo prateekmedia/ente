@@ -19,7 +19,7 @@ export interface FolderWatch {
     ignoredFiles: string[];
 }
 
-export type CollectionMapping = "root" | "parent";
+export type CollectionMapping = "root" | "parent" | "nested";
 
 export interface FolderWatchSyncedFile {
     path: string;

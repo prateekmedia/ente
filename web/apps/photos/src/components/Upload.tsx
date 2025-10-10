@@ -64,9 +64,15 @@ import type { RemotePullOpts } from "ente-new/photos/components/gallery";
 import { downloadAppDialogAttributes } from "ente-new/photos/components/utils/download";
 import {
     createAlbum,
+    createAlbumWithParent,
     isHiddenCollection,
     savedNormalCollections,
 } from "ente-new/photos/services/collection";
+import {
+    clearPathMapping,
+    getCollectionIdForPath,
+    updatePathMapping,
+} from "ente-new/photos/services/collection-path-mapping";
 import { redirectToCustomerPortal } from "ente-new/photos/services/user-details";
 import { usePhotosAppContext } from "ente-new/photos/types/context";
 import { firstNonEmpty } from "ente-utils/array";
@@ -279,6 +285,14 @@ export const Upload: React.FC<UploadProps> = ({
     );
 
     /**
+     * If set, this will be the collection mapping that our desktop app
+     * wishes for us to use.
+     */
+    const pendingDesktopUploadMapping = useRef<CollectionMapping | undefined>(
+        undefined,
+    );
+
+    /**
      * This is set to thue user's choice when the user chooses one of the
      * predefined type to upload from the upload type selector dialog
      */
@@ -387,9 +401,14 @@ export const Upload: React.FC<UploadProps> = ({
         }
 
         if (electron) {
-            const upload = (collectionName: string, filePaths: string[]) => {
+            const upload = (
+                collectionName: string,
+                filePaths: string[],
+                mapping: CollectionMapping,
+            ) => {
                 isPendingDesktopUpload.current = true;
                 pendingDesktopUploadCollectionName.current = collectionName;
+                pendingDesktopUploadMapping.current = mapping;
                 setDesktopFilePaths(filePaths);
             };
 
@@ -540,14 +559,17 @@ export const Upload: React.FC<UploadProps> = ({
 
             if (isPendingDesktopUpload.current) {
                 isPendingDesktopUpload.current = false;
-                if (pendingDesktopUploadCollectionName.current) {
-                    uploadFilesToNewCollections(
-                        "root",
-                        pendingDesktopUploadCollectionName.current,
-                    );
-                    pendingDesktopUploadCollectionName.current = undefined;
+                const mapping = pendingDesktopUploadMapping.current ?? "parent";
+                const collectionName =
+                    pendingDesktopUploadCollectionName.current;
+
+                pendingDesktopUploadMapping.current = undefined;
+                pendingDesktopUploadCollectionName.current = undefined;
+
+                if (mapping === "root" && collectionName) {
+                    uploadFilesToNewCollections("root", collectionName);
                 } else {
-                    uploadFilesToNewCollections("parent");
+                    uploadFilesToNewCollections(mapping, collectionName);
                 }
                 return;
             }
@@ -645,7 +667,7 @@ export const Upload: React.FC<UploadProps> = ({
                 collectionName!,
                 uploadItemsAndPaths.current,
             );
-        } else {
+        } else if (mapping !== "nested") {
             collectionNameToUploadItems = groupItemsBasedOnParentFolder(
                 uploadItemsAndPaths.current,
                 collectionName,
@@ -653,28 +675,123 @@ export const Upload: React.FC<UploadProps> = ({
         }
         const collections: Collection[] = [];
         try {
-            await onRemoteFilesPull!();
-            const existingCollections = await savedNormalCollections();
-            let index = 0;
-            for (const [
-                collectionName,
-                uploadItems,
-            ] of collectionNameToUploadItems) {
-                const collection = await matchExistingOrCreateAlbum(
-                    collectionName,
-                    user!,
-                    existingCollections,
-                );
-                collections.push(collection);
-                uploadItemsWithCollection = [
-                    ...uploadItemsWithCollection,
-                    ...uploadItems.map(([uploadItem, path]) => ({
+            if (mapping == "nested") {
+                clearPathMapping();
+
+                // Find the root folder path by traversing up from first item
+                const firstPath = uploadItemsAndPaths.current[0]![1];
+                let rootFolderPath = dirname(firstPath);
+                while (
+                    basename(rootFolderPath) !== collectionName &&
+                    rootFolderPath !== dirname(rootFolderPath)
+                ) {
+                    rootFolderPath = dirname(rootFolderPath);
+                }
+
+                if (basename(rootFolderPath) !== collectionName) {
+                    throw new Error(
+                        `Could not find root folder with name ${collectionName}`,
+                    );
+                }
+
+                // Discover all folders in the hierarchy
+                const folderNodes =
+                    await electron!.fs.discoverFolderHierarchy(rootFolderPath);
+
+                await onRemoteFilesPull!();
+                const existingCollections = await savedNormalCollections();
+
+                // Create collections for each folder in the hierarchy
+                for (const node of folderNodes) {
+                    let collection: Collection;
+
+                    if (node.relativePath === "") {
+                        // Root folder
+                        collection = await matchExistingOrCreateAlbum(
+                            node.name,
+                            user!,
+                            existingCollections,
+                        );
+                    } else {
+                        // Child folder - find parent collection
+                        const parentRelativePath = dirname(node.relativePath);
+                        const parentCollectionId = getCollectionIdForPath(
+                            parentRelativePath === "."
+                                ? ""
+                                : parentRelativePath,
+                        );
+
+                        if (parentCollectionId === undefined) {
+                            throw new Error(
+                                `Parent collection not found for ${node.relativePath}`,
+                            );
+                        }
+
+                        collection = await matchExistingOrCreateAlbumWithParent(
+                            node.name,
+                            parentCollectionId,
+                            user!,
+                            existingCollections,
+                        );
+                    }
+
+                    collections.push(collection);
+                    updatePathMapping(node.relativePath, collection.id);
+                }
+
+                // Map each upload item to its parent folder's collection
+                let index = 0;
+                for (const [
+                    uploadItem,
+                    absolutePath,
+                ] of uploadItemsAndPaths.current) {
+                    const itemParentPath = dirname(absolutePath);
+                    const relativePath = itemParentPath.substring(
+                        rootFolderPath.length + 1,
+                    );
+                    const collectionId = getCollectionIdForPath(
+                        relativePath || "",
+                    );
+
+                    if (collectionId === undefined) {
+                        throw new Error(
+                            `Collection not found for path ${relativePath}`,
+                        );
+                    }
+
+                    uploadItemsWithCollection.push({
                         localID: index++,
-                        pathPrefix: uploadPathPrefix(path),
-                        collectionID: collection.id,
+                        pathPrefix: uploadPathPrefix(absolutePath),
+                        collectionID: collectionId,
                         uploadItem,
-                    })),
-                ];
+                    });
+                }
+
+                clearPathMapping();
+            } else {
+                await onRemoteFilesPull!();
+                const existingCollections = await savedNormalCollections();
+                let index = 0;
+                for (const [
+                    collectionName,
+                    uploadItems,
+                ] of collectionNameToUploadItems) {
+                    const collection = await matchExistingOrCreateAlbum(
+                        collectionName,
+                        user!,
+                        existingCollections,
+                    );
+                    collections.push(collection);
+                    uploadItemsWithCollection = [
+                        ...uploadItemsWithCollection,
+                        ...uploadItems.map(([uploadItem, path]) => ({
+                            localID: index++,
+                            pathPrefix: uploadPathPrefix(path),
+                            collectionID: collection.id,
+                            uploadItem,
+                        })),
+                    ];
+                }
             }
         } catch (e) {
             closeUploadProgress();
@@ -1070,6 +1187,44 @@ const matchExistingOrCreateAlbum = async (
 
     const collection = await createAlbum(albumName);
     log.info(`Created new album ${albumName} with id ${collection.id}`);
+    return collection;
+};
+
+const matchExistingOrCreateAlbumWithParent = async (
+    albumName: string,
+    parentId: number,
+    user: LocalUser,
+    existingCollections: Collection[],
+) => {
+    for (const collection of existingCollections) {
+        if (
+            // Name matches
+            collection.name == albumName &&
+            // Parent ID matches
+            collection.pubMagicMetadata?.data.parentId === parentId &&
+            // Valid types
+            (collection.type == "album" ||
+                collection.type == "folder" ||
+                collection.type == "uncategorized") &&
+            // Not hidden
+            !isHiddenCollection(collection) &&
+            // Not a quicklink
+            collection.magicMetadata?.data.subType !=
+                CollectionSubType.quicklink &&
+            // Owned by user
+            collection.owner.id == user.id
+        ) {
+            log.info(
+                `Found existing album ${albumName} with id ${collection.id} and parent ${parentId}`,
+            );
+            return collection;
+        }
+    }
+
+    const collection = await createAlbumWithParent(albumName, parentId);
+    log.info(
+        `Created new album ${albumName} with id ${collection.id} and parent ${parentId}`,
+    );
     return collection;
 };
 

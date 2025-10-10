@@ -36,6 +36,7 @@ import { ffmpegDetermineVideoDuration, ffmpegExec } from "./services/ffmpeg";
 import {
     fsExists,
     fsFindFiles,
+    fsDiscoverFolderHierarchy,
     fsIsDir,
     fsMkdirIfNeeded,
     fsReadTextFile,
@@ -172,6 +173,10 @@ export const attachIPCHandlers = () => {
 
     ipcMain.handle("fsFindFiles", (_, folderPath: string) =>
         fsFindFiles(folderPath),
+    );
+
+    ipcMain.handle("fsDiscoverFolderHierarchy", (_, rootPath: string) =>
+        fsDiscoverFolderHierarchy(rootPath),
     );
 
     // - Conversion

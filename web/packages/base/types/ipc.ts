@@ -294,6 +294,20 @@ export interface Electron {
          * The returned paths are guaranteed to use POSIX separators ('/').
          */
         findFiles: (folderPath: string) => Promise<string[]>;
+
+        /**
+         * Discover the folder hierarchy under the given root path.
+         *
+         * This function walks the directory tree starting at {@link rootPath}
+         * and returns information about all folders (directories) in the
+         * hierarchy, including the root folder itself.
+         *
+         * @param rootPath The absolute path to the root folder.
+         *
+         * @returns A flat array of {@link FolderNode}s representing the entire
+         * hierarchy. All paths are guaranteed to use POSIX separators ('/').
+         */
+        discoverFolderHierarchy: (rootPath: string) => Promise<FolderNode[]>;
     };
 
     // - Conversion
@@ -739,7 +753,9 @@ export type CollectionMapping =
     /** All files go into a single collection named after the root directory. */
     | "root"
     /** Each file goes to a collection named after its parent directory. */
-    | "parent";
+    | "parent"
+    /** Each directory in the tree gets its own collection with parent-child relationships. */
+    | "nested";
 
 /**
  * An on-disk file that was synced as part of a folder watch.
@@ -748,6 +764,20 @@ export interface FolderWatchSyncedFile {
     path: string;
     uploadedFileID: number;
     collectionID: number;
+}
+
+/**
+ * Information about a folder node in a hierarchy.
+ *
+ * Returned by {@link Electron.fs.discoverFolderHierarchy}.
+ */
+export interface FolderNode {
+    /** The absolute path to the folder (POSIX separators). */
+    absolutePath: string;
+    /** The relative path from the root (empty string for root itself). */
+    relativePath: string;
+    /** The name of the folder. */
+    name: string;
 }
 
 /**

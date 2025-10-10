@@ -279,6 +279,9 @@ const watchOnRemoveDir = (f: (path: string, watch: FolderWatch) => void) => {
 const fsFindFiles = (folderPath: string) =>
     ipcRenderer.invoke("fsFindFiles", folderPath);
 
+const fsDiscoverFolderHierarchy = (rootPath: string) =>
+    ipcRenderer.invoke("fsDiscoverFolderHierarchy", rootPath);
+
 const watchRemoveListeners = () => {
     ipcRenderer.removeAllListeners("watchAddFile");
     ipcRenderer.removeAllListeners("watchRemoveFile");
@@ -389,6 +392,7 @@ contextBridge.exposeInMainWorld("electron", {
         isDir: fsIsDir,
         statMtime: fsStatMtime,
         findFiles: fsFindFiles,
+        discoverFolderHierarchy: fsDiscoverFolderHierarchy,
     },
 
     // - Conversion
