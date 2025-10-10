@@ -6,9 +6,7 @@ import 'package:photos/theme/ente_theme.dart';
 //https://www.figma.com/design/SYtMyLBs5SAOkTbfMMzhqt/Ente-Visual-Design?node-id=39181-172209&t=3qmSZWpXF3ZC4JGN-1
 
 class NewAlbumListItemWidget extends StatelessWidget {
-  const NewAlbumListItemWidget({
-    super.key,
-  });
+  const NewAlbumListItemWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +38,9 @@ class NewAlbumListItemWidget extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 12),
                   child: Text(
                     AppLocalizations.of(context).newAlbum,
-                    style:
-                        textTheme.body.copyWith(color: colorScheme.textMuted),
+                    style: textTheme.body.copyWith(
+                      color: colorScheme.textMuted,
+                    ),
                   ),
                 ),
               ],

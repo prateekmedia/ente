@@ -27,9 +27,9 @@ class _NoResultWidgetState extends State<NoResultWidget> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    InheritedAllSectionsExamples.of(context)
-        .allSectionsExamplesFuture
-        .then((value) {
+    InheritedAllSectionsExamples.of(context).allSectionsExamplesFuture.then((
+      value,
+    ) {
       if (value.isEmpty) return;
       for (int i = 0; i < searchTypes.length; i++) {
         final querySuggestions = <String>[];
@@ -50,29 +50,24 @@ class _NoResultWidgetState extends State<NoResultWidget> {
   Widget build(BuildContext context) {
     final textTheme = getEnteTextTheme(context);
     final searchTypeAndSuggestion = <Widget>[];
-    searchTypeToQuerySuggestion.forEach(
-      (key, value) {
-        searchTypeAndSuggestion.add(
-          Row(
-            children: [
-              Text(
-                key,
-                style: textTheme.bodyMuted,
+    searchTypeToQuerySuggestion.forEach((key, value) {
+      searchTypeAndSuggestion.add(
+        Row(
+          children: [
+            Text(key, style: textTheme.bodyMuted),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                formatList(value),
+                style: textTheme.miniMuted,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  formatList(value),
-                  style: textTheme.miniMuted,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+            ),
+          ],
+        ),
+      );
+    });
     return Scaffold(
       appBar: AppBar(
         leading: BackButton(
@@ -96,8 +91,9 @@ class _NoResultWidgetState extends State<NoResultWidget> {
                 const SizedBox(height: 6),
                 searchTypeToQuerySuggestion.isNotEmpty
                     ? Text(
-                        AppLocalizations.of(context)
-                            .modifyYourQueryOrTrySearchingFor,
+                        AppLocalizations.of(
+                          context,
+                        ).modifyYourQueryOrTrySearchingFor,
                         style: textTheme.smallMuted,
                       )
                     : const SizedBox.shrink(),

@@ -42,11 +42,11 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
 
   @override
   void initState() {
-    FilesDB.instance
-        .getDeviceCollections(includeCoverThumbnail: true)
-        .then((files) async {
-      _pathIDToItemCount =
-          await FilesDB.instance.getDevicePathIDToImportedFileCount();
+    FilesDB.instance.getDeviceCollections(includeCoverThumbnail: true).then((
+      files,
+    ) async {
+      _pathIDToItemCount = await FilesDB.instance
+          .getDevicePathIDToImportedFileCount();
       setState(() {
         _deviceCollections = files;
         _deviceCollections!.sort((first, second) {
@@ -61,8 +61,9 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
         if (widget.isOnboarding) {
           _selectedDevicePathIDs.addAll(_allDevicePathIDs);
         }
-        _selectedDevicePathIDs
-            .removeWhere((folder) => !_allDevicePathIDs.contains(folder));
+        _selectedDevicePathIDs.removeWhere(
+          (folder) => !_allDevicePathIDs.contains(folder),
+        );
       });
     });
     super.initState();
@@ -73,16 +74,11 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
     return Scaffold(
       appBar: widget.isOnboarding
           ? null
-          : AppBar(
-              elevation: 0,
-              title: const Text(""),
-            ),
+          : AppBar(elevation: 0, title: const Text("")),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(
-            height: 0,
-          ),
+          const SizedBox(height: 0),
           SafeArea(
             child: Container(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
@@ -101,15 +97,15 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
           Padding(
             padding: const EdgeInsets.only(left: 24, right: 48),
             child: Text(
-              AppLocalizations.of(context)
-                  .selectedFoldersWillBeEncryptedAndBackedUp,
-              style:
-                  Theme.of(context).textTheme.bodySmall!.copyWith(height: 1.3),
+              AppLocalizations.of(
+                context,
+              ).selectedFoldersWillBeEncryptedAndBackedUp,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall!.copyWith(height: 1.3),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.all(10),
-          ),
+          const Padding(padding: EdgeInsets.all(10)),
           _deviceCollections == null
               ? const SizedBox.shrink()
               : GestureDetector(
@@ -132,7 +128,8 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
                     ),
                   ),
                   onTap: () {
-                    final hasSelectedAll = _selectedDevicePathIDs.length ==
+                    final hasSelectedAll =
+                        _selectedDevicePathIDs.length ==
                         _allDevicePathIDs.length;
                     // Flip selection
                     if (hasSelectedAll) {
@@ -141,9 +138,9 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
                       _selectedDevicePathIDs.addAll(_allDevicePathIDs);
                     }
                     _deviceCollections!.sort((first, second) {
-                      return first.name
-                          .toLowerCase()
-                          .compareTo(second.name.toLowerCase());
+                      return first.name.toLowerCase().compareTo(
+                        second.name.toLowerCase(),
+                      );
                     });
                     setState(() {});
                   },
@@ -170,10 +167,10 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
                     child: OutlinedButton(
                       onPressed:
                           widget.isOnboarding && _selectedDevicePathIDs.isEmpty
-                              ? null
-                              : () async {
-                                  await updateFolderSettings();
-                                },
+                          ? null
+                          : () async {
+                              await updateFolderSettings();
+                            },
                       child: Text(
                         widget.isFirstBackup
                             ? AppLocalizations.of(context).startBackup
@@ -195,9 +192,7 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Text(
                               AppLocalizations.of(context).skip,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall!
+                              style: Theme.of(context).textTheme.bodySmall!
                                   .copyWith(
                                     decoration: TextDecoration.underline,
                                   ),
@@ -309,9 +304,7 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
           border: Border.all(
             color: Theme.of(context).colorScheme.boxUnSelectColor,
           ),
-          borderRadius: const BorderRadius.all(
-            Radius.circular(12),
-          ),
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
           // color: isSelected
           //     ? Theme.of(context).colorScheme.boxSelectColor
           //     : Theme.of(context).colorScheme.boxUnSelectColor,
@@ -360,10 +353,8 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
                             fontWeight: FontWeight.w600,
                             color: isSelected
                                 ? Colors.white
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.7),
+                                : Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.7),
                           ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 2,
@@ -372,8 +363,9 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
                       const Padding(padding: EdgeInsets.only(top: 2)),
                       Text(
                         (kDebugMode ? 'inApp: $importedCount : device ' : '') +
-                            AppLocalizations.of(context)
-                                .itemCount(count: deviceCollection.count),
+                            AppLocalizations.of(
+                              context,
+                            ).itemCount(count: deviceCollection.count),
                         textAlign: TextAlign.left,
                         style: TextStyle(
                           fontSize: 12,
@@ -434,10 +426,7 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
             Padding(
               padding: const EdgeInsets.all(9),
               child: isSelected
-                  ? const Icon(
-                      Icons.local_police,
-                      color: Colors.white,
-                    )
+                  ? const Icon(Icons.local_police, color: Colors.white)
                   : null,
             ),
           ],

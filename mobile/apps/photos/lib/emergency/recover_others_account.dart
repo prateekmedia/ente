@@ -125,8 +125,10 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
             child: ListView(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     buttonTextAndHeading,
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -138,10 +140,9 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                     "Enter new password for $email account. You will be able "
                     "to use this password to login into $email account.",
                     textAlign: TextAlign.start,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium!
-                        .copyWith(fontSize: 14),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium!.copyWith(fontSize: 14),
                   ),
                 ),
                 const Padding(padding: EdgeInsets.all(12)),
@@ -150,9 +151,7 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                   // password
                   visible: false,
                   child: TextFormField(
-                    autofillHints: const [
-                      AutofillHints.email,
-                    ],
+                    autofillHints: const [AutofillHints.email],
                     autocorrect: false,
                     keyboardType: TextInputType.emailAddress,
                     initialValue: email,
@@ -164,8 +163,9 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                   child: TextFormField(
                     autofillHints: const [AutofillHints.newPassword],
                     decoration: InputDecoration(
-                      fillColor:
-                          _isPasswordValid ? _validFieldValueColor : null,
+                      fillColor: _isPasswordValid
+                          ? _validFieldValueColor
+                          : null,
                       filled: true,
                       hintText: AppLocalizations.of(context).password,
                       contentPadding: const EdgeInsets.all(20),
@@ -189,15 +189,15 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                               },
                             )
                           : _isPasswordValid
-                              ? Icon(
-                                  Icons.check,
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .focusedBorder!
-                                      .borderSide
-                                      .color,
-                                )
-                              : null,
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context)
+                                  .inputDecorationTheme
+                                  .focusedBorder!
+                                  .borderSide
+                                  .color,
+                            )
+                          : null,
                     ),
                     obscureText: !_password1Visible,
                     controller: _passwordController1,
@@ -210,7 +210,8 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                         _passwordStrength = estimatePasswordStrength(password);
                         _isPasswordValid =
                             _passwordStrength >= kMildPasswordStrengthThreshold;
-                        _passwordsMatch = _passwordInInputBox ==
+                        _passwordsMatch =
+                            _passwordInInputBox ==
                             _passwordInInputConfirmationBox;
                       });
                     },
@@ -251,15 +252,15 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                               },
                             )
                           : _passwordsMatch
-                              ? Icon(
-                                  Icons.check,
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .focusedBorder!
-                                      .borderSide
-                                      .color,
-                                )
-                              : null,
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context)
+                                  .inputDecorationTheme
+                                  .focusedBorder!
+                                  .borderSide
+                                  .color,
+                            )
+                          : null,
                       border: UnderlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(6),
@@ -270,7 +271,8 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                       setState(() {
                         _passwordInInputConfirmationBox = cnfPassword;
                         if (_passwordInInputBox != '') {
-                          _passwordsMatch = _passwordInInputBox ==
+                          _passwordsMatch =
+                              _passwordInInputBox ==
                               _passwordInInputConfirmationBox;
                         }
                       });
@@ -278,18 +280,19 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
                   ),
                 ),
                 Opacity(
-                  opacity:
-                      (_passwordInInputBox != '') && _password1InFocus ? 1 : 0,
+                  opacity: (_passwordInInputBox != '') && _password1InFocus
+                      ? 1
+                      : 0,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Text(
                       AppLocalizations.of(context).passwordStrength(
                         passwordStrengthValue: passwordStrengthText,
                       ),
-                      style: TextStyle(
-                        color: passwordStrengthColor,
-                      ),
+                      style: TextStyle(color: passwordStrengthColor),
                     ),
                   ),
                 ),
@@ -334,8 +337,10 @@ class _RecoverOthersAccountState extends State<RecoverOthersAccount> {
       );
       final loginKey = await CryptoUtil.deriveLoginKey(derivedKeyResult.key);
       // Encrypt the key with this derived key
-      final encryptedKeyData =
-          CryptoUtil.encryptSync(masterKey, derivedKeyResult.key);
+      final encryptedKeyData = CryptoUtil.encryptSync(
+        masterKey,
+        derivedKeyResult.key,
+      );
 
       final updatedAttributes = attributes.copyWith(
         kekSalt: CryptoUtil.bin2base64(kekSalt),

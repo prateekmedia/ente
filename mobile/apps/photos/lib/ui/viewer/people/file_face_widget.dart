@@ -66,12 +66,7 @@ class _FileFaceWidgetState extends State<FileFaceWidget> {
           final ImageProvider imageProvider = MemoryImage(snapshot.data!);
           return Stack(
             fit: StackFit.expand,
-            children: [
-              Image(
-                image: imageProvider,
-                fit: BoxFit.cover,
-              ),
-            ],
+            children: [Image(image: imageProvider, fit: BoxFit.cover)],
           );
         } else {
           if (snapshot.hasError) {
@@ -83,9 +78,7 @@ class _FileFaceWidgetState extends State<FileFaceWidget> {
           }
           return widget.thumbnailFallback
               ? ThumbnailWidget(widget.file)
-              : EnteLoadingWidget(
-                  color: getEnteColorScheme(context).fillMuted,
-                );
+              : EnteLoadingWidget(color: getEnteColorScheme(context).fillMuted);
         }
       },
     );
@@ -96,7 +89,8 @@ class _FileFaceWidgetState extends State<FileFaceWidget> {
       return widget.faceCrop;
     }
     try {
-      final Face? faceToUse = widget.face ??
+      final Face? faceToUse =
+          widget.face ??
           await MLDataDB.instance.getCoverFaceForPerson(
             recentFileID: widget.file.uploadedFileID!,
             clusterID: widget.clusterID,

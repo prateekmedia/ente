@@ -66,9 +66,7 @@ class _SearchSectionAllPageState extends State<SearchSectionAllPage> {
           onTap: () {
             Navigator.pop(context);
           },
-          child: const Icon(
-            Icons.arrow_back_outlined,
-          ),
+          child: const Icon(Icons.arrow_back_outlined),
         ),
       ),
       body: Column(
@@ -87,12 +85,12 @@ class _SearchSectionAllPageState extends State<SearchSectionAllPage> {
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
                       final sectionResults = snapshot.data!;
-                      return Text(sectionResults.length.toString())
-                          .animate()
-                          .fadeIn(
-                            duration: const Duration(milliseconds: 150),
-                            curve: Curves.easeIn,
-                          );
+                      return Text(
+                        sectionResults.length.toString(),
+                      ).animate().fadeIn(
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeIn,
+                      );
                     } else {
                       return const SizedBox.shrink();
                     }
@@ -103,10 +101,7 @@ class _SearchSectionAllPageState extends State<SearchSectionAllPage> {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20,
-                horizontal: 16,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               child: FutureBuilder(
                 future: sectionData,
                 builder: (context, snapshot) {
@@ -128,93 +123,103 @@ class _SearchSectionAllPageState extends State<SearchSectionAllPage> {
                       sectionResults.addAll(result.unmatched);
                     }
                     return ListView.separated(
-                      itemBuilder: (context, index) {
-                        if (sectionResults.length == index) {
-                          return SearchableItemPlaceholder(
-                            widget.sectionType,
-                          );
-                        }
-                        if (sectionResults[index] is AlbumSearchResult) {
-                          final albumSectionResult =
-                              sectionResults[index] as AlbumSearchResult;
-                          return SearchableItemWidget(
-                            albumSectionResult,
-                            resultCount:
-                                CollectionsService.instance.getFileCount(
-                              albumSectionResult
-                                  .collectionWithThumbnail.collection,
-                            ),
-                            onResultTap: () {
-                              RecentSearches()
-                                  .add(sectionResults[index].name());
-
-                              routeToPage(
-                                context,
-                                CollectionPage(
-                                  albumSectionResult.collectionWithThumbnail,
-                                  tagPrefix: "searchable_item" +
-                                      albumSectionResult.heroTag(),
-                                ),
+                          itemBuilder: (context, index) {
+                            if (sectionResults.length == index) {
+                              return SearchableItemPlaceholder(
+                                widget.sectionType,
                               );
-                            },
-                          );
-                        }
+                            }
+                            if (sectionResults[index] is AlbumSearchResult) {
+                              final albumSectionResult =
+                                  sectionResults[index] as AlbumSearchResult;
+                              return SearchableItemWidget(
+                                albumSectionResult,
+                                resultCount: CollectionsService.instance
+                                    .getFileCount(
+                                      albumSectionResult
+                                          .collectionWithThumbnail
+                                          .collection,
+                                    ),
+                                onResultTap: () {
+                                  RecentSearches().add(
+                                    sectionResults[index].name(),
+                                  );
 
-                        if (widget.sectionType == SectionType.magic) {
-                          final magicSectionResult =
-                              sectionResults[index] as GenericSearchResult;
-                          return SearchableItemWidget(
-                            magicSectionResult,
-                            onResultTap: () {
-                              RecentSearches()
-                                  .add(sectionResults[index].name());
-                              routeToPage(
-                                context,
-                                MagicResultScreen(
-                                  magicSectionResult.resultFiles(),
-                                  name: magicSectionResult.name(),
-                                  enableGrouping: magicSectionResult
-                                      .params["enableGrouping"]! as bool,
-                                  fileIdToPosMap: magicSectionResult
-                                          .params["fileIdToPosMap"]
-                                      as Map<int, int>,
-                                  heroTag: "searchable_item" +
-                                      magicSectionResult.heroTag(),
-                                  magicFilter: magicSectionResult
-                                          .getHierarchicalSearchFilter()
-                                      as MagicFilter,
-                                ),
+                                  routeToPage(
+                                    context,
+                                    CollectionPage(
+                                      albumSectionResult
+                                          .collectionWithThumbnail,
+                                      tagPrefix:
+                                          "searchable_item" +
+                                          albumSectionResult.heroTag(),
+                                    ),
+                                  );
+                                },
                               );
-                            },
-                          );
-                        } else if (sectionResults[index]
-                            is GenericSearchResult) {
-                          final result =
-                              sectionResults[index] as GenericSearchResult;
-                          return SearchableItemWidget(
-                            sectionResults[index],
-                            onResultTap: result.onResultTap != null
-                                ? () => result.onResultTap!(context)
-                                : null,
-                          );
-                        }
-                        return SearchableItemWidget(
-                          sectionResults[index],
-                        );
-                      },
-                      separatorBuilder: (context, index) {
-                        return const SizedBox(height: 10);
-                      },
-                      itemCount: sectionResults.length +
-                          (widget.sectionType.isCTAVisible ? 1 : 0),
-                      physics: const BouncingScrollPhysics(),
-                      //This cache extend is needed for creating a new album
-                      //using SearchSectionCTATile to work. This is so that
-                      //SearchSectionCTATile doesn't get disposed when keyboard
-                      //is open and the widget is out of view.
-                      cacheExtent:
-                          widget.sectionType == SectionType.album ? 400 : null,
-                    )
+                            }
+
+                            if (widget.sectionType == SectionType.magic) {
+                              final magicSectionResult =
+                                  sectionResults[index] as GenericSearchResult;
+                              return SearchableItemWidget(
+                                magicSectionResult,
+                                onResultTap: () {
+                                  RecentSearches().add(
+                                    sectionResults[index].name(),
+                                  );
+                                  routeToPage(
+                                    context,
+                                    MagicResultScreen(
+                                      magicSectionResult.resultFiles(),
+                                      name: magicSectionResult.name(),
+                                      enableGrouping:
+                                          magicSectionResult
+                                                  .params["enableGrouping"]!
+                                              as bool,
+                                      fileIdToPosMap:
+                                          magicSectionResult
+                                                  .params["fileIdToPosMap"]
+                                              as Map<int, int>,
+                                      heroTag:
+                                          "searchable_item" +
+                                          magicSectionResult.heroTag(),
+                                      magicFilter:
+                                          magicSectionResult
+                                                  .getHierarchicalSearchFilter()
+                                              as MagicFilter,
+                                    ),
+                                  );
+                                },
+                              );
+                            } else if (sectionResults[index]
+                                is GenericSearchResult) {
+                              final result =
+                                  sectionResults[index] as GenericSearchResult;
+                              return SearchableItemWidget(
+                                sectionResults[index],
+                                onResultTap: result.onResultTap != null
+                                    ? () => result.onResultTap!(context)
+                                    : null,
+                              );
+                            }
+                            return SearchableItemWidget(sectionResults[index]);
+                          },
+                          separatorBuilder: (context, index) {
+                            return const SizedBox(height: 10);
+                          },
+                          itemCount:
+                              sectionResults.length +
+                              (widget.sectionType.isCTAVisible ? 1 : 0),
+                          physics: const BouncingScrollPhysics(),
+                          //This cache extend is needed for creating a new album
+                          //using SearchSectionCTATile to work. This is so that
+                          //SearchSectionCTATile doesn't get disposed when keyboard
+                          //is open and the widget is out of view.
+                          cacheExtent: widget.sectionType == SectionType.album
+                              ? 400
+                              : null,
+                        )
                         .animate()
                         .fadeIn(
                           duration: const Duration(milliseconds: 225),
@@ -223,9 +228,7 @@ class _SearchSectionAllPageState extends State<SearchSectionAllPage> {
                         .slide(
                           begin: const Offset(0, -0.01),
                           curve: Curves.easeIn,
-                          duration: const Duration(
-                            milliseconds: 225,
-                          ),
+                          duration: const Duration(milliseconds: 225),
                         );
                   } else {
                     return const EnteLoadingWidget();

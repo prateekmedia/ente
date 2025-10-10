@@ -55,8 +55,8 @@ class _EnableMachineLearningConsentState
                       AppLocalizations.of(context).mlConsentDescription,
                       textAlign: TextAlign.left,
                       style: getEnteTextTheme(context).body.copyWith(
-                            color: getEnteColorScheme(context).textMuted,
-                          ),
+                        color: getEnteColorScheme(context).textMuted,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     GestureDetector(
@@ -76,9 +76,9 @@ class _EnableMachineLearningConsentState
                         AppLocalizations.of(context).mlConsentPrivacy,
                         textAlign: TextAlign.left,
                         style: getEnteTextTheme(context).body.copyWith(
-                              color: getEnteColorScheme(context).textMuted,
-                              decoration: TextDecoration.underline,
-                            ),
+                          color: getEnteColorScheme(context).textMuted,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 36),
@@ -105,8 +105,9 @@ class _EnableMachineLearningConsentState
                                 });
                               },
                               child: Text(
-                                AppLocalizations.of(context)
-                                    .mlConsentConfirmation,
+                                AppLocalizations.of(
+                                  context,
+                                ).mlConsentConfirmation,
                                 style: getEnteTextTheme(context).bodyMuted,
                                 textAlign: TextAlign.left,
                               ),
@@ -135,11 +136,7 @@ class _EnableMachineLearningConsentState
                         Navigator.of(context).pop();
                       },
                     ),
-                    const SafeArea(
-                      child: SizedBox(
-                        height: 12,
-                      ),
-                    ),
+                    const SafeArea(child: SizedBox(height: 12)),
                   ],
                 ),
               ),
@@ -158,10 +155,7 @@ class _EnableMachineLearningConsentState
       Navigator.of(context).pop(true);
     } catch (e) {
       // ignore: unawaited_futures
-      showGenericErrorDialog(
-        context: context,
-        error: e,
-      );
+      showGenericErrorDialog(context: context, error: e);
     }
   }
 }

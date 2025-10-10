@@ -62,9 +62,11 @@ class GalleryGroups {
 
   final List<String> _groupIds = [];
   final Map<String, List<EnteFile>> _groupIdToFilesMap = {};
-  final Map<String,
-          ({GroupType groupType, int startCreationTime, int endCreationTime})>
-      _groupIdToGroupDataMap = {};
+  final Map<
+    String,
+    ({GroupType groupType, int startCreationTime, int endCreationTime})
+  >
+  _groupIdToGroupDataMap = {};
   final Map<double, String> _scrollOffsetToGroupIdMap = {};
   final Map<String, double> _groupIdToScrollOffsetMap = {};
   final List<double> _groupScrollOffsets = [];
@@ -74,9 +76,11 @@ class GalleryGroups {
 
   List<String> get groupIDs => _groupIds;
   Map<String, List<EnteFile>> get groupIDToFilesMap => _groupIdToFilesMap;
-  Map<String,
-          ({GroupType groupType, int startCreationTime, int endCreationTime})>
-      get groupIdToGroupDataMap => _groupIdToGroupDataMap;
+  Map<
+    String,
+    ({GroupType groupType, int startCreationTime, int endCreationTime})
+  >
+  get groupIdToGroupDataMap => _groupIdToGroupDataMap;
   Map<double, String> get scrollOffsetToGroupIdMap => _scrollOffsetToGroupIdMap;
   Map<String, double> get groupIdToScrollOffsetMap => _groupIdToScrollOffsetMap;
   List<FixedExtentSectionLayout> get groupLayouts => _groupLayouts;
@@ -155,12 +159,8 @@ class GalleryGroups {
 
     assert(groupIDs.length == _groupIdToFilesMap.length);
     assert(groupIDs.length == _groupIdToGroupDataMap.length);
-    assert(
-      groupIDs.length == _scrollOffsetToGroupIdMap.length,
-    );
-    assert(
-      groupIDs.length == _groupIdToScrollOffsetMap.length,
-    );
+    assert(groupIDs.length == _scrollOffsetToGroupIdMap.length);
+    assert(groupIDs.length == _groupIdToScrollOffsetMap.length);
     assert(groupIDs.length == _groupScrollOffsets.length);
   }
 
@@ -181,7 +181,8 @@ class GalleryGroups {
       final firstIndex = currentIndex == 0 ? currentIndex : currentIndex + 1;
       final lastIndex = firstIndex + numberOfGridRows;
       final minOffset = currentOffset;
-      final maxOffset = minOffset +
+      final maxOffset =
+          minOffset +
           (numberOfGridRows * tileHeight) +
           (numberOfGridRows - 1) * spacing +
           groupHeaderExtent;
@@ -200,9 +201,10 @@ class GalleryGroups {
             if (rowIndex == firstIndex) {
               if (showGroupHeader) {
                 return GroupHeaderWidget(
-                  title: _groupIdToGroupDataMap[groupID]!
-                      .groupType
-                      .getTitle(context, groupIDToFilesMap[groupID]!.first),
+                  title: _groupIdToGroupDataMap[groupID]!.groupType.getTitle(
+                    context,
+                    groupIDToFilesMap[groupID]!.first,
+                  ),
                   gridSize: crossAxisCount,
                   filesInGroup: groupIDToFilesMap[groupID]!,
                   selectedFiles: selectedFiles,
@@ -243,7 +245,7 @@ class GalleryGroups {
 
                   endOfListReached =
                       filesInGroup[firstIndexOfRowWrtFilesInGroup + i] ==
-                          lastFile;
+                      lastFile;
                   i++;
                 }
               } else {
@@ -288,9 +290,7 @@ class GalleryGroups {
       currentOffset = maxOffset;
     }
 
-    _logger.info(
-      "Built group layouts in ${stopwatch.elapsedMilliseconds} ms",
-    );
+    _logger.info("Built group layouts in ${stopwatch.elapsedMilliseconds} ms");
     stopwatch.stop();
 
     return groupLayouts;
@@ -316,7 +316,7 @@ class GalleryGroups {
         _createNewGroup(groupFiles, yearsInGroups);
       }
     } else {
-// Split allFiles into groups of max length 10 * crossAxisCount for
+      // Split allFiles into groups of max length 10 * crossAxisCount for
       // better performance since SectionedSliverList is used.
       for (int i = 0; i < allFiles.length; i += 10 * crossAxisCount) {
         final end = (i + 10 * crossAxisCount < allFiles.length)
@@ -333,17 +333,14 @@ class GalleryGroups {
     stopwatch.stop();
   }
 
-  void _createNewGroup(
-    List<EnteFile> groupFiles,
-    Set<int> yearsInGroups,
-  ) {
+  void _createNewGroup(List<EnteFile> groupFiles, Set<int> yearsInGroups) {
     final uuid = _uuid.v1();
     _groupIds.add(uuid);
     _groupIdToFilesMap[uuid] = groupFiles;
     _groupIdToGroupDataMap[uuid] = (
       groupType: groupType,
       startCreationTime: groupFiles.first.creationTime!,
-      endCreationTime: groupFiles.last.creationTime!
+      endCreationTime: groupFiles.last.creationTime!,
     );
 
     // For scrollbar divisions
@@ -353,9 +350,7 @@ class GalleryGroups {
       ).year;
       if (!yearsInGroups.contains(yearOfGroup)) {
         yearsInGroups.add(yearOfGroup);
-        _scrollbarDivisions.add(
-          (groupID: uuid, title: yearOfGroup.toString()),
-        );
+        _scrollbarDivisions.add((groupID: uuid, title: yearOfGroup.toString()));
       }
     }
   }

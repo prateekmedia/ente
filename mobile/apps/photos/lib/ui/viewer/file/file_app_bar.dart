@@ -72,8 +72,9 @@ class FileAppBarState extends State<FileAppBar> {
   @override
   void initState() {
     super.initState();
-    _guestViewEventSubscription =
-        Bus.instance.on<GuestViewEvent>().listen((event) {
+    _guestViewEventSubscription = Bus.instance.on<GuestViewEvent>().listen((
+      event,
+    ) {
       setState(() {
         isGuestView = event.isGuestView;
       });
@@ -162,7 +163,8 @@ class FileAppBarState extends State<FileAppBar> {
     final bool isFileUploaded = widget.file.isUploaded;
     bool isFileHidden = false;
     if (isOwnedByUser && isFileUploaded) {
-      isFileHidden = CollectionsService.instance
+      isFileHidden =
+          CollectionsService.instance
               .getCollectionByID(widget.file.collectionID!)
               ?.isHidden() ??
           false;
@@ -181,16 +183,11 @@ class FileAppBarState extends State<FileAppBar> {
       );
     }
     if (!isFileHidden && isFileUploaded) {
-      _actions.add(
-        Center(child: FavoriteWidget(widget.file)),
-      );
+      _actions.add(Center(child: FavoriteWidget(widget.file)));
     }
     if (!isFileUploaded) {
       _actions.add(
-        UploadIconWidget(
-          file: widget.file,
-          key: ValueKey(widget.file.tag),
-        ),
+        UploadIconWidget(file: widget.file, key: ValueKey(widget.file.tag)),
       );
     }
 
@@ -407,8 +404,9 @@ class FileAppBarState extends State<FileAppBar> {
 
   Future<void> _handleHideRequest(BuildContext context) async {
     try {
-      final hideResult =
-          await CollectionsService.instance.hideFiles(context, [widget.file]);
+      final hideResult = await CollectionsService.instance.hideFiles(context, [
+        widget.file,
+      ]);
       if (hideResult) {
         widget.onFileRemoved(widget.file);
       }
@@ -431,11 +429,9 @@ class FileAppBarState extends State<FileAppBar> {
   Future<void> _toggleFileArchiveStatus(EnteFile file) async {
     final bool isArchived =
         widget.file.magicMetadata.visibility == archiveVisibility;
-    await changeVisibility(
-      context,
-      [widget.file],
-      isArchived ? visibleVisibility : archiveVisibility,
-    );
+    await changeVisibility(context, [
+      widget.file,
+    ], isArchived ? visibleVisibility : archiveVisibility);
     if (mounted) {
       setState(() {});
     }
@@ -460,8 +456,10 @@ class FileAppBarState extends State<FileAppBar> {
   }
 
   Future<void> _setAs(EnteFile file) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       final File? fileToSave = await (getFile(file));
@@ -498,11 +496,11 @@ class FileAppBarState extends State<FileAppBar> {
   }
 
   Future<void> _requestAuthentication() async {
-    final hasAuthenticated =
-        await LocalAuthenticationService.instance.requestLocalAuthentication(
-      context,
-      "Please authenticate to view more photos and videos.",
-    );
+    final hasAuthenticated = await LocalAuthenticationService.instance
+        .requestLocalAuthentication(
+          context,
+          "Please authenticate to view more photos and videos.",
+        );
     if (hasAuthenticated) {
       Bus.instance.fire(GuestViewEvent(false, false));
       await localSettings.setOnGuestView(false);
@@ -534,15 +532,14 @@ class FileAppBarState extends State<FileAppBar> {
 
   Future<void> _handleVideoStream(String streamType) async {
     try {
-      final bool wasAdded = await VideoPreviewService.instance
-          .addToManualQueue(widget.file, streamType);
+      final bool wasAdded = await VideoPreviewService.instance.addToManualQueue(
+        widget.file,
+        streamType,
+      );
 
       if (!wasAdded) {
         // File was already in queue
-        showToast(
-          context,
-          AppLocalizations.of(context).videoAlreadyInQueue,
-        );
+        showToast(context, AppLocalizations.of(context).videoAlreadyInQueue);
         return;
       }
 

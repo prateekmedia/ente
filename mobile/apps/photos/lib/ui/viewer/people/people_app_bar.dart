@@ -81,10 +81,11 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
     };
 
     widget.selectedFiles.addListener(_selectedFilesListener);
-    _userAuthEventSubscription =
-        Bus.instance.on<SubscriptionPurchasedEvent>().listen((event) {
-      setState(() {});
-    });
+    _userAuthEventSubscription = Bus.instance
+        .on<SubscriptionPurchasedEvent>()
+        .listen((event) {
+          setState(() {});
+        });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
@@ -93,34 +94,34 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
           if (widget.title == null) {
             _appBarTitle = "Me";
           } else {
-            _appBarTitle = context.l10n
-                .accountOwnerPersonAppbarTitle(title: widget.title!);
+            _appBarTitle = context.l10n.accountOwnerPersonAppbarTitle(
+              title: widget.title!,
+            );
           }
         } else {
           _appBarTitle = widget.title;
         }
 
-        _peopleChangedEventSubscription =
-            Bus.instance.on<PeopleChangedEvent>().listen(
-          (event) {
-            if (event.person != null &&
-                event.type == PeopleEventType.saveOrEditPerson &&
-                widget.person.remoteID == event.person!.remoteID &&
-                (event.source == "linkEmailToPerson" ||
-                    event.source == "reassignMe")) {
-              person = event.person!;
+        _peopleChangedEventSubscription = Bus.instance
+            .on<PeopleChangedEvent>()
+            .listen((event) {
+              if (event.person != null &&
+                  event.type == PeopleEventType.saveOrEditPerson &&
+                  widget.person.remoteID == event.person!.remoteID &&
+                  (event.source == "linkEmailToPerson" ||
+                      event.source == "reassignMe")) {
+                person = event.person!;
 
-              if (person.data.email == Configuration.instance.getEmail()) {
-                _appBarTitle = context.l10n.accountOwnerPersonAppbarTitle(
-                  title: person.data.name,
-                );
-              } else {
-                _appBarTitle = person.data.name;
+                if (person.data.email == Configuration.instance.getEmail()) {
+                  _appBarTitle = context.l10n.accountOwnerPersonAppbarTitle(
+                    title: person.data.name,
+                  );
+                } else {
+                  _appBarTitle = person.data.name;
+                }
+                setState(() {});
               }
-              setState(() {});
-            }
-          },
-        );
+            });
       });
     });
   }
@@ -135,14 +136,16 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
 
   @override
   Widget build(BuildContext context) {
-    final inheritedSearchFilterData =
-        InheritedSearchFilterData.maybeOf(context);
+    final inheritedSearchFilterData = InheritedSearchFilterData.maybeOf(
+      context,
+    );
     final isHierarchicalSearchable =
         inheritedSearchFilterData?.isHierarchicalSearchable ?? false;
     return isHierarchicalSearchable
         ? ValueListenableBuilder(
             valueListenable: inheritedSearchFilterData!
-                .searchFilterDataProvider!.isSearchingNotifier,
+                .searchFilterDataProvider!
+                .isSearchingNotifier,
             child: const PreferredSize(
               preferredSize: Size.fromHeight(0),
               child: Flexible(child: RecommendedFiltersForAppbar()),
@@ -159,10 +162,9 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
                       )
                     : Text(
                         _appBarTitle ?? "",
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall!
-                            .copyWith(fontSize: 16),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineSmall!.copyWith(fontSize: 16),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -177,10 +179,9 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
             centerTitle: false,
             title: Text(
               _appBarTitle ?? "",
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall!
-                  .copyWith(fontSize: 16),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall!.copyWith(fontSize: 16),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -216,104 +217,85 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
     final List<PopupMenuItem<PeoplePopupAction>> items = [];
 
     if (!widget.isIgnored) {
-      items.addAll(
-        [
-          PopupMenuItem(
-            value: PeoplePopupAction.rename,
-            child: Row(
-              children: [
-                const Icon(Icons.edit),
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                ),
-                Text(
-                  AppLocalizations.of(context).edit,
-                  style: textTheme.bodyBold,
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: PeoplePopupAction.reviewSuggestions,
-            child: Row(
-              children: [
-                const Icon(Icons.search_outlined),
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                ),
-                Text(
-                  AppLocalizations.of(context).review,
-                  style: textTheme.bodyBold,
-                ),
-              ],
-            ),
-          ),
-          PopupMenuItem(
-            value: PeoplePopupAction.setCover,
-            child: Row(
-              children: [
-                const Icon(Icons.image_outlined),
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                ),
-                Text(
-                  AppLocalizations.of(context).setCover,
-                  style: textTheme.bodyBold,
-                ),
-              ],
-            ),
-          ),
-          if (widget.person.data.email != null &&
-              (widget.person.data.email == Configuration.instance.getEmail()))
-            PopupMenuItem(
-              value: PeoplePopupAction.reassignMe,
-              child: Row(
-                children: [
-                  const Icon(Icons.person_2_outlined),
-                  const Padding(
-                    padding: EdgeInsets.all(8),
-                  ),
-                  Text(
-                    context.l10n.reassignMe,
-                    style: textTheme.bodyBold,
-                  ),
-                ],
+      items.addAll([
+        PopupMenuItem(
+          value: PeoplePopupAction.rename,
+          child: Row(
+            children: [
+              const Icon(Icons.edit),
+              const Padding(padding: EdgeInsets.all(8)),
+              Text(
+                AppLocalizations.of(context).edit,
+                style: textTheme.bodyBold,
               ),
-            ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: PeoplePopupAction.reviewSuggestions,
+          child: Row(
+            children: [
+              const Icon(Icons.search_outlined),
+              const Padding(padding: EdgeInsets.all(8)),
+              Text(
+                AppLocalizations.of(context).review,
+                style: textTheme.bodyBold,
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: PeoplePopupAction.setCover,
+          child: Row(
+            children: [
+              const Icon(Icons.image_outlined),
+              const Padding(padding: EdgeInsets.all(8)),
+              Text(
+                AppLocalizations.of(context).setCover,
+                style: textTheme.bodyBold,
+              ),
+            ],
+          ),
+        ),
+        if (widget.person.data.email != null &&
+            (widget.person.data.email == Configuration.instance.getEmail()))
           PopupMenuItem(
-            value: PeoplePopupAction.removeLabel,
+            value: PeoplePopupAction.reassignMe,
             child: Row(
               children: [
-                const Icon(Icons.delete_outline),
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                ),
-                Text(
-                  AppLocalizations.of(context).remove,
-                  style: textTheme.bodyBold,
-                ),
+                const Icon(Icons.person_2_outlined),
+                const Padding(padding: EdgeInsets.all(8)),
+                Text(context.l10n.reassignMe, style: textTheme.bodyBold),
               ],
             ),
           ),
-        ],
-      );
+        PopupMenuItem(
+          value: PeoplePopupAction.removeLabel,
+          child: Row(
+            children: [
+              const Icon(Icons.delete_outline),
+              const Padding(padding: EdgeInsets.all(8)),
+              Text(
+                AppLocalizations.of(context).remove,
+                style: textTheme.bodyBold,
+              ),
+            ],
+          ),
+        ),
+      ]);
     } else {
-      items.addAll(
-        [
-          PopupMenuItem(
-            value: PeoplePopupAction.unignore,
-            child: Row(
-              children: [
-                const Icon(Icons.visibility_outlined),
-                const Padding(
-                  padding: EdgeInsets.all(8),
-                ),
-                Text(AppLocalizations.of(context).showPerson),
-              ],
-            ),
+      items.addAll([
+        PopupMenuItem(
+          value: PeoplePopupAction.unignore,
+          child: Row(
+            children: [
+              const Icon(Icons.visibility_outlined),
+              const Padding(padding: EdgeInsets.all(8)),
+              Text(AppLocalizations.of(context).showPerson),
+            ],
           ),
-        ],
-      );
+        ),
+      ]);
     }
 
     if (items.isNotEmpty) {
@@ -377,8 +359,10 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
       firstButtonLabel: "Yes, show person",
       firstButtonOnTap: () async {
         try {
-          await PersonService.instance
-              .deletePerson(widget.person.remoteID, onlyMapping: false);
+          await PersonService.instance.deletePerson(
+            widget.person.remoteID,
+            onlyMapping: false,
+          );
           Bus.instance.fire(PeopleChangedEvent());
           assignName = true;
         } catch (e, s) {
@@ -396,26 +380,15 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
       if (result != null) {
         final person = result is (PersonEntity, EnteFile) ? result.$1 : result;
         // ignore: unawaited_futures
-        routeToPage(
-          context,
-          PeoplePage(
-            person: person,
-            searchResult: null,
-          ),
-        );
+        routeToPage(context, PeoplePage(person: person, searchResult: null));
       }
     }
   }
 
   Future<void> setCoverPhoto(BuildContext context) async {
-    final result = await showPersonAvatarPhotoSheet(
-      context,
-      person,
-    );
+    final result = await showPersonAvatarPhotoSheet(context, person);
     if (result != null) {
-      _logger.info(
-        'Person avatar updated',
-      );
+      _logger.info('Person avatar updated');
       setState(() {
         person = result;
       });
@@ -432,9 +405,7 @@ class _AppBarWidgetState extends State<PeopleAppBar> {
   Future<void> _reassignMe(BuildContext context) async {
     await routeToPage(
       context,
-      ReassignMeSelectionPage(
-        currentMeId: widget.person.remoteID,
-      ),
+      ReassignMeSelectionPage(currentMeId: widget.person.remoteID),
     );
   }
 }

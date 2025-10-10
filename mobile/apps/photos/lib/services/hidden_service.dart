@@ -36,9 +36,7 @@ extension HiddenService on CollectionsService {
         .toList();
 
     if (allDefaultHidden.length > 1) {
-      defaultHidden = await clubAllDefaultHiddenToOne(
-        allDefaultHidden,
-      );
+      defaultHidden = await clubAllDefaultHiddenToOne(allDefaultHidden);
     } else if (allDefaultHidden.length == 1) {
       defaultHidden = allDefaultHidden.first;
     }
@@ -68,8 +66,7 @@ extension HiddenService on CollectionsService {
           hidden.id,
           galleryLoadStartTime,
           galleryLoadEndTime,
-        ))
-            .files;
+        )).files;
         await move(
           filesInCollection,
           toCollectionID: defaultHidden.id,
@@ -96,12 +93,12 @@ extension HiddenService on CollectionsService {
       return cachedUncategorizedCollection!;
     }
     final int userID = config.getUserID()!;
-    final Collection? matchedCollection =
-        collectionIDToCollections.values.firstWhereOrNull(
-      (element) =>
-          element.type == CollectionType.uncategorized &&
-          element.owner.id == userID,
-    );
+    final Collection? matchedCollection = collectionIDToCollections.values
+        .firstWhereOrNull(
+          (element) =>
+              element.type == CollectionType.uncategorized &&
+              element.owner.id == userID,
+        );
     if (matchedCollection != null) {
       cachedUncategorizedCollection = matchedCollection;
       return cachedUncategorizedCollection!;
@@ -116,10 +113,7 @@ extension HiddenService on CollectionsService {
   }) async {
     final int userID = config.getUserID()!;
     final List<int> uploadedIDs = <int>[];
-    final dialog = createProgressDialog(
-      context,
-      "Hiding...",
-    );
+    final dialog = createProgressDialog(context, "Hiding...");
     await dialog.show();
     try {
       for (EnteFile file in filesToHide) {
@@ -133,8 +127,8 @@ extension HiddenService on CollectionsService {
       }
 
       final defaultHiddenCollection = await getDefaultHiddenCollection();
-      final Map<int, List<EnteFile>> collectionToFilesMap =
-          await filesDB.getAllFilesGroupByCollectionID(uploadedIDs);
+      final Map<int, List<EnteFile>> collectionToFilesMap = await filesDB
+          .getAllFilesGroupByCollectionID(uploadedIDs);
       for (MapEntry<int, List<EnteFile>> entry
           in collectionToFilesMap.entries) {
         if (entry.key == defaultHiddenCollection.id) {
@@ -193,8 +187,9 @@ extension HiddenService on CollectionsService {
     _logger.info("Creating Hidden Collection");
     final collection = await createAndCacheCollection(createRequest);
     _logger.info("Creating Hidden Collection Created Successfully");
-    final Collection collectionFromServer =
-        await fetchCollectionByID(collection.id);
+    final Collection collectionFromServer = await fetchCollectionByID(
+      collection.id,
+    );
     _logger.info("Fetched Created Hidden Collection Successfully");
     return collectionFromServer;
   }
@@ -208,16 +203,19 @@ extension HiddenService on CollectionsService {
     _logger.info("Creating Default Hidden Collection");
     final collection = await createAndCacheCollection(createRequest);
     _logger.info("Default Hidden Collection Created Successfully");
-    final Collection collectionFromServer =
-        await fetchCollectionByID(collection.id);
+    final Collection collectionFromServer = await fetchCollectionByID(
+      collection.id,
+    );
     _logger.info("Fetched Created Default Hidden Collection Successfully");
     return collectionFromServer;
   }
 
   Future<Collection> _createUncategorizedCollection() async {
     final uncategorizedCollectionKey = CryptoUtil.generateKey();
-    final encKey =
-        CryptoUtil.encryptSync(uncategorizedCollectionKey, config.getKey()!);
+    final encKey = CryptoUtil.encryptSync(
+      uncategorizedCollectionKey,
+      config.getKey()!,
+    );
     final encName = CryptoUtil.encryptSync(
       utf8.encode("Uncategorized"),
       uncategorizedCollectionKey,
@@ -242,8 +240,10 @@ extension HiddenService on CollectionsService {
     required int subType,
   }) async {
     final collectionKey = CryptoUtil.generateKey();
-    final encryptedKeyData =
-        CryptoUtil.encryptSync(collectionKey, config.getKey()!);
+    final encryptedKeyData = CryptoUtil.encryptSync(
+      collectionKey,
+      config.getKey()!,
+    );
     final encryptedName = CryptoUtil.encryptSync(
       utf8.encode(name),
       collectionKey,

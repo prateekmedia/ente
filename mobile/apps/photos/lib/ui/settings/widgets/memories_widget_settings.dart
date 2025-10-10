@@ -49,12 +49,12 @@ class _MemoriesWidgetSettingsState extends State<MemoriesWidgetSettings> {
   Future<void> initVariables() async {
     _changeMemoriesSettings = Debouncer(const Duration(milliseconds: 2500));
     isMLEnabled = flagService.hasGrantedMLConsent;
-    isYearlyMemoriesEnabled =
-        MemoryHomeWidgetService.instance.hasLastYearMemoriesSelected();
-    isSmartMemoriesEnabled =
-        MemoryHomeWidgetService.instance.getMLMemoriesSelected();
-    isOnThisDayMemoriesEnabled =
-        MemoryHomeWidgetService.instance.getOnThisDayMemoriesSelected();
+    isYearlyMemoriesEnabled = MemoryHomeWidgetService.instance
+        .hasLastYearMemoriesSelected();
+    isSmartMemoriesEnabled = MemoryHomeWidgetService.instance
+        .getMLMemoriesSelected();
+    isOnThisDayMemoriesEnabled = MemoryHomeWidgetService.instance
+        .getOnThisDayMemoriesSelected();
 
     if (isYearlyMemoriesEnabled == null ||
         isSmartMemoriesEnabled == null ||
@@ -83,12 +83,15 @@ class _MemoriesWidgetSettingsState extends State<MemoriesWidgetSettings> {
 
   Future<void> updateVariables() async {
     _changeMemoriesSettings.run(MemoryHomeWidgetService.instance.memoryChanged);
-    await MemoryHomeWidgetService.instance
-        .setLastYearMemoriesSelected(isYearlyMemoriesEnabled!);
-    await MemoryHomeWidgetService.instance
-        .setSelectedMLMemories(isSmartMemoriesEnabled!);
-    await MemoryHomeWidgetService.instance
-        .setOnThisDayMemoriesSelected(isOnThisDayMemoriesEnabled!);
+    await MemoryHomeWidgetService.instance.setLastYearMemoriesSelected(
+      isYearlyMemoriesEnabled!,
+    );
+    await MemoryHomeWidgetService.instance.setSelectedMLMemories(
+      isSmartMemoriesEnabled!,
+    );
+    await MemoryHomeWidgetService.instance.setOnThisDayMemoriesSelected(
+      isOnThisDayMemoriesEnabled!,
+    );
     await MemoryHomeWidgetService.instance.memoryChanged();
   }
 
@@ -141,49 +144,73 @@ class _MemoriesWidgetSettingsState extends State<MemoriesWidgetSettings> {
             )
           else
             SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 18),
-                        MenuItemWidget(
-                          captionedTextWidget: CaptionedTextWidget(
-                            title:
-                                AppLocalizations.of(context).pastYearsMemories,
-                          ),
-                          leadingIconWidget: SvgPicture.asset(
-                            "assets/icons/past-year-memory-icon.svg",
-                            colorFilter: ColorFilter.mode(
-                              colorScheme.textBase,
-                              BlendMode.srcIn,
-                            ),
-                          ),
-                          menuItemColor: colorScheme.fillFaint,
-                          trailingWidget: ToggleSwitchWidget(
-                            value: () => isYearlyMemoriesEnabled ?? true,
-                            onChanged: () async {
-                              setState(() {
-                                isYearlyMemoriesEnabled =
-                                    !isYearlyMemoriesEnabled!;
-                              });
-                              updateVariables().ignore();
-                            },
-                          ),
-                          singleBorderRadius: 8,
-                          isGestureDetectorDisabled: true,
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 18),
+                      MenuItemWidget(
+                        captionedTextWidget: CaptionedTextWidget(
+                          title: AppLocalizations.of(context).pastYearsMemories,
                         ),
+                        leadingIconWidget: SvgPicture.asset(
+                          "assets/icons/past-year-memory-icon.svg",
+                          colorFilter: ColorFilter.mode(
+                            colorScheme.textBase,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        menuItemColor: colorScheme.fillFaint,
+                        trailingWidget: ToggleSwitchWidget(
+                          value: () => isYearlyMemoriesEnabled ?? true,
+                          onChanged: () async {
+                            setState(() {
+                              isYearlyMemoriesEnabled =
+                                  !isYearlyMemoriesEnabled!;
+                            });
+                            updateVariables().ignore();
+                          },
+                        ),
+                        singleBorderRadius: 8,
+                        isGestureDetectorDisabled: true,
+                      ),
+                      const SizedBox(height: 4),
+                      MenuItemWidget(
+                        captionedTextWidget: CaptionedTextWidget(
+                          title: AppLocalizations.of(context).onThisDayMemories,
+                        ),
+                        leadingIconWidget: SvgPicture.asset(
+                          "assets/icons/memories-widget-icon.svg",
+                          colorFilter: ColorFilter.mode(
+                            colorScheme.textBase,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        menuItemColor: colorScheme.fillFaint,
+                        trailingWidget: ToggleSwitchWidget(
+                          value: () => isOnThisDayMemoriesEnabled!,
+                          onChanged: () async {
+                            setState(() {
+                              isOnThisDayMemoriesEnabled =
+                                  !isOnThisDayMemoriesEnabled!;
+                            });
+                            updateVariables().ignore();
+                          },
+                        ),
+                        singleBorderRadius: 8,
+                        isGestureDetectorDisabled: true,
+                      ),
+                      if (isMLEnabled) ...[
                         const SizedBox(height: 4),
                         MenuItemWidget(
                           captionedTextWidget: CaptionedTextWidget(
-                            title:
-                                AppLocalizations.of(context).onThisDayMemories,
+                            title: AppLocalizations.of(context).smartMemories,
                           ),
                           leadingIconWidget: SvgPicture.asset(
-                            "assets/icons/memories-widget-icon.svg",
+                            "assets/icons/smart-memory-icon.svg",
                             colorFilter: ColorFilter.mode(
                               colorScheme.textBase,
                               BlendMode.srcIn,
@@ -191,53 +218,24 @@ class _MemoriesWidgetSettingsState extends State<MemoriesWidgetSettings> {
                           ),
                           menuItemColor: colorScheme.fillFaint,
                           trailingWidget: ToggleSwitchWidget(
-                            value: () => isOnThisDayMemoriesEnabled!,
+                            value: () => isSmartMemoriesEnabled!,
                             onChanged: () async {
                               setState(() {
-                                isOnThisDayMemoriesEnabled =
-                                    !isOnThisDayMemoriesEnabled!;
+                                isSmartMemoriesEnabled =
+                                    !isSmartMemoriesEnabled!;
                               });
+
                               updateVariables().ignore();
                             },
                           ),
                           singleBorderRadius: 8,
                           isGestureDetectorDisabled: true,
                         ),
-                        if (isMLEnabled) ...[
-                          const SizedBox(height: 4),
-                          MenuItemWidget(
-                            captionedTextWidget: CaptionedTextWidget(
-                              title: AppLocalizations.of(context).smartMemories,
-                            ),
-                            leadingIconWidget: SvgPicture.asset(
-                              "assets/icons/smart-memory-icon.svg",
-                              colorFilter: ColorFilter.mode(
-                                colorScheme.textBase,
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                            menuItemColor: colorScheme.fillFaint,
-                            trailingWidget: ToggleSwitchWidget(
-                              value: () => isSmartMemoriesEnabled!,
-                              onChanged: () async {
-                                setState(() {
-                                  isSmartMemoriesEnabled =
-                                      !isSmartMemoriesEnabled!;
-                                });
-
-                                updateVariables().ignore();
-                              },
-                            ),
-                            singleBorderRadius: 8,
-                            isGestureDetectorDisabled: true,
-                          ),
-                        ],
                       ],
-                    ),
-                  );
-                },
-                childCount: 1,
-              ),
+                    ],
+                  ),
+                );
+              }, childCount: 1),
             ),
         ],
       ),

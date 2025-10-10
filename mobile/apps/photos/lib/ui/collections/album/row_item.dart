@@ -44,7 +44,8 @@ class AlbumRowItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isOwner = c.isOwner(Configuration.instance.getUserID()!);
-    final String tagPrefix = (isOwner ? "collection" : "shared_collection") +
+    final String tagPrefix =
+        (isOwner ? "collection" : "shared_collection") +
         tag +
         "_" +
         c.id.toString();
@@ -97,8 +98,8 @@ class AlbumRowItemWidget extends StatelessWidget {
                             } else {
                               //Need to use cached thumbnail so that the hero
                               //animation works as expected.
-                              thumbnail =
-                                  CollectionsService.instance.getCoverCache(c);
+                              thumbnail = CollectionsService.instance
+                                  .getCoverCache(c);
                             }
                             if (thumbnail != null) {
                               final bool isSelected =
@@ -120,9 +121,7 @@ class AlbumRowItemWidget extends StatelessWidget {
                                 child: isSelected
                                     ? ColorFiltered(
                                         colorFilter: ColorFilter.mode(
-                                          Colors.black.withValues(
-                                            alpha: 0.4,
-                                          ),
+                                          Colors.black.withValues(alpha: 0.4),
                                           BlendMode.darken,
                                         ),
                                         child: thumbnailWidget,
@@ -189,8 +188,10 @@ class AlbumRowItemWidget extends StatelessWidget {
                               tag: tagPrefix + "_owner_other",
                               transitionOnUserGestures: true,
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.only(right: 4, bottom: 4),
+                                padding: const EdgeInsets.only(
+                                  right: 4,
+                                  bottom: 4,
+                                ),
                                 child: UserAvatarWidget(
                                   c.owner,
                                   thumbnailView: true,
@@ -223,8 +224,8 @@ class AlbumRowItemWidget extends StatelessWidget {
                     } else {
                       //Need to use cached count so that the hero
                       //animation works as expected without flickering.
-                      cachedCount =
-                          CollectionsService.instance.getCachedFileCount(c);
+                      cachedCount = CollectionsService.instance
+                          .getCachedFileCount(c);
                     }
                   }
                   if (cachedCount != null && cachedCount > 0) {
@@ -246,9 +247,7 @@ class AlbumRowItemWidget extends StatelessWidget {
                         RichText(
                           text: TextSpan(
                             style: enteTextTheme.miniMuted,
-                            children: [
-                              TextSpan(text: textCount),
-                            ],
+                            children: [TextSpan(text: textCount)],
                           ),
                         ),
                       ],

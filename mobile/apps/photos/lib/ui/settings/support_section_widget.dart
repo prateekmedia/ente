@@ -25,8 +25,9 @@ class SupportSectionWidget extends StatelessWidget {
   }
 
   Widget _getSectionOptions(BuildContext context) {
-    final String bugsEmail =
-        Platform.isAndroid ? "android-bugs@ente.io" : "ios-bugs@ente.io";
+    final String bugsEmail = Platform.isAndroid
+        ? "android-bugs@ente.io"
+        : "ios-bugs@ente.io";
     return Column(
       children: [
         sectionOptionSpacing,

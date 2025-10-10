@@ -29,10 +29,7 @@ class DeviceFolderVerticalGridView extends StatelessWidget {
           SliverAppBar(
             elevation: 0,
             title: tag != null
-                ? Hero(
-                    tag: tag!,
-                    child: appTitle ?? const SizedBox.shrink(),
-                  )
+                ? Hero(tag: tag!, child: appTitle ?? const SizedBox.shrink())
                 : appTitle ?? const SizedBox.shrink(),
             floating: true,
           ),
@@ -72,22 +69,24 @@ class _DeviceFolderVerticalGridViewBodyState
   @override
   void initState() {
     super.initState();
-    _backupFoldersUpdatedEvent =
-        Bus.instance.on<BackupFoldersUpdatedEvent>().listen((event) {
-      _loadReason = event.reason;
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    _localFilesSubscription =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
-      _debouncer.run(() async {
-        if (mounted) {
+    _backupFoldersUpdatedEvent = Bus.instance
+        .on<BackupFoldersUpdatedEvent>()
+        .listen((event) {
           _loadReason = event.reason;
-          setState(() {});
-        }
-      });
-    });
+          if (mounted) {
+            setState(() {});
+          }
+        });
+    _localFilesSubscription = Bus.instance.on<LocalPhotosUpdatedEvent>().listen(
+      (event) {
+        _debouncer.run(() async {
+          if (mounted) {
+            _loadReason = event.reason;
+            setState(() {});
+          }
+        });
+      },
+    );
   }
 
   @override
@@ -96,19 +95,22 @@ class _DeviceFolderVerticalGridViewBodyState
       "${(_DeviceFolderVerticalGridViewBody).toString()} - $_loadReason",
     );
     return FutureBuilder<List<DeviceCollection>>(
-      future:
-          FilesDB.instance.getDeviceCollections(includeCoverThumbnail: true),
+      future: FilesDB.instance.getDeviceCollections(
+        includeCoverThumbnail: true,
+      ),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           final double screenWidth = MediaQuery.sizeOf(context).width;
-          final int albumsCountInCrossAxis =
-              max(screenWidth ~/ maxThumbnailWidth, 3);
+          final int albumsCountInCrossAxis = max(
+            screenWidth ~/ maxThumbnailWidth,
+            3,
+          );
 
           final double totalCrossAxisSpacing =
               (albumsCountInCrossAxis - 1) * crossAxisSpacing;
           final double sideOfThumbnail =
               (screenWidth - totalCrossAxisSpacing - horizontalPadding) /
-                  albumsCountInCrossAxis;
+              albumsCountInCrossAxis;
 
           return snapshot.data!.isEmpty
               ? const SliverFillRemaining(child: EmptyState())
@@ -125,16 +127,16 @@ class _DeviceFolderVerticalGridViewBodyState
                       childAspectRatio:
                           sideOfThumbnail / (sideOfThumbnail + 46),
                     ),
-                    delegate: SliverChildBuilderDelegate(
-                      (BuildContext context, int index) {
-                        final deviceCollection = snapshot.data![index];
-                        return DeviceFolderItem(
-                          deviceCollection,
-                          sideOfThumbnail: sideOfThumbnail,
-                        );
-                      },
-                      childCount: snapshot.data!.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((
+                      BuildContext context,
+                      int index,
+                    ) {
+                      final deviceCollection = snapshot.data![index];
+                      return DeviceFolderItem(
+                        deviceCollection,
+                        sideOfThumbnail: sideOfThumbnail,
+                      );
+                    }, childCount: snapshot.data!.length),
                   ),
                 );
         } else if (snapshot.hasError) {

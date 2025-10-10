@@ -65,9 +65,7 @@ class _AddContactPage extends State<AddContactPage> {
     return Scaffold(
       resizeToAvoidBottomInset: isKeypadOpen,
       appBar: AppBar(
-        title: Text(
-          AppLocalizations.of(context).addTrustedContact,
-        ),
+        title: Text(AppLocalizations.of(context).addTrustedContact),
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
@@ -78,8 +76,9 @@ class _AddContactPage extends State<AddContactPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               AppLocalizations.of(context).addANewEmail,
-              style: enteTextTheme.small
-                  .copyWith(color: enteColorScheme.textMuted),
+              style: enteTextTheme.small.copyWith(
+                color: enteColorScheme.textMuted,
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -97,8 +96,9 @@ class _AddContactPage extends State<AddContactPage> {
                   children: [
                     !isEmailListEmpty
                         ? MenuSectionTitle(
-                            title: AppLocalizations.of(context)
-                                .orPickAnExistingOne,
+                            title: AppLocalizations.of(
+                              context,
+                            ).orPickAnExistingOne,
                           )
                         : const SizedBox.shrink(),
                     Expanded(
@@ -110,8 +110,9 @@ class _AddContactPage extends State<AddContactPage> {
                                 vertical: 8.0,
                               ),
                               child: MenuSectionDescriptionWidget(
-                                content: AppLocalizations.of(context)
-                                    .whyAddTrustContact,
+                                content: AppLocalizations.of(
+                                  context,
+                                ).whyAddTrustContact,
                               ),
                             );
                           }
@@ -127,14 +128,16 @@ class _AddContactPage extends State<AddContactPage> {
                                   currentUser,
                                   type: AvatarType.mini,
                                 ),
-                                menuItemColor:
-                                    getEnteColorScheme(context).fillFaint,
-                                pressedColor:
-                                    getEnteColorScheme(context).fillFaint,
+                                menuItemColor: getEnteColorScheme(
+                                  context,
+                                ).fillFaint,
+                                pressedColor: getEnteColorScheme(
+                                  context,
+                                ).fillFaint,
                                 trailingIcon:
                                     (selectedEmail == currentUser.email)
-                                        ? Icons.check
-                                        : null,
+                                    ? Icons.check
+                                    : null,
                                 onTap: () async {
                                   textFieldFocusNode.unfocus();
                                   if (selectedEmail == currentUser.email) {
@@ -152,8 +155,9 @@ class _AddContactPage extends State<AddContactPage> {
                                   ? const SizedBox.shrink()
                                   : DividerWidget(
                                       dividerType: DividerType.menu,
-                                      bgColor:
-                                          getEnteColorScheme(context).fillFaint,
+                                      bgColor: getEnteColorScheme(
+                                        context,
+                                      ).fillFaint,
                                     ),
                             ],
                           );
@@ -186,18 +190,20 @@ class _AddContactPage extends State<AddContactPage> {
                     onTap: (selectedEmail == '' && !_emailIsValid)
                         ? null
                         : () async {
-                            final emailToAdd =
-                                selectedEmail == '' ? _email : selectedEmail;
+                            final emailToAdd = selectedEmail == ''
+                                ? _email
+                                : selectedEmail;
                             final choiceResult = await showChoiceActionSheet(
                               context,
                               title: AppLocalizations.of(context).warning,
                               body: AppLocalizations.of(context)
                                   .confirmAddingTrustedContact(
-                                email: emailToAdd,
-                                numOfDays: 30,
-                              ),
-                              firstButtonLabel:
-                                  AppLocalizations.of(context).proceed,
+                                    email: emailToAdd,
+                                    numOfDays: 30,
+                                  ),
+                              firstButtonLabel: AppLocalizations.of(
+                                context,
+                              ).proceed,
                               isCritical: true,
                             );
                             if (choiceResult != null &&
@@ -213,8 +219,9 @@ class _AddContactPage extends State<AddContactPage> {
                                 await showErrorDialog(
                                   context,
                                   AppLocalizations.of(context).error,
-                                  AppLocalizations.of(context)
-                                      .somethingWentWrong,
+                                  AppLocalizations.of(
+                                    context,
+                                  ).somethingWentWrong,
                                 );
                               }
                             }
@@ -231,8 +238,9 @@ class _AddContactPage extends State<AddContactPage> {
                         );
                         return;
                       }
-                      final emailToAdd =
-                          selectedEmail == '' ? _email : selectedEmail;
+                      final emailToAdd = selectedEmail == ''
+                          ? _email
+                          : selectedEmail;
                       await showDialog(
                         context: context,
                         builder: (BuildContext context) {
@@ -278,8 +286,9 @@ class _AddContactPage extends State<AddContactPage> {
       decoration: InputDecoration(
         focusedBorder: OutlineInputBorder(
           borderRadius: const BorderRadius.all(Radius.circular(4.0)),
-          borderSide:
-              BorderSide(color: getEnteColorScheme(context).strokeMuted),
+          borderSide: BorderSide(
+            color: getEnteColorScheme(context).strokeMuted,
+          ),
         ),
         fillColor: getEnteColorScheme(context).fillFaint,
         filled: true,
@@ -355,9 +364,9 @@ class _AddContactPage extends State<AddContactPage> {
     }
     if (_textController.text.trim().isNotEmpty) {
       suggestedUsers.removeWhere(
-        (element) => !element.email
-            .toLowerCase()
-            .contains(_textController.text.trim().toLowerCase()),
+        (element) => !element.email.toLowerCase().contains(
+          _textController.text.trim().toLowerCase(),
+        ),
       );
     }
     suggestedUsers.sort((a, b) => a.email.compareTo(b.email));

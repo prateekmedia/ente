@@ -10,8 +10,9 @@ class TextEmbeddingsCacheService {
 
   Future<List<double>> getEmbedding(String query) async {
     // 1. Check database cache
-    final dbResult =
-        await MLDataDB.instance.getRepeatedTextEmbeddingCache(query);
+    final dbResult = await MLDataDB.instance.getRepeatedTextEmbeddingCache(
+      query,
+    );
     if (dbResult != null) {
       _logger.info('Text embedding cache hit for query');
       return dbResult;

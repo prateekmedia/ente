@@ -35,25 +35,13 @@ class CollageCreatorPage extends StatelessWidget {
     Widget collage;
     switch (count) {
       case 2:
-        collage = CollageWithTwoItems(
-          files[0],
-          files[1],
-        );
+        collage = CollageWithTwoItems(files[0], files[1]);
         break;
       case 3:
-        collage = CollageWithThreeItems(
-          files[0],
-          files[1],
-          files[2],
-        );
+        collage = CollageWithThreeItems(files[0], files[1], files[2]);
         break;
       case 4:
-        collage = CollageWithFourItems(
-          files[0],
-          files[1],
-          files[2],
-          files[3],
-        );
+        collage = CollageWithFourItems(files[0], files[1], files[2], files[3]);
         break;
       case 5:
         collage = CollageWithFiveItems(
@@ -77,9 +65,6 @@ class CollageCreatorPage extends StatelessWidget {
       default:
         collage = const TestGrid();
     }
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: collage,
-    );
+    return Padding(padding: const EdgeInsets.all(12), child: collage);
   }
 }

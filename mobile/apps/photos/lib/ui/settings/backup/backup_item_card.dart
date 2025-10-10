@@ -16,10 +16,7 @@ import "package:photos/utils/file_uploader.dart";
 import "package:photos/utils/navigation_util.dart";
 
 class BackupItemCard extends StatefulWidget {
-  const BackupItemCard({
-    super.key,
-    required this.item,
-  });
+  const BackupItemCard({super.key, required this.item});
 
   final BackupItem item;
 
@@ -152,8 +149,9 @@ class _BackupItemCardState extends State<BackupItemCard> {
                       buttons: [
                         ButtonWidget(
                           buttonType: ButtonType.primary,
-                          labelText:
-                              AppLocalizations.of(context).contactSupport,
+                          labelText: AppLocalizations.of(
+                            context,
+                          ).contactSupport,
                           buttonAction: ButtonAction.second,
                           onTap: () async {
                             _logger.warning(
@@ -188,53 +186,47 @@ class _BackupItemCardState extends State<BackupItemCard> {
               child: Center(
                 child: switch (widget.item.status) {
                   BackupItemStatus.uploading => SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.0,
-                        color: colorScheme.primary700,
-                      ),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
+                      color: colorScheme.primary700,
                     ),
+                  ),
                   BackupItemStatus.uploaded => const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Icon(
-                        Icons.check,
-                        color: Color(0xFF00B33C),
-                      ),
-                    ),
+                    width: 24,
+                    height: 24,
+                    child: Icon(Icons.check, color: Color(0xFF00B33C)),
+                  ),
                   BackupItemStatus.inQueue => SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Icon(
-                        Icons.history,
-                        color: Theme.of(context).brightness == Brightness.light
-                            ? const Color.fromRGBO(0, 0, 0, .6)
-                            : const Color.fromRGBO(255, 255, 255, .6),
-                      ),
+                    width: 24,
+                    height: 24,
+                    child: Icon(
+                      Icons.history,
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? const Color.fromRGBO(0, 0, 0, .6)
+                          : const Color.fromRGBO(255, 255, 255, .6),
                     ),
+                  ),
                   BackupItemStatus.retry => IconButton(
-                      icon: const Icon(
-                        Icons.sync,
-                        color: Color(0xFFFDB816),
-                      ),
-                      onPressed: () async {
-                        await FileUploader.instance.upload(
-                          widget.item.file,
-                          widget.item.collectionID,
-                        );
-                      },
-                    ),
+                    icon: const Icon(Icons.sync, color: Color(0xFFFDB816)),
+                    onPressed: () async {
+                      await FileUploader.instance.upload(
+                        widget.item.file,
+                        widget.item.collectionID,
+                      );
+                    },
+                  ),
                   BackupItemStatus.inBackground => SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.0,
-                        color: Theme.of(context).brightness == Brightness.light
-                            ? const Color.fromRGBO(0, 0, 0, .6)
-                            : const Color.fromRGBO(255, 255, 255, .6),
-                      ),
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? const Color.fromRGBO(0, 0, 0, .6)
+                          : const Color.fromRGBO(255, 255, 255, .6),
                     ),
+                  ),
                 },
               ),
             ),

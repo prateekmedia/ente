@@ -36,8 +36,9 @@ class ClipImageEncoder extends MlModel {
     final startTime = DateTime.now();
     final inputList = await preprocessImageClip(dim, rawRgbaBytes);
     final preprocessingTime = DateTime.now();
-    final preprocessingMs =
-        preprocessingTime.difference(startTime).inMilliseconds;
+    final preprocessingMs = preprocessingTime
+        .difference(startTime)
+        .inMilliseconds;
     late List<double> result;
     try {
       if (MlModel.usePlatformPlugin) {
@@ -66,8 +67,12 @@ class ClipImageEncoder extends MlModel {
     Float32List inputList,
     int sessionAddress,
   ) {
-    final inputOrt =
-        OrtValueTensor.createTensorWithDataList(inputList, [1, 3, 256, 256]);
+    final inputOrt = OrtValueTensor.createTensorWithDataList(inputList, [
+      1,
+      3,
+      256,
+      256,
+    ]);
     final inputs = {'input': inputOrt};
     final session = OrtSession.fromAddress(sessionAddress);
     final runOptions = OrtRunOptions();
@@ -86,10 +91,7 @@ class ClipImageEncoder extends MlModel {
     Float32List inputList,
   ) async {
     final OnnxDart plugin = OnnxDart();
-    final result = await plugin.predict(
-      inputList,
-      _modelName,
-    );
+    final result = await plugin.predict(inputList, _modelName);
     final List<double> embedding = result!.sublist(0, 512);
     normalizeEmbedding(embedding);
     return embedding;

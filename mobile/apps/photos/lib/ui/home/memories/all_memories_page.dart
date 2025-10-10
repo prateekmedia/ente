@@ -55,8 +55,8 @@ class _AllMemoriesPageState extends State<AllMemoriesPage>
         itemBuilder: (context, index) {
           final initialMemoryIndex =
               widget.isFromWidgetOrNotifications && isFirstLoad
-                  ? widget.inititalFileIndex
-                  : _getNextMemoryIndex(index);
+              ? widget.inititalFileIndex
+              : _getNextMemoryIndex(index);
           isFirstLoad = false;
           return FullScreenMemoryDataUpdater(
             initialIndex: initialMemoryIndex,
@@ -66,15 +66,15 @@ class _AllMemoriesPageState extends State<AllMemoriesPage>
               initialMemoryIndex,
               onNextMemory: index < widget.allMemories.length - 1
                   ? () => pageController.nextPage(
-                        duration: const Duration(milliseconds: 675),
-                        curve: Curves.easeOutQuart,
-                      )
+                      duration: const Duration(milliseconds: 675),
+                      curve: Curves.easeOutQuart,
+                    )
                   : null,
               onPreviousMemory: index > 0
                   ? () => pageController.previousPage(
-                        duration: const Duration(milliseconds: 675),
-                        curve: Curves.easeOutQuart,
-                      )
+                      duration: const Duration(milliseconds: 675),
+                      curve: Curves.easeOutQuart,
+                    )
                   : null,
             ),
           );

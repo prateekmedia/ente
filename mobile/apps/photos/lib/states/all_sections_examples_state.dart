@@ -52,8 +52,9 @@ class _AllSectionsExamplesProviderState
     _filesUpdatedEvent = Bus.instance.on<FilesUpdatedEvent>().listen((event) {
       onDataUpdate();
     });
-    _onPeopleChangedEvent =
-        Bus.instance.on<PeopleChangedEvent>().listen((event) {
+    _onPeopleChangedEvent = Bus.instance.on<PeopleChangedEvent>().listen((
+      event,
+    ) {
       onDataUpdate();
     });
     _tabChangeEvent = Bus.instance.on<TabChangedEvent>().listen((event) {

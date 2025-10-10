@@ -32,12 +32,11 @@ class AlbumColumnItemWidget extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
         border: Border.all(
-          color:
-              isSelected ? colorScheme.strokeMuted : colorScheme.strokeFainter,
+          color: isSelected
+              ? colorScheme.strokeMuted
+              : colorScheme.strokeFainter,
         ),
-        borderRadius: const BorderRadius.all(
-          Radius.circular(6),
-        ),
+        borderRadius: const BorderRadius.all(Radius.circular(6)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -63,9 +62,7 @@ class AlbumColumnItemWidget extends StatelessWidget {
                             shouldShowOwnerAvatar: false,
                           );
                         } else {
-                          return const NoThumbnailWidget(
-                            addBorder: false,
-                          );
+                          return const NoThumbnailWidget(addBorder: false);
                         }
                       },
                     ),
@@ -83,15 +80,17 @@ class AlbumColumnItemWidget extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         FutureBuilder<int>(
-                          future: CollectionsService.instance
-                              .getFileCount(collection),
+                          future: CollectionsService.instance.getFileCount(
+                            collection,
+                          ),
                           builder: (context, snapshot) {
                             if (snapshot.hasData) {
                               return Text(
                                 AppLocalizations.of(context).memoryCount(
                                   count: snapshot.data!,
-                                  formattedCount:
-                                      NumberFormat().format(snapshot.data!),
+                                  formattedCount: NumberFormat().format(
+                                    snapshot.data!,
+                                  ),
                                 ),
                                 style: textTheme.miniMuted,
                               );

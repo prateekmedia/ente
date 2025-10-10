@@ -76,11 +76,7 @@ class LocationService {
     w.log('start for files ${allFiles.length} and query $query');
     final result = await _computer.compute(
       getCityResults,
-      param: {
-        "query": query,
-        "cities": _cities,
-        "files": allFiles,
-      },
+      param: {"query": query, "cities": _cities, "files": allFiles},
     );
     w.log(
       'end for query: $query  on ${allFiles.length} files, found '
@@ -145,9 +141,7 @@ class LocationService {
             fileCoordinates.longitude! - locationTag.centerPoint.longitude!;
         if ((x * x) / (locationTag.aSquare) + (y * y) / (locationTag.bSquare) <=
             1) {
-          result.add(
-            locationTagEntity,
-          );
+          result.add(locationTagEntity);
         }
       }
       return result;
@@ -233,14 +227,8 @@ class LocationService {
 
   Future<void> deleteLocationTag(String locTagEntityId) async {
     try {
-      await entityService.deleteEntry(
-        locTagEntityId,
-      );
-      Bus.instance.fire(
-        LocationTagUpdatedEvent(
-          LocTagEventType.delete,
-        ),
-      );
+      await entityService.deleteEntry(locTagEntityId);
+      Bus.instance.fire(LocationTagUpdatedEvent(LocTagEventType.delete));
     } catch (e, s) {
       _logger.severe("Failed to delete location tag", e, s);
       rethrow;
@@ -249,19 +237,23 @@ class LocationService {
 
   Future<void> _loadCities() async {
     try {
-      final file =
-          await RemoteAssetsService.instance.getAsset(kCitiesRemotePath);
+      final file = await RemoteAssetsService.instance.getAsset(
+        kCitiesRemotePath,
+      );
       final startTime = DateTime.now();
-      _cities =
-          await _computer.compute(parseCities, param: {"filePath": file.path});
+      _cities = await _computer.compute(
+        parseCities,
+        param: {"filePath": file.path},
+      );
       final endTime = DateTime.now();
       _logger.info(
         "Loaded cities in ${(endTime.millisecondsSinceEpoch - startTime.millisecondsSinceEpoch)}ms, reloadingDiscovery: $reloadLocationDiscoverySection",
       );
       if (reloadLocationDiscoverySection) {
         reloadLocationDiscoverySection = false;
-        Bus.instance
-            .fire(LocationTagUpdatedEvent(LocTagEventType.dataSetLoaded));
+        Bus.instance.fire(
+          LocationTagUpdatedEvent(LocTagEventType.dataSetLoaded),
+        );
       }
     } catch (e, s) {
       _logger.severe("Failed to load cities", e, s);
@@ -269,9 +261,7 @@ class LocationService {
   }
 }
 
-Map<LocationTag, int> _getLocationTagsToOccurenceForIsolate(
-  Map args,
-) {
+Map<LocationTag, int> _getLocationTagsToOccurenceForIsolate(Map args) {
   final List<EnteFile> files = args["files"];
 
   final locationTagToOccurence = <LocationTag, int>{};
@@ -309,8 +299,9 @@ Future<List<City>> parseCities(Map args) async {
   final citiesJson = json.decode(await file.readAsString());
 
   final List<dynamic> jsonData = citiesJson['data'];
-  final cities =
-      jsonData.map<City>((jsonItem) => City.fromMap(jsonItem)).toList();
+  final cities = jsonData
+      .map<City>((jsonItem) => City.fromMap(jsonItem))
+      .toList();
   return cities;
 }
 
@@ -320,9 +311,7 @@ Map<City, List<EnteFile>> getCityResults(Map args) {
   final List<EnteFile> files = args["files"] as List<EnteFile>;
 
   final matchingCities = cities
-      .where(
-        (city) => city.city.toLowerCase().contains(query),
-      )
+      .where((city) => city.city.toLowerCase().contains(query))
       .toList();
 
   final Map<City, List<EnteFile>> results = {};
@@ -369,7 +358,8 @@ double calculateDistance(Location point1, Location point2) {
   final dLong = long2 - long1;
 
   // Haversine formula
-  final a = sin(dLat / 2) * sin(dLat / 2) +
+  final a =
+      sin(dLat / 2) * sin(dLat / 2) +
       cos(lat1) * cos(lat2) * sin(dLong / 2) * sin(dLong / 2);
 
   // Angular distance in radians

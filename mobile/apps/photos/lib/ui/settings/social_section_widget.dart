@@ -27,57 +27,53 @@ class SocialSectionWidget extends StatelessWidget {
     final result = updateService.getRateDetails();
     final String ratePlace = result.item1;
     final String rateUrl = result.item2;
-    options.addAll(
-      [
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).rateUsOnStore(storeName: ratePlace),
-          rateUrl,
-        ),
-        sectionOptionSpacing,
-      ],
-    );
-    options.addAll(
-      [
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).blog,
-          "https://ente.io/blog",
-          launchInExternalApp: !Platform.isAndroid,
-        ),
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).merchandise,
-          "https://shop.ente.io",
-          launchInExternalApp: !Platform.isAndroid,
-        ),
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).twitter,
-          "https://twitter.com/enteio",
-        ),
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).mastodon,
-          "https://fosstodon.org/@ente",
-        ),
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).matrix,
-          "https://ente.io/matrix/",
-        ),
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).discord,
-          "https://ente.io/discord",
-        ),
-        sectionOptionSpacing,
-        SocialsMenuItemWidget(
-          AppLocalizations.of(context).reddit,
-          "https://reddit.com/r/enteio",
-        ),
-        sectionOptionSpacing,
-      ],
-    );
+    options.addAll([
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).rateUsOnStore(storeName: ratePlace),
+        rateUrl,
+      ),
+      sectionOptionSpacing,
+    ]);
+    options.addAll([
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).blog,
+        "https://ente.io/blog",
+        launchInExternalApp: !Platform.isAndroid,
+      ),
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).merchandise,
+        "https://shop.ente.io",
+        launchInExternalApp: !Platform.isAndroid,
+      ),
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).twitter,
+        "https://twitter.com/enteio",
+      ),
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).mastodon,
+        "https://fosstodon.org/@ente",
+      ),
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).matrix,
+        "https://ente.io/matrix/",
+      ),
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).discord,
+        "https://ente.io/discord",
+      ),
+      sectionOptionSpacing,
+      SocialsMenuItemWidget(
+        AppLocalizations.of(context).reddit,
+        "https://reddit.com/r/enteio",
+      ),
+      sectionOptionSpacing,
+    ]);
 
     return Column(children: options);
   }
@@ -98,9 +94,7 @@ class SocialsMenuItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MenuItemWidget(
-      captionedTextWidget: CaptionedTextWidget(
-        title: text,
-      ),
+      captionedTextWidget: CaptionedTextWidget(title: text),
       pressedColor: getEnteColorScheme(context).fillFaint,
       trailingIcon: Icons.chevron_right_outlined,
       trailingIconIsMuted: true,

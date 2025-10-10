@@ -182,8 +182,9 @@ class EmergencyContactService {
         _config.getSecretKey()!,
       );
       final String hexRecoveryKey = CryptoUtil.bin2hex(decryptedKey);
-      final KeyAttributes keyAttributes =
-          KeyAttributes.fromMap(resp.data['userKeyAttr']);
+      final KeyAttributes keyAttributes = KeyAttributes.fromMap(
+        resp.data['userKeyAttr'],
+      );
       return (hexRecoveryKey, keyAttributes);
     } catch (e, s) {
       Logger("EmergencyContact").severe('failed to stop recovery', e, s);
@@ -232,10 +233,12 @@ class EmergencyContactService {
         },
       );
       if (response.statusCode == 200) {
-        final SetupSRPResponse setupSRPResponse =
-            SetupSRPResponse.fromJson(response.data);
-        final serverB =
-            SRP6Util.decodeBigInt(base64Decode(setupSRPResponse.srpB));
+        final SetupSRPResponse setupSRPResponse = SetupSRPResponse.fromJson(
+          response.data,
+        );
+        final serverB = SRP6Util.decodeBigInt(
+          base64Decode(setupSRPResponse.srpB),
+        );
 
         // ignore: unused_local_variable
         final clientS = client.calculateSecret(serverB);

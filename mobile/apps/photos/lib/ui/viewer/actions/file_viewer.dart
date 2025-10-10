@@ -65,9 +65,7 @@ class FileViewerState extends State<FileViewer> {
     );
     controller!.addListener(() {
       if (!controller!.isFullScreen) {
-        SystemChrome.setPreferredOrientations(
-          [DeviceOrientation.portraitUp],
-        );
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       }
     });
   }

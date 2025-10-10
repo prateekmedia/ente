@@ -39,26 +39,20 @@ class GalleryGroupTypePickerPage extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                        child: ItemsWidget(),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      child: ItemsWidget(),
+                    ),
+                  ],
+                ),
+              );
+            }, childCount: 1),
           ),
           const SliverPadding(padding: EdgeInsets.symmetric(vertical: 12)),
         ],
@@ -78,9 +72,7 @@ class _ItemsWidgetState extends State<ItemsWidget> {
   late GroupType currentGroupType;
   List<Widget> items = [];
   final groupTypes = GroupType.values
-      .where(
-        (type) => type != GroupType.size && type != GroupType.none,
-      )
+      .where((type) => type != GroupType.size && type != GroupType.none)
       .toList();
 
   @override
@@ -93,9 +85,7 @@ class _ItemsWidgetState extends State<ItemsWidget> {
   Widget build(BuildContext context) {
     items.clear();
     for (final groupType in groupTypes) {
-      items.add(
-        _menuItemForPicker(groupType),
-      );
+      items.add(_menuItemForPicker(groupType));
     }
     items = addSeparators(
       items,
@@ -104,33 +94,28 @@ class _ItemsWidgetState extends State<ItemsWidget> {
         bgColor: getEnteColorScheme(context).fillFaint,
       ),
     );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: items,
-    );
+    return Column(mainAxisSize: MainAxisSize.min, children: items);
   }
 
   Widget _menuItemForPicker(GroupType groupType) {
     return MenuItemWidget(
       key: ValueKey(groupType.name),
       menuItemColor: getEnteColorScheme(context).fillFaint,
-      captionedTextWidget: CaptionedTextWidget(
-        title: groupType.name,
-      ),
+      captionedTextWidget: CaptionedTextWidget(title: groupType.name),
       trailingIcon: currentGroupType == groupType ? Icons.check : null,
       alignCaptionedTextToLeft: true,
       isTopBorderRadiusRemoved: true,
       isBottomBorderRadiusRemoved: true,
       showOnlyLoadingState: true,
       onTap: () async {
-        await localSettings.setGalleryGroupType(groupType).then(
+        await localSettings
+            .setGalleryGroupType(groupType)
+            .then(
               (value) => setState(() {
                 currentGroupType = groupType;
               }),
             );
-        Bus.instance.fire(
-          ForceReloadHomeGalleryEvent("group type changed"),
-        );
+        Bus.instance.fire(ForceReloadHomeGalleryEvent("group type changed"));
       },
     );
   }

@@ -42,7 +42,7 @@ class HomeGalleryWidget extends StatefulWidget {
 
 class _HomeGalleryWidgetState extends State<HomeGalleryWidget> {
   late final StreamSubscription<HideSharedItemsFromHomeGalleryEvent>
-      _hideSharedFilesFromHomeSubscription;
+  _hideSharedFilesFromHomeSubscription;
   bool _shouldHideSharedItems = localSettings.hideSharedItemsFromHomeGallery;
 
   /// This deboucner is to delay the UI update of the shared items toggle
@@ -56,15 +56,16 @@ class _HomeGalleryWidgetState extends State<HomeGalleryWidget> {
   @override
   void initState() {
     super.initState();
-    _hideSharedFilesFromHomeSubscription =
-        Bus.instance.on<HideSharedItemsFromHomeGalleryEvent>().listen((event) {
-      localSettings.setHideSharedItemsFromHomeGallery(event.shouldHide);
-      _hideSharedItemsToggleDebouncer.run(() async {
-        setState(() {
-          _shouldHideSharedItems = event.shouldHide;
+    _hideSharedFilesFromHomeSubscription = Bus.instance
+        .on<HideSharedItemsFromHomeGalleryEvent>()
+        .listen((event) {
+          localSettings.setHideSharedItemsFromHomeGallery(event.shouldHide);
+          _hideSharedItemsToggleDebouncer.run(() async {
+            setState(() {
+              _shouldHideSharedItems = event.shouldHide;
+            });
+          });
         });
-      });
-    });
   }
 
   @override
@@ -80,10 +81,10 @@ class _HomeGalleryWidgetState extends State<HomeGalleryWidget> {
       key: ValueKey(_shouldHideSharedItems),
       asyncLoader: (creationStartTime, creationEndTime, {limit, asc}) async {
         final ownerID = Configuration.instance.getUserID();
-        final hasSelectedAllForBackup =
-            Configuration.instance.hasSelectedAllFoldersForBackup();
-        final collectionsToHide =
-            CollectionsService.instance.archivedOrHiddenCollectionIds();
+        final hasSelectedAllForBackup = Configuration.instance
+            .hasSelectedAllFoldersForBackup();
+        final collectionsToHide = CollectionsService.instance
+            .archivedOrHiddenCollectionIds();
         FileLoadResult result;
         final DBFilterOptions filterOptions = DBFilterOptions(
           hideIgnoredForUpload: true,

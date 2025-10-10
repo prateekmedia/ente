@@ -38,110 +38,111 @@ class NotificationSettingsScreen extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          children: [
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context)
-                                    .sharedPhotoNotifications,
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              trailingWidget: ToggleSwitchWidget(
-                                value: () =>
-                                    NotificationService.instance
-                                        .hasGrantedPermissions() &&
-                                    NotificationService.instance
-                                        .shouldShowNotificationsForSharedPhotos(),
-                                onChanged: () async {
-                                  await NotificationService.instance
-                                      .requestPermissions();
-                                  await NotificationService.instance
-                                      .setShouldShowNotificationsForSharedPhotos(
-                                    !NotificationService.instance
-                                        .shouldShowNotificationsForSharedPhotos(),
-                                  );
-                                },
-                              ),
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              isGestureDetectorDisabled: true,
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        children: [
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(
+                                context,
+                              ).sharedPhotoNotifications,
                             ),
-                            MenuSectionDescriptionWidget(
-                              content: AppLocalizations.of(context)
-                                  .sharedPhotoNotificationsExplanation,
+                            menuItemColor: colorScheme.fillFaint,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () =>
+                                  NotificationService.instance
+                                      .hasGrantedPermissions() &&
+                                  NotificationService.instance
+                                      .shouldShowNotificationsForSharedPhotos(),
+                              onChanged: () async {
+                                await NotificationService.instance
+                                    .requestPermissions();
+                                await NotificationService.instance
+                                    .setShouldShowNotificationsForSharedPhotos(
+                                      !NotificationService.instance
+                                          .shouldShowNotificationsForSharedPhotos(),
+                                    );
+                              },
                             ),
-                            sectionOptionSpacing,
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context)
-                                    .onThisDayMemories,
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              trailingWidget: ToggleSwitchWidget(
-                                value: () =>
-                                    NotificationService.instance
-                                        .hasGrantedPermissions() &&
-                                    localSettings
-                                        .isOnThisDayNotificationsEnabled,
-                                onChanged: () async {
-                                  await NotificationService.instance
-                                      .requestPermissions();
-                                  await memoriesCacheService
-                                      .toggleOnThisDayNotifications();
-                                },
-                              ),
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              isGestureDetectorDisabled: true,
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            isGestureDetectorDisabled: true,
+                          ),
+                          MenuSectionDescriptionWidget(
+                            content: AppLocalizations.of(
+                              context,
+                            ).sharedPhotoNotificationsExplanation,
+                          ),
+                          sectionOptionSpacing,
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(
+                                context,
+                              ).onThisDayMemories,
                             ),
-                            MenuSectionDescriptionWidget(
-                              content: AppLocalizations.of(context)
-                                  .onThisDayNotificationExplanation,
+                            menuItemColor: colorScheme.fillFaint,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () =>
+                                  NotificationService.instance
+                                      .hasGrantedPermissions() &&
+                                  localSettings.isOnThisDayNotificationsEnabled,
+                              onChanged: () async {
+                                await NotificationService.instance
+                                    .requestPermissions();
+                                await memoriesCacheService
+                                    .toggleOnThisDayNotifications();
+                              },
                             ),
-                            sectionOptionSpacing,
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context).birthdays,
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              trailingWidget: ToggleSwitchWidget(
-                                value: () =>
-                                    NotificationService.instance
-                                        .hasGrantedPermissions() &&
-                                    localSettings.birthdayNotificationsEnabled,
-                                onChanged: () async {
-                                  await NotificationService.instance
-                                      .requestPermissions();
-                                  await memoriesCacheService
-                                      .toggleBirthdayNotifications();
-                                },
-                              ),
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              isGestureDetectorDisabled: true,
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            isGestureDetectorDisabled: true,
+                          ),
+                          MenuSectionDescriptionWidget(
+                            content: AppLocalizations.of(
+                              context,
+                            ).onThisDayNotificationExplanation,
+                          ),
+                          sectionOptionSpacing,
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(context).birthdays,
                             ),
-                            MenuSectionDescriptionWidget(
-                              content: AppLocalizations.of(context)
-                                  .receiveRemindersOnBirthdays,
+                            menuItemColor: colorScheme.fillFaint,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () =>
+                                  NotificationService.instance
+                                      .hasGrantedPermissions() &&
+                                  localSettings.birthdayNotificationsEnabled,
+                              onChanged: () async {
+                                await NotificationService.instance
+                                    .requestPermissions();
+                                await memoriesCacheService
+                                    .toggleBirthdayNotifications();
+                              },
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            isGestureDetectorDisabled: true,
+                          ),
+                          MenuSectionDescriptionWidget(
+                            content: AppLocalizations.of(
+                              context,
+                            ).receiveRemindersOnBirthdays,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                );
-              },
-              childCount: 1,
-            ),
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),

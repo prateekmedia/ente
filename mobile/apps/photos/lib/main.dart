@@ -75,16 +75,10 @@ void main() async {
 
   if (Platform.isAndroid) FlutterDisplayMode.setHighRefreshRate().ignore();
   SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      systemNavigationBarColor: Color(0x00010000),
-    ),
+    const SystemUiOverlayStyle(systemNavigationBarColor: Color(0x00010000)),
   );
 
-  unawaited(
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.edgeToEdge,
-    ),
-  );
+  unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
 }
 
 Future<void> _runInForeground(AdaptiveThemeMode? savedThemeMode) async {
@@ -97,7 +91,8 @@ Future<void> _runInForeground(AdaptiveThemeMode? savedThemeMode) async {
       AppLock(
         builder: (args) => EnteApp(locale, savedThemeMode),
         lockScreen: const LockScreen(),
-        enabled: await Configuration.instance.shouldShowLockScreen() ||
+        enabled:
+            await Configuration.instance.shouldShowLockScreen() ||
             localSettings.isOnGuestView(),
         locale: locale,
         lightTheme: lightThemeData,
@@ -282,11 +277,7 @@ Future<void> _init(bool isBackground, {String via = ''}) async {
     _logger.info("PushService/HomeWidget done $tlog");
     unawaited(SemanticSearchService.instance.init());
     unawaited(MLService.instance.init());
-    await PersonService.init(
-      entityService,
-      MLDataDB.instance,
-      preferences,
-    );
+    await PersonService.init(entityService, MLDataDB.instance, preferences);
     EnteWakeLockService.instance.init(preferences);
     logLocalSettings();
     initComplete = true;
@@ -310,8 +301,9 @@ void logLocalSettings() {
         VideoPreviewService.instance.isVideoStreamingEnabled,
   };
 
-  final formattedSettings =
-      settings.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+  final formattedSettings = settings.entries
+      .map((e) => '${e.key}: ${e.value}')
+      .join(', ');
   _logger.info('Local settings - $formattedSettings');
 }
 
@@ -414,16 +406,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
   } else {
     // App is dead
-    runWithLogs(
-      () async {
-        _logger.info("Background push received");
-        await _init(true, via: 'firebasePush');
-        if (PushService.shouldSync(message)) {
-          await _sync('firebaseBgSyncNoActiveProcess');
-        }
-      },
-      prefix: "[fbg]",
-    ).ignore();
+    runWithLogs(() async {
+      _logger.info("Background push received");
+      await _init(true, via: 'firebasePush');
+      if (PushService.shouldSync(message)) {
+        await _sync('firebaseBgSyncNoActiveProcess');
+      }
+    }, prefix: "[fbg]").ignore();
   }
 }
 

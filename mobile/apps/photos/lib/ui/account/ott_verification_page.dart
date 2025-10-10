@@ -59,8 +59,9 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
                   currentStep: 2,
                   selectedColor: Theme.of(context).colorScheme.greenAlternative,
                   roundedEdges: const Radius.circular(10),
-                  unselectedColor:
-                      Theme.of(context).colorScheme.stepProgressUnselectedColor,
+                  unselectedColor: Theme.of(
+                    context,
+                  ).colorScheme.stepProgressUnselectedColor,
                 ),
               )
             : null,
@@ -117,18 +118,18 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
                         Padding(
                           padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
                           child: StyledText(
-                            text: AppLocalizations.of(context)
-                                .weHaveSendEmailTo(email: widget.email),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium!
-                                .copyWith(fontSize: 14),
+                            text: AppLocalizations.of(
+                              context,
+                            ).weHaveSendEmailTo(email: widget.email),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium!.copyWith(fontSize: 14),
                             tags: {
                               'green': StyledTextTag(
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .greenAlternative,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.greenAlternative,
                                 ),
                               ),
                             },
@@ -137,18 +138,17 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
                         widget.isResetPasswordScreen
                             ? Text(
                                 AppLocalizations.of(context).toResetVerifyEmail,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium!
-                                    .copyWith(fontSize: 14),
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleMedium!.copyWith(fontSize: 14),
                               )
                             : Text(
-                                AppLocalizations.of(context)
-                                    .checkInboxAndSpamFolder,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium!
-                                    .copyWith(fontSize: 14),
+                                AppLocalizations.of(
+                                  context,
+                                ).checkInboxAndSpamFolder,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleMedium!.copyWith(fontSize: 14),
                               ),
                       ],
                     ),
@@ -206,9 +206,9 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
                     child: Text(
                       AppLocalizations.of(context).resendEmail,
                       style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                          ),
+                        fontSize: 14,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                 ],

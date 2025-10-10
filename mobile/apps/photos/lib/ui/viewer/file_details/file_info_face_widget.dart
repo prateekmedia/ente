@@ -70,8 +70,8 @@ class _FileInfoFaceWidgetState extends State<FileInfoFaceWidget> {
             GestureDetector(
               onTap: isEditMode
                   ? hasPerson
-                      ? _onMinusIconTap
-                      : _onPlusIconTap
+                        ? _onMinusIconTap
+                        : _onPlusIconTap
                   : _routeToPersonOrClusterPage,
               child: Container(
                 height: thumbnailWidth,
@@ -175,15 +175,14 @@ class _FileInfoFaceWidgetState extends State<FileInfoFaceWidget> {
     if (widget.person != null) {
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => PeoplePage(
-            person: widget.person!,
-            searchResult: null,
-          ),
+          builder: (context) =>
+              PeoplePage(person: widget.person!, searchResult: null),
         ),
       );
       return;
     }
-    final String? clusterID = widget.clusterID ??
+    final String? clusterID =
+        widget.clusterID ??
         await mlDataDB.getClusterIDForFaceID(widget.face.faceID);
     if (clusterID != null) {
       final fileIdsToClusterIds = await mlDataDB.getFileIdToClusterIds();
@@ -197,10 +196,7 @@ class _FileInfoFaceWidgetState extends State<FileInfoFaceWidget> {
           .toList();
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => ClusterPage(
-            clusterFiles,
-            clusterID: clusterID,
-          ),
+          builder: (context) => ClusterPage(clusterFiles, clusterID: clusterID),
         ),
       );
       return;
@@ -209,35 +205,28 @@ class _FileInfoFaceWidgetState extends State<FileInfoFaceWidget> {
       // The face score is too low for automatic clustering,
       // assigning a manual new clusterID so that the user can cluster it manually
       final String clusterID = newClusterID();
-      await mlDataDB.updateFaceIdToClusterId(
-        {widget.face.faceID: clusterID},
-      );
+      await mlDataDB.updateFaceIdToClusterId({widget.face.faceID: clusterID});
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => ClusterPage(
-            [widget.file],
-            clusterID: clusterID,
-          ),
+          builder: (context) =>
+              ClusterPage([widget.file], clusterID: clusterID),
         ),
       );
       return;
     }
 
-    showShortToast(
-      context,
-      AppLocalizations.of(context).faceNotClusteredYet,
-    );
+    showShortToast(context, AppLocalizations.of(context).faceNotClusteredYet);
     unawaited(MLService.instance.clusterAllImages(force: true));
     return;
   }
 
   Future<void> _onPlusIconTap() async {
     try {
-      final newClusterIDValue =
-          await ClusterFeedbackService.instance.removeFaceFromCluster(
-        faceID: widget.face.faceID,
-        clusterID: widget.clusterID,
-      );
+      final newClusterIDValue = await ClusterFeedbackService.instance
+          .removeFaceFromCluster(
+            faceID: widget.face.faceID,
+            clusterID: widget.clusterID,
+          );
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => SaveOrEditPerson(

@@ -12,10 +12,7 @@ class ChangeLogEntry {
 class ChangeLogEntryWidget extends StatelessWidget {
   final ChangeLogEntry entry;
 
-  const ChangeLogEntryWidget({
-    super.key,
-    required this.entry,
-  });
+  const ChangeLogEntryWidget({super.key, required this.entry});
 
   @override
   Widget build(BuildContext context) {
@@ -33,19 +30,13 @@ class ChangeLogEntryWidget extends StatelessWidget {
                 : colorScheme.textMuted,
           ),
         ),
-        const SizedBox(
-          height: 18,
-        ),
+        const SizedBox(height: 18),
         Text(
           entry.description,
           textAlign: TextAlign.left,
-          style: enteTheme.body.copyWith(
-            color: colorScheme.textMuted,
-          ),
+          style: enteTheme.body.copyWith(color: colorScheme.textMuted),
         ),
-        const SizedBox(
-          height: 18,
-        ),
+        const SizedBox(height: 18),
       ],
     );
   }

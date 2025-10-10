@@ -25,15 +25,17 @@ class _CreationTimeItemState extends State<CreationTimeItem> {
     return InfoItemWidget(
       key: const ValueKey("Creation time"),
       leadingIcon: Icons.calendar_today_outlined,
-      title: DateFormat.yMMMEd(Localizations.localeOf(context).languageCode)
-          .format(dateTime),
+      title: DateFormat.yMMMEd(
+        Localizations.localeOf(context).languageCode,
+      ).format(dateTime),
       subtitleSection: Future.value([
         Text(
           getTimeIn12hrFormat(dateTime) + "  " + dateTime.timeZoneName,
           style: getEnteTextTheme(context).miniMuted,
         ),
       ]),
-      editOnTap: ((widget.file.ownerID == null ||
+      editOnTap:
+          ((widget.file.ownerID == null ||
                   widget.file.ownerID == widget.currentUserID) &&
               widget.file.uploadedFileID != null)
           ? () {
@@ -44,11 +46,9 @@ class _CreationTimeItemState extends State<CreationTimeItem> {
   }
 
   void _showDateTimePicker(EnteFile file) async {
-    final DateTime? newDate = await showEditDateSheet(
-      context,
-      [file],
-      showHeader: false,
-    );
+    final DateTime? newDate = await showEditDateSheet(context, [
+      file,
+    ], showHeader: false);
     if (newDate != null) {
       widget.file.creationTime = newDate.microsecondsSinceEpoch;
       setState(() {});

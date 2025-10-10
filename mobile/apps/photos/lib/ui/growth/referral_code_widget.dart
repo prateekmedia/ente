@@ -58,7 +58,8 @@ class ReferralCodeWidget extends StatelessWidget {
                           if (userDetails!.isPartOfFamily() &&
                               !userDetails!.isFamilyAdmin()) {
                             final String familyAdmin = userDetails!
-                                .familyData!.members!
+                                .familyData!
+                                .members!
                                 .firstWhere((element) => element.isAdmin)
                                 .email;
                             showInfoDialog(
@@ -66,8 +67,8 @@ class ReferralCodeWidget extends StatelessWidget {
                               title: AppLocalizations.of(context).error,
                               body: AppLocalizations.of(context)
                                   .onlyFamilyAdminCanChangeCode(
-                                familyAdminEmail: familyAdmin,
-                              ),
+                                    familyAdminEmail: familyAdmin,
+                                  ),
                               icon: Icons.error,
                             );
                           } else {

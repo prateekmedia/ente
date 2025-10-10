@@ -47,8 +47,5 @@ Future<Map> _ffmpegRun(String value, RootIsolateToken rootIsolateToken) async {
   final returnCode = await session.getReturnCode();
   final output = await session.getOutput();
 
-  return {
-    "returnCode": returnCode?.getValue(),
-    "output": output,
-  };
+  return {"returnCode": returnCode?.getValue(), "output": output};
 }

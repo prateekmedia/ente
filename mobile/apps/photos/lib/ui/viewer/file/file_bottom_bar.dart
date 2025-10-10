@@ -50,8 +50,9 @@ class FileBottomBarState extends State<FileBottomBar> {
   @override
   void initState() {
     super.initState();
-    _guestViewEventSubscription =
-        Bus.instance.on<GuestViewEvent>().listen((event) {
+    _guestViewEventSubscription = Bus.instance.on<GuestViewEvent>().listen((
+      event,
+    ) {
       setState(() {
         isGuestView = event.isGuestView;
       });
@@ -83,8 +84,9 @@ class FileBottomBarState extends State<FileBottomBar> {
   }
 
   Widget _getBottomBar() {
-    Logger("FileBottomBar")
-        .fine("building bottom bar ${widget.file.generatedID}");
+    Logger(
+      "FileBottomBar",
+    ).fine("building bottom bar ${widget.file.generatedID}");
     final List<Widget> children = [];
     final bool isOwnedByUser =
         widget.file.ownerID == null || widget.file.ownerID == widget.userID;
@@ -119,10 +121,7 @@ class FileBottomBarState extends State<FileBottomBar> {
             child: Padding(
               padding: const EdgeInsets.only(top: 12),
               child: IconButton(
-                icon: const Icon(
-                  Icons.tune_outlined,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.tune_outlined, color: Colors.white),
                 onPressed: () {
                   widget.onEditRequested(widget.file);
                 },
@@ -230,10 +229,7 @@ class FileBottomBarState extends State<FileBottomBar> {
         child: Padding(
           padding: const EdgeInsets.only(top: 12),
           child: IconButton(
-            icon: const Icon(
-              Icons.restore_outlined,
-              color: Colors.white,
-            ),
+            icon: const Icon(Icons.restore_outlined, color: Colors.white),
             onPressed: () {
               final selectedFiles = SelectedFiles();
               selectedFiles.toggleSelection(widget.file);

@@ -36,8 +36,9 @@ class _HomeBottomNavigationBarState extends State<HomeBottomNavigationBar> {
     currentTabIndex = widget.selectedTabIndex;
     widget.selectedFiles.addListener(_selectedFilesListener);
     widget.selectedAlbums.addListener(_selectedAlbumsListener);
-    _tabChangedEventSubscription =
-        Bus.instance.on<TabChangedEvent>().listen((event) {
+    _tabChangedEventSubscription = Bus.instance.on<TabChangedEvent>().listen((
+      event,
+    ) {
       if (event.source != TabChangedEventSource.tabBar) {
         debugPrint(
           '${(TabChangedEvent).toString()} index changed  from '
@@ -78,12 +79,7 @@ class _HomeBottomNavigationBarState extends State<HomeBottomNavigationBar> {
 
   void _onTabChange(int index, {String mode = 'tabChanged'}) {
     debugPrint("_TabChanged called via method $mode");
-    Bus.instance.fire(
-      TabChangedEvent(
-        index,
-        TabChangedEventSource.tabBar,
-      ),
-    );
+    Bus.instance.fire(TabChangedEvent(index, TabChangedEventSource.tabBar));
   }
 
   @override
@@ -108,8 +104,9 @@ class _HomeBottomNavigationBarState extends State<HomeBottomNavigationBar> {
                   children: [
                     GNav(
                       curve: Curves.easeOutExpo,
-                      backgroundColor:
-                          getEnteColorScheme(context).backgroundElevated2,
+                      backgroundColor: getEnteColorScheme(
+                        context,
+                      ).backgroundElevated2,
                       mainAxisAlignment: MainAxisAlignment.center,
                       iconSize: 24,
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
@@ -118,8 +115,8 @@ class _HomeBottomNavigationBarState extends State<HomeBottomNavigationBar> {
                       tabBorderRadius: 32,
                       tabBackgroundColor:
                           Theme.of(context).brightness == Brightness.light
-                              ? strokeFainterLight
-                              : strokeSolidFaintLight,
+                          ? strokeFainterLight
+                          : strokeSolidFaintLight,
                       haptic: false,
                       tabs: [
                         GButton(
@@ -156,10 +153,7 @@ class _HomeBottomNavigationBarState extends State<HomeBottomNavigationBar> {
                           iconActiveColor: strokeBaseLight,
                           text: '',
                           onPressed: () {
-                            _onTabChange(
-                              2,
-                              mode: "OnPressed",
-                            ); // To take care
+                            _onTabChange(2, mode: "OnPressed"); // To take care
                             // of occasional missing events
                           },
                         ),
@@ -170,10 +164,7 @@ class _HomeBottomNavigationBarState extends State<HomeBottomNavigationBar> {
                           iconActiveColor: strokeBaseLight,
                           text: '',
                           onPressed: () {
-                            _onTabChange(
-                              3,
-                              mode: "OnPressed",
-                            ); // To take care
+                            _onTabChange(3, mode: "OnPressed"); // To take care
                             // of occasional missing events
                           },
                         ),

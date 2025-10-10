@@ -52,12 +52,8 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
   void initState() {
     super.initState();
     _email = _config.getEmail();
-    _password1FocusNode.addListener(
-      _password1FocusListener,
-    );
-    _password2FocusNode.addListener(
-      _password2FocusListener,
-    );
+    _password1FocusNode.addListener(_password1FocusListener);
+    _password2FocusNode.addListener(_password2FocusListener);
   }
 
   @override
@@ -99,8 +95,9 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
           currentStep: 1,
           selectedColor: Theme.of(context).colorScheme.greenAlternative,
           roundedEdges: const Radius.circular(10),
-          unselectedColor:
-              Theme.of(context).colorScheme.stepProgressUnselectedColor,
+          unselectedColor: Theme.of(
+            context,
+          ).colorScheme.stepProgressUnselectedColor,
         ),
       ),
     );
@@ -147,8 +144,10 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
             child: ListView(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     AppLocalizations.of(context).createNewAccount,
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -233,15 +232,15 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
                               },
                             )
                           : _passwordIsValid
-                              ? Icon(
-                                  Icons.check,
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .focusedBorder!
-                                      .borderSide
-                                      .color,
-                                )
-                              : null,
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context)
+                                  .inputDecorationTheme
+                                  .focusedBorder!
+                                  .borderSide
+                                  .color,
+                            )
+                          : null,
                       border: UnderlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(6),
@@ -252,9 +251,11 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
                       if (password != _password) {
                         setState(() {
                           _password = password;
-                          _passwordStrength =
-                              estimatePasswordStrength(password);
-                          _passwordIsValid = _passwordStrength >=
+                          _passwordStrength = estimatePasswordStrength(
+                            password,
+                          );
+                          _passwordIsValid =
+                              _passwordStrength >=
                               kMildPasswordStrengthThreshold;
                           _passwordsMatch = _password == _cnfPassword;
                         });
@@ -302,15 +303,15 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
                               },
                             )
                           : _passwordsMatch
-                              ? Icon(
-                                  Icons.check,
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .focusedBorder!
-                                      .borderSide
-                                      .color,
-                                )
-                              : null,
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context)
+                                  .inputDecorationTheme
+                                  .focusedBorder!
+                                  .borderSide
+                                  .color,
+                            )
+                          : null,
                       border: UnderlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(6),
@@ -338,8 +339,9 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
                       onTap: () {
                         showInfoDialog(
                           context,
-                          body:
-                              AppLocalizations.of(context).passwordStrengthInfo,
+                          body: AppLocalizations.of(
+                            context,
+                          ).passwordStrengthInfo,
                         );
                       },
                       child: Row(
@@ -367,8 +369,10 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
                 ),
                 const SizedBox(height: 4),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 0,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     AppLocalizations.of(context).hearUsWhereTitle,
                     style: getEnteTextTheme(context).smallFaint,
@@ -430,12 +434,7 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
   Container _getAgreement() {
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-      child: Column(
-        children: [
-          _getTOSAgreement(),
-          _getPasswordAgreement(),
-        ],
-      ),
+      child: Column(children: [_getTOSAgreement(), _getPasswordAgreement()]),
     );
   }
 
@@ -461,42 +460,37 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
           Expanded(
             child: StyledText(
               text: AppLocalizations.of(context).signUpTerms,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium!
-                  .copyWith(fontSize: 12),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium!.copyWith(fontSize: 12),
               tags: {
                 'u-terms': StyledTextActionTag(
                   (String? text, Map<String?, String?> attrs) =>
                       Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (BuildContext context) {
-                        return WebPage(
-                          AppLocalizations.of(context).termsOfServicesTitle,
-                          "https://ente.io/terms",
-                        );
-                      },
-                    ),
-                  ),
-                  style: const TextStyle(
-                    decoration: TextDecoration.underline,
-                  ),
+                        MaterialPageRoute(
+                          builder: (BuildContext context) {
+                            return WebPage(
+                              AppLocalizations.of(context).termsOfServicesTitle,
+                              "https://ente.io/terms",
+                            );
+                          },
+                        ),
+                      ),
+                  style: const TextStyle(decoration: TextDecoration.underline),
                 ),
                 'u-policy': StyledTextActionTag(
                   (String? text, Map<String?, String?> attrs) =>
                       Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (BuildContext context) {
-                        return WebPage(
-                          AppLocalizations.of(context).privacyPolicyTitle,
-                          "https://ente.io/privacy",
-                        );
-                      },
-                    ),
-                  ),
-                  style: const TextStyle(
-                    decoration: TextDecoration.underline,
-                  ),
+                        MaterialPageRoute(
+                          builder: (BuildContext context) {
+                            return WebPage(
+                              AppLocalizations.of(context).privacyPolicyTitle,
+                              "https://ente.io/privacy",
+                            );
+                          },
+                        ),
+                      ),
+                  style: const TextStyle(decoration: TextDecoration.underline),
                 ),
               },
             ),
@@ -528,26 +522,23 @@ class _EmailEntryPageState extends State<EmailEntryPage> {
           Expanded(
             child: StyledText(
               text: AppLocalizations.of(context).ackPasswordLostWarning,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium!
-                  .copyWith(fontSize: 12),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium!.copyWith(fontSize: 12),
               tags: {
                 'underline': StyledTextActionTag(
                   (String? text, Map<String?, String?> attrs) =>
                       Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (BuildContext context) {
-                        return WebPage(
-                          AppLocalizations.of(context).encryption,
-                          "https://ente.io/architecture",
-                        );
-                      },
-                    ),
-                  ),
-                  style: const TextStyle(
-                    decoration: TextDecoration.underline,
-                  ),
+                        MaterialPageRoute(
+                          builder: (BuildContext context) {
+                            return WebPage(
+                              AppLocalizations.of(context).encryption,
+                              "https://ente.io/architecture",
+                            );
+                          },
+                        ),
+                      ),
+                  style: const TextStyle(decoration: TextDecoration.underline),
                 ),
               },
             ),

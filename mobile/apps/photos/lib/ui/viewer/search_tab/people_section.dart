@@ -29,11 +29,7 @@ class PeopleSection extends StatefulWidget {
   final List<GenericSearchResult> examples;
   final int limit;
 
-  const PeopleSection({
-    super.key,
-    required this.examples,
-    this.limit = 7,
-  });
+  const PeopleSection({super.key, required this.examples, this.limit = 7});
 
   @override
   State<PeopleSection> createState() => _PeopleSectionState();
@@ -52,10 +48,12 @@ class _PeopleSectionState extends State<PeopleSection> {
     for (Stream<Event> stream in streamsToListenTo) {
       streamSubscriptions.add(
         stream.listen((event) async {
-          _examples = await widget.sectionType.getData(
-            context,
-            limit: kSearchSectionLimit,
-          ) as List<GenericSearchResult>;
+          _examples =
+              await widget.sectionType.getData(
+                    context,
+                    limit: kSearchSectionLimit,
+                  )
+                  as List<GenericSearchResult>;
           setState(() {});
         }),
       );
@@ -86,10 +84,7 @@ class _PeopleSectionState extends State<PeopleSection> {
             behavior: HitTestBehavior.opaque,
             onTap: () {
               if (shouldShowMore) {
-                routeToPage(
-                  context,
-                  const PeopleSectionAllPage(),
-                );
+                routeToPage(context, const PeopleSectionAllPage());
               }
             },
             child: Column(
@@ -124,10 +119,7 @@ class _PeopleSectionState extends State<PeopleSection> {
         : GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
-              routeToPage(
-                context,
-                const MachineLearningSettingsPage(),
-              );
+              routeToPage(context, const MachineLearningSettingsPage());
             },
             child: Padding(
               padding: const EdgeInsets.only(left: 16, right: 8),
@@ -201,23 +193,26 @@ class PersonSearchExample extends StatelessWidget {
   });
 
   void toggleSelection() {
-    selectedPeople
-        ?.toggleSelection(searchResult.params[kPersonParamID]! as String);
+    selectedPeople?.toggleSelection(
+      searchResult.params[kPersonParamID]! as String,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = 82 * (size / 102);
 
-    final bool isCluster = (searchResult.type() == ResultType.faces &&
+    final bool isCluster =
+        (searchResult.type() == ResultType.faces &&
         int.tryParse(searchResult.name()) != null);
 
     return ListenableBuilder(
       listenable: selectedPeople ?? ValueNotifier(false),
       builder: (context, _) {
         final id = searchResult.params[kPersonParamID] as String?;
-        final bool isSelected =
-            id != null ? selectedPeople?.isPersonSelected(id) ?? false : false;
+        final bool isSelected = id != null
+            ? selectedPeople?.isPersonSelected(id) ?? false
+            : false;
 
         return GestureDetector(
           onTap: selectedPeople != null
@@ -227,10 +222,7 @@ class PersonSearchExample extends StatelessWidget {
                   if (searchResult.onResultTap != null) {
                     searchResult.onResultTap!(context);
                   } else {
-                    routeToPage(
-                      context,
-                      SearchResultPage(searchResult),
-                    );
+                    routeToPage(context, SearchResultPage(searchResult));
                   }
                 },
           child: Column(
@@ -268,9 +260,7 @@ class PersonSearchExample extends StatelessWidget {
                               )
                             : FaceSearchResult(searchResult);
                       } else {
-                        child = const NoThumbnailWidget(
-                          addBorder: false,
-                        );
+                        child = const NoThumbnailWidget(addBorder: false);
                       }
                       return SizedBox(
                         width: size - 2,
@@ -280,8 +270,8 @@ class PersonSearchExample extends StatelessWidget {
                             shape: ContinuousRectangleBorder(
                               borderRadius:
                                   searchResult.previewThumbnail() != null
-                                      ? BorderRadius.circular(borderRadius - 1)
-                                      : BorderRadius.circular(81),
+                                  ? BorderRadius.circular(borderRadius - 1)
+                                  : BorderRadius.circular(81),
                             ),
                           ),
                           child: ColorFiltered(
@@ -328,19 +318,13 @@ class PersonSearchExample extends StatelessWidget {
                           // ignore: unawaited_futures
                           routeToPage(
                             context,
-                            PeoplePage(
-                              person: result.$1,
-                              searchResult: null,
-                            ),
+                            PeoplePage(person: result.$1, searchResult: null),
                           );
                         } else if (result != null && result is PersonEntity) {
                           // ignore: unawaited_futures
                           routeToPage(
                             context,
-                            PeoplePage(
-                              person: result,
-                              searchResult: null,
-                            ),
+                            PeoplePage(person: result, searchResult: null),
                           );
                         }
                       },

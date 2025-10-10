@@ -34,10 +34,7 @@ class SuggestionUserFeedback {
 class PersonReviewClusterSuggestion extends StatefulWidget {
   final PersonEntity person;
 
-  const PersonReviewClusterSuggestion(
-    this.person, {
-    super.key,
-  });
+  const PersonReviewClusterSuggestion(this.person, {super.key});
 
   @override
   State<PersonReviewClusterSuggestion> createState() => _PersonClustersState();
@@ -103,9 +100,9 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
             if (snapshot.data!.isEmpty) {
               return Center(
                 child: Text(
-                  AppLocalizations.of(context).noSuggestionsForPerson(
-                    personName: widget.person.data.name,
-                  ),
+                  AppLocalizations.of(
+                    context,
+                  ).noSuggestionsForPerson(personName: widget.person.data.name),
                   style: getEnteTextTheme(context).largeMuted,
                 ),
               );
@@ -121,12 +118,13 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
 
             final Future<Map<int, Uint8List?>> generateFacedThumbnails =
                 _generateFaceThumbnails(
-              files.sublist(0, min(files.length, 6)),
-              clusterID,
-            );
+                  files.sublist(0, min(files.length, 6)),
+                  clusterID,
+                );
 
-            _peopleChangedEvent =
-                Bus.instance.on<PeopleChangedEvent>().listen((event) {
+            _peopleChangedEvent = Bus.instance.on<PeopleChangedEvent>().listen((
+              event,
+            ) {
               if (event.source == clusterID.toString()) {
                 if (event.type == PeopleEventType.removedFilesFromCluster) {
                   for (var updatedFile in event.relevantFiles!) {
@@ -241,10 +239,9 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
                             child: Text(
                               AppLocalizations.of(context).saveAsAnotherPerson,
                               style: getEnteTextTheme(context).mini.copyWith(
-                                    color:
-                                        getEnteColorScheme(context).textMuted,
-                                    decoration: TextDecoration.underline,
-                                  ),
+                                color: getEnteColorScheme(context).textMuted,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
                         ),
@@ -280,10 +277,7 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
     }
     // Store the feedback in case the user wants to revert
     pastUserFeedback.add(
-      SuggestionUserFeedback(
-        yesOrNo,
-        allSuggestions[currentSuggestionIndex],
-      ),
+      SuggestionUserFeedback(yesOrNo, allSuggestions[currentSuggestionIndex]),
     );
     if (yesOrNo) {
       canGiveFeedback = false;
@@ -347,11 +341,8 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
 
       final result = await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => SaveOrEditPerson(
-            clusterID,
-            file: someFile,
-            isEditing: false,
-          ),
+          builder: (context) =>
+              SaveOrEditPerson(clusterID, file: someFile, isEditing: false),
         ),
       );
       if (result == null || result == false) {
@@ -380,8 +371,8 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
   // Method to fetch cluster suggestions
   void _fetchClusterSuggestions() {
     debugPrint("Fetching suggestions for ${widget.person.data.name}");
-    futureClusterSuggestions =
-        ClusterFeedbackService.instance.getSuggestionForPerson(widget.person);
+    futureClusterSuggestions = ClusterFeedbackService.instance
+        .getSuggestionForPerson(widget.person);
   }
 
   Widget _buildSuggestionView(
@@ -405,14 +396,8 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
           style: getEnteTextTheme(context).largeMuted,
         ),
         const SizedBox(height: 24),
-        _buildThumbnailWidget(
-          files,
-          clusterID,
-          generateFaceThumbnails,
-        ),
-        const SizedBox(
-          height: 24.0,
-        ),
+        _buildThumbnailWidget(files, clusterID, generateFaceThumbnails),
+        const SizedBox(height: 24.0),
       ],
     );
     // Precompute face thumbnails for next suggestions, in case there are
@@ -527,11 +512,7 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
     final futures = <Future<Uint8List?>>[];
     for (final file in files) {
       futures.add(
-        precomputeClusterFaceCrop(
-          file,
-          clusterID,
-          useFullFile: true,
-        ),
+        precomputeClusterFaceCrop(file, clusterID, useFullFile: true),
       );
     }
     final faceCropsList = await Future.wait(futures);
@@ -564,9 +545,7 @@ class _PersonClustersState extends State<PersonReviewClusterSuggestion> {
         );
         compCount += computeHere;
         if (compCount >= maxPrecomputations) {
-          debugPrint(
-            'Prefetching $compCount face thumbnails for suggestions',
-          );
+          debugPrint('Prefetching $compCount face thumbnails for suggestions');
           break outerLoop;
         }
       }

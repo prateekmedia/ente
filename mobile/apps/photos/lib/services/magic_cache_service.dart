@@ -48,16 +48,10 @@ class MagicCache {
   }
 
   factory MagicCache.fromJson(Map<String, dynamic> json) {
-    return MagicCache(
-      json['title'],
-      List<int>.from(json['fileUploadedIDs']),
-    );
+    return MagicCache(json['title'], List<int>.from(json['fileUploadedIDs']));
   }
   Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'fileUploadedIDs': fileUploadedIDs.toList(),
-    };
+    return {'title': title, 'fileUploadedIDs': fileUploadedIDs.toList()};
   }
 
   static String encodeListToJson(List<MagicCache> magicCaches) {
@@ -119,8 +113,9 @@ GenericSearchResult? toGenericSearchResult(
   }
   if (!prompt.recentFirst) {
     enteFilesInMagicCache.sort((a, b) {
-      return fileIdToPositionMap[a.uploadedFileID!]!
-          .compareTo(fileIdToPositionMap[b.uploadedFileID!]!);
+      return fileIdToPositionMap[a.uploadedFileID!]!.compareTo(
+        fileIdToPositionMap[b.uploadedFileID!]!,
+      );
     });
   }
   final String title = getLocalizedTitle(context, prompt.title);
@@ -249,8 +244,9 @@ class MagicCacheService {
       w?.start();
       final magicPromptsData = await getPrompts();
       w?.log("loadedPrompts");
-      final List<MagicCache> magicCaches =
-          await _nonEmptyMagicResults(magicPromptsData);
+      final List<MagicCache> magicCaches = await _nonEmptyMagicResults(
+        magicPromptsData,
+      );
       w?.log("resultComputed");
       _magicCacheFuture = Future.value(magicCaches);
       await writeToJsonFile<List<MagicCache>>(
@@ -288,13 +284,12 @@ class MagicCacheService {
   }
 
   Future<List<Prompt>> _readPromptFromDiskOrNetwork() async {
-    final String path =
-        await RemoteAssetsService.instance.getAssetPath(_kMagicPromptsDataUrl);
+    final String path = await RemoteAssetsService.instance.getAssetPath(
+      _kMagicPromptsDataUrl,
+    );
     return Computer.shared().compute(
       _loadMagicPrompts,
-      param: <String, dynamic>{
-        "path": path,
-      },
+      param: <String, dynamic>{"path": path},
     );
   }
 
@@ -318,8 +313,9 @@ class MagicCacheService {
     BuildContext context,
   ) async {
     try {
-      final EnteWatch? w =
-          kDebugMode ? EnteWatch("magicGenericSearchResult") : null;
+      final EnteWatch? w = kDebugMode
+          ? EnteWatch("magicGenericSearchResult")
+          : null;
       w?.start();
       final magicCaches = await getMagicCache();
       final List<Prompt> prompts = await getPrompts();
@@ -341,13 +337,14 @@ class MagicCacheService {
         promptMap[p.title] = p;
       }
       final List<GenericSearchResult> genericSearchResults = [];
-      final List<EnteFile> files =
-          await SearchService.instance.getAllFilesForSearch();
+      final List<EnteFile> files = await SearchService.instance
+          .getAllFilesForSearch();
       for (EnteFile file in files) {
         if (!file.isUploaded) continue;
         for (MagicCache magicCache in magicCaches) {
-          if (magicCache.fileIdToPositionMap
-              .containsKey(file.uploadedFileID!)) {
+          if (magicCache.fileIdToPositionMap.containsKey(
+            file.uploadedFileID!,
+          )) {
             if (file.isVideo &&
                 (promptMap[magicCache.title]?.showVideo ?? true) == false) {
               continue;
@@ -406,9 +403,7 @@ class MagicCacheService {
     for (Prompt prompt in magicPromptsData) {
       final List<int> fileUploadedIDs = clipResults[prompt.query] ?? [];
       if (fileUploadedIDs.isNotEmpty) {
-        results.add(
-          MagicCache(prompt.title, fileUploadedIDs),
-        );
+        results.add(MagicCache(prompt.title, fileUploadedIDs));
       }
       matchCount.add(fileUploadedIDs.length);
     }

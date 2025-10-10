@@ -42,8 +42,8 @@ class NewAlbumRowItemWidget extends StatelessWidget {
             }
 
             try {
-              final Collection c =
-                  await CollectionsService.instance.createAlbum(text);
+              final Collection c = await CollectionsService.instance
+                  .createAlbum(text);
 
               // Close the dialog now so that it does not flash when leaving the album again.
               Navigator.of(context).pop();
@@ -54,8 +54,9 @@ class NewAlbumRowItemWidget extends StatelessWidget {
                 CollectionPage(CollectionWithThumbnail(c, null)),
               );
             } catch (e, s) {
-              Logger("CreateNewAlbumRowItemWidget")
-                  .severe("Failed to rename album", e, s);
+              Logger(
+                "CreateNewAlbumRowItemWidget",
+              ).severe("Failed to rename album", e, s);
               rethrow;
             }
           },
@@ -84,10 +85,7 @@ class NewAlbumRowItemWidget extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 color: colorScheme.strokeFaint,
                 child: Center(
-                  child: Icon(
-                    Icons.add,
-                    color: colorScheme.strokeFaint,
-                  ),
+                  child: Icon(Icons.add, color: colorScheme.strokeFaint),
                 ),
               ),
             ),

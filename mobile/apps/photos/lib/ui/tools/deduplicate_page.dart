@@ -103,10 +103,7 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
                   itemBuilder: (context, index) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: _getGridView(
-                        _duplicates[index],
-                        index,
-                      ),
+                      child: _getGridView(_duplicates[index], index),
                     );
                   },
                   itemCount: _duplicates.length,
@@ -157,10 +154,7 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
           text = AppLocalizations.of(context).totalSize;
           break;
       }
-      return Text(
-        text,
-        style: textTheme.miniBold,
-      );
+      return Text(text, style: textTheme.miniBold);
     }
 
     return PopupMenuButton(
@@ -240,8 +234,10 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
                             await deleteDuplicates(totalSize);
                           } catch (e) {
                             log("Failed to delete duplicates", error: e);
-                            showGenericErrorDialog(context: context, error: e)
-                                .ignore();
+                            showGenericErrorDialog(
+                              context: context,
+                              error: e,
+                            ).ignore();
                           }
                         },
                       ),
@@ -298,7 +294,9 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
         final double percentage = (progress / collectionCnt) * 100;
         _deleteProgress.value = '$percentage%';
       }
-      log("AddingNow ${collectionToFilesToAddMap[collectionID]!.length} files to $collectionID");
+      log(
+        "AddingNow ${collectionToFilesToAddMap[collectionID]!.length} files to $collectionID",
+      );
       await CollectionsService.instance.addSilentlyToCollection(
         collectionID,
         collectionToFilesToAddMap[collectionID]!,
@@ -308,8 +306,9 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
     if (filesToDelele.isNotEmpty) {
       await deleteFilesFromRemoteOnly(context, filesToDelele);
       Bus.instance.fire(UserDetailsChangedEvent());
-      Navigator.of(context)
-          .pop(DeduplicationResult(filesToDelele.length, totalSize));
+      Navigator.of(
+        context,
+      ).pop(DeduplicationResult(filesToDelele.length, totalSize));
     }
   }
 
@@ -349,10 +348,7 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
                         color: getEnteColorScheme(context).strokeMuted,
                         size: 24,
                       )
-                    : const Icon(
-                        Icons.check_circle,
-                        size: 24,
-                      ),
+                    : const Icon(Icons.check_circle, size: 24),
               ],
             ),
           ),
@@ -417,7 +413,8 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
         children: [
           SizedBox(
             //the numerator will give the width of the screen excuding the whitespaces in the the grid row
-            height: (MediaQuery.of(context).size.width -
+            height:
+                (MediaQuery.of(context).size.width -
                     (crossAxisSpacing * crossAxisCount)) /
                 crossAxisCount,
             child: Hero(
@@ -442,8 +439,9 @@ class _DeduplicatePageState extends State<DeduplicatePage> {
               CollectionsService.instance
                   .getCollectionByID(file.collectionID!)!
                   .displayName,
-              style:
-                  Theme.of(context).textTheme.bodySmall!.copyWith(fontSize: 12),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall!.copyWith(fontSize: 12),
               overflow: TextOverflow.ellipsis,
             ),
           ),

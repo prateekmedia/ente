@@ -131,8 +131,8 @@ class MLService {
       _isRunningML = true;
       await sync();
 
-      final int unclusteredFacesCount =
-          await mlDataDB.getUnclusteredFaceCount();
+      final int unclusteredFacesCount = await mlDataDB
+          .getUnclusteredFaceCount();
       if (unclusteredFacesCount > _kForceClusteringFaceCount) {
         _logger.info(
           "There are $unclusteredFacesCount unclustered faces, doing clustering first",
@@ -279,8 +279,8 @@ class MLService {
     try {
       // Get a sense of the total number of faces in the database
       final int totalFaces = await mlDataDB.getTotalFaceCount();
-      final fileIDToCreationTime =
-          await FilesDB.instance.getFileIDToCreationTime();
+      final fileIDToCreationTime = await FilesDB.instance
+          .getFileIDToCreationTime();
       final startEmbeddingFetch = DateTime.now();
       // read all embeddings
       final result = await mlDataDB.getFaceInfoForClustering(
@@ -300,8 +300,9 @@ class MLService {
       }
       // sort the embeddings based on file creation time, newest first
       allFaceInfoForClustering.sort((b, a) {
-        return fileIDToCreationTime[a.fileID]!
-            .compareTo(fileIDToCreationTime[b.fileID]!);
+        return fileIDToCreationTime[a.fileID]!.compareTo(
+          fileIDToCreationTime[b.fileID]!,
+        );
       });
       _logger.info(
         'Getting and sorting embeddings took ${DateTime.now().difference(startEmbeddingFetch).inMilliseconds} ms for ${allFaceInfoForClustering.length} embeddings'
@@ -309,8 +310,8 @@ class MLService {
       );
 
       // Get the current cluster statistics
-      final Map<String, (Uint8List, int)> oldClusterSummaries =
-          await mlDataDB.getAllClusterSummary();
+      final Map<String, (Uint8List, int)> oldClusterSummaries = await mlDataDB
+          .getAllClusterSummary();
 
       if (clusterInBuckets) {
         const int bucketSize = 10000;
@@ -357,22 +358,24 @@ class MLService {
             }
           }
 
-          final clusteringResult =
-              await FaceClusteringService.instance.predictLinearIsolate(
-            faceInfoForClustering.toSet(),
-            fileIDToCreationTime: fileIDToCreationTime,
-            offset: offset,
-            oldClusterSummaries: oldClusterSummaries,
-          );
+          final clusteringResult = await FaceClusteringService.instance
+              .predictLinearIsolate(
+                faceInfoForClustering.toSet(),
+                fileIDToCreationTime: fileIDToCreationTime,
+                offset: offset,
+                oldClusterSummaries: oldClusterSummaries,
+              );
           if (clusteringResult == null) {
             _logger.warning("faceIdToCluster is null");
             return;
           }
 
-          await mlDataDB
-              .updateFaceIdToClusterId(clusteringResult.newFaceIdToCluster);
-          await mlDataDB
-              .clusterSummaryUpdate(clusteringResult.newClusterSummaries);
+          await mlDataDB.updateFaceIdToClusterId(
+            clusteringResult.newFaceIdToCluster,
+          );
+          await mlDataDB.clusterSummaryUpdate(
+            clusteringResult.newClusterSummaries,
+          );
           Bus.instance.fire(PeopleChangedEvent());
           for (final faceInfo in faceInfoForClustering) {
             faceInfo.clusterId ??=
@@ -395,12 +398,12 @@ class MLService {
       } else {
         final clusterStartTime = DateTime.now();
         // Cluster the embeddings using the linear clustering algorithm, returning a map from faceID to clusterID
-        final clusteringResult =
-            await FaceClusteringService.instance.predictLinearIsolate(
-          allFaceInfoForClustering.toSet(),
-          fileIDToCreationTime: fileIDToCreationTime,
-          oldClusterSummaries: oldClusterSummaries,
-        );
+        final clusteringResult = await FaceClusteringService.instance
+            .predictLinearIsolate(
+              allFaceInfoForClustering.toSet(),
+              fileIDToCreationTime: fileIDToCreationTime,
+              oldClusterSummaries: oldClusterSummaries,
+            );
         if (clusteringResult == null) {
           _logger.warning("faceIdToCluster is null");
           return;
@@ -414,16 +417,22 @@ class MLService {
         _logger.info(
           'Updating ${clusteringResult.newFaceIdToCluster.length} FaceIDs with clusterIDs in the DB',
         );
-        await mlDataDB
-            .updateFaceIdToClusterId(clusteringResult.newFaceIdToCluster);
-        await mlDataDB
-            .clusterSummaryUpdate(clusteringResult.newClusterSummaries);
+        await mlDataDB.updateFaceIdToClusterId(
+          clusteringResult.newFaceIdToCluster,
+        );
+        await mlDataDB.clusterSummaryUpdate(
+          clusteringResult.newClusterSummaries,
+        );
         Bus.instance.fire(PeopleChangedEvent());
-        _logger.info('Done updating FaceIDs with clusterIDs in the DB, in '
-            '${DateTime.now().difference(clusterDoneTime).inSeconds} seconds');
+        _logger.info(
+          'Done updating FaceIDs with clusterIDs in the DB, in '
+          '${DateTime.now().difference(clusterDoneTime).inSeconds} seconds',
+        );
       }
-      _logger.info('clusterAllImages() finished, in '
-          '${DateTime.now().difference(clusterAllImagesTime).inSeconds} seconds');
+      _logger.info(
+        'clusterAllImages() finished, in '
+        '${DateTime.now().difference(clusterAllImagesTime).inSeconds} seconds',
+      );
     } catch (e, s) {
       _logger.severe("`clusterAllImages` failed", e, s);
     } finally {
@@ -456,7 +465,8 @@ class MLService {
       actuallyRanML = result.ranML;
       if (!actuallyRanML) return actuallyRanML;
       // Prepare storing data on remote
-      final FileDataEntity dataEntity = instruction.existingRemoteFileML ??
+      final FileDataEntity dataEntity =
+          instruction.existingRemoteFileML ??
           FileDataEntity.empty(
             instruction.file.uploadedFileID!,
             DataType.mlData,
@@ -499,16 +509,11 @@ class MLService {
         );
       }
       // Storing results on remote
-      await fileDataService.putFileData(
-        instruction.file,
-        dataEntity,
-      );
+      await fileDataService.putFileData(instruction.file, dataEntity);
       // Storing results locally
       if (result.facesRan) await mlDataDB.bulkInsertFaces(faces);
       if (result.clipRan) {
-        await SemanticSearchService.instance.storeClipImageResult(
-          result.clip!,
-        );
+        await SemanticSearchService.instance.storeClipImageResult(result.clip!);
       }
       _logger.info("ML result for fileID ${result.fileId} stored remote+local");
       return actuallyRanML;
@@ -519,18 +524,18 @@ class MLService {
       final fileType = instruction.file.fileType;
       final bool acceptedIssue =
           errorString.contains('ThumbnailRetrievalException') ||
-              errorString.contains('InvalidImageFormatException') ||
-              errorString.contains('UnhandledExifOrientation') ||
-              errorString.contains('FileSizeTooLargeForMobileIndexing');
+          errorString.contains('InvalidImageFormatException') ||
+          errorString.contains('UnhandledExifOrientation') ||
+          errorString.contains('FileSizeTooLargeForMobileIndexing');
       if (acceptedIssue) {
         _logger.severe(
           '$errorString for fileID ${instruction.file.uploadedFileID} (format $format, type $fileType, size $size), storing empty results so indexing does not get stuck',
           e,
           s,
         );
-        await mlDataDB.bulkInsertFaces(
-          [Face.empty(instruction.file.uploadedFileID!, error: true)],
-        );
+        await mlDataDB.bulkInsertFaces([
+          Face.empty(instruction.file.uploadedFileID!, error: true),
+        ]);
         await SemanticSearchService.instance.storeEmptyClipImageResult(
           instruction.file,
         );
@@ -582,7 +587,8 @@ class MLService {
   }
 
   void _logStatus() {
-    final String status = '''
+    final String status =
+        '''
     isInternalUser: ${flagService.internalUser}
     Local indexing: ${localSettings.isMLLocalIndexingEnabled}
     canRunMLController: $_mlControllerStatus

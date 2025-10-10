@@ -39,26 +39,20 @@ class PhotoGridSizePickerPage extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                        child: ItemsWidget(),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      child: ItemsWidget(),
+                    ),
+                  ],
+                ),
+              );
+            }, childCount: 1),
           ),
           const SliverPadding(padding: EdgeInsets.symmetric(vertical: 12)),
         ],
@@ -81,9 +75,11 @@ class _ItemsWidgetState extends State<ItemsWidget> {
   @override
   void initState() {
     currentGridSize = localSettings.getPhotoGridSize();
-    for (int gridSize = photoGridSizeMin;
-        gridSize <= photoGridSizeMax;
-        gridSize++) {
+    for (
+      int gridSize = photoGridSizeMin;
+      gridSize <= photoGridSizeMax;
+      gridSize++
+    ) {
       gridSizes.add(gridSize);
     }
     super.initState();
@@ -93,9 +89,7 @@ class _ItemsWidgetState extends State<ItemsWidget> {
   Widget build(BuildContext context) {
     items.clear();
     for (int girdSize in gridSizes) {
-      items.add(
-        _menuItemForPicker(girdSize),
-      );
+      items.add(_menuItemForPicker(girdSize));
     }
     items = addSeparators(
       items,
@@ -104,33 +98,28 @@ class _ItemsWidgetState extends State<ItemsWidget> {
         bgColor: getEnteColorScheme(context).fillFaint,
       ),
     );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: items,
-    );
+    return Column(mainAxisSize: MainAxisSize.min, children: items);
   }
 
   Widget _menuItemForPicker(int gridSize) {
     return MenuItemWidget(
       key: ValueKey(gridSize),
       menuItemColor: getEnteColorScheme(context).fillFaint,
-      captionedTextWidget: CaptionedTextWidget(
-        title: "$gridSize",
-      ),
+      captionedTextWidget: CaptionedTextWidget(title: "$gridSize"),
       trailingIcon: currentGridSize == gridSize ? Icons.check : null,
       alignCaptionedTextToLeft: true,
       isTopBorderRadiusRemoved: true,
       isBottomBorderRadiusRemoved: true,
       showOnlyLoadingState: true,
       onTap: () async {
-        await localSettings.setPhotoGridSize(gridSize).then(
+        await localSettings
+            .setPhotoGridSize(gridSize)
+            .then(
               (value) => setState(() {
                 currentGridSize = gridSize;
               }),
             );
-        Bus.instance.fire(
-          ForceReloadHomeGalleryEvent("grid size changed"),
-        );
+        Bus.instance.fire(ForceReloadHomeGalleryEvent("grid size changed"));
       },
     );
   }

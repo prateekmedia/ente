@@ -10,9 +10,7 @@ import 'package:photos/ui/components/title_bar_title_widget.dart';
 import 'package:photos/ui/notification/update/change_log_entry.dart';
 
 class ChangeLogPage extends StatefulWidget {
-  const ChangeLogPage({
-    super.key,
-  });
+  const ChangeLogPage({super.key});
 
   @override
   State<ChangeLogPage> createState() => _ChangeLogPageState();
@@ -29,9 +27,7 @@ class _ChangeLogPageState extends State<ChangeLogPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(
-              height: 36,
-            ),
+            const SizedBox(height: 36),
             Container(
               alignment: Alignment.centerLeft,
               child: Padding(
@@ -41,13 +37,9 @@ class _ChangeLogPageState extends State<ChangeLogPage> {
                 ),
               ),
             ),
-            const SizedBox(
-              height: 24,
-            ),
+            const SizedBox(height: 24),
             Expanded(child: _getChangeLog(context)),
-            const DividerWidget(
-              dividerType: DividerType.solid,
-            ),
+            const DividerWidget(dividerType: DividerType.solid),
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(
@@ -71,9 +63,7 @@ class _ChangeLogPageState extends State<ChangeLogPage> {
                         }
                       },
                     ),
-                    const SizedBox(
-                      height: 8,
-                    ),
+                    const SizedBox(height: 8),
                     ButtonWidget(
                       buttonType: ButtonType.trailingIconSecondary,
                       buttonSize: ButtonSize.large,
@@ -100,18 +90,9 @@ class _ChangeLogPageState extends State<ChangeLogPage> {
     final scrollController = ScrollController();
     final List<ChangeLogEntry> items = [];
     items.addAll([
-      ChangeLogEntry(
-        context.l10n.cLTitle1,
-        context.l10n.cLDesc1,
-      ),
-      ChangeLogEntry(
-        context.l10n.cLTitle2,
-        context.l10n.cLDesc2,
-      ),
-      ChangeLogEntry(
-        context.l10n.cLTitle3,
-        context.l10n.cLDesc3,
-      ),
+      ChangeLogEntry(context.l10n.cLTitle1, context.l10n.cLDesc1),
+      ChangeLogEntry(context.l10n.cLTitle2, context.l10n.cLDesc2),
+      ChangeLogEntry(context.l10n.cLTitle3, context.l10n.cLDesc3),
     ]);
     return Container(
       padding: const EdgeInsets.only(left: 16),

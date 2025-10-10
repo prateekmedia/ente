@@ -47,9 +47,9 @@ extension SuperLogRecord on LogRecord {
 
     if (error != null) {
       if (error is DioException) {
-        final String? id = (error as DioException)
-            .requestOptions
-            .headers['x-request-id'] as String?;
+        final String? id =
+            (error as DioException).requestOptions.headers['x-request-id']
+                as String?;
         if (id != null) {
           msg += "\n⤷ id: $id";
         }
@@ -173,7 +173,8 @@ class SuperLogging {
     }
 
     final enable = appConfig.enableInDebugMode || kReleaseMode;
-    sentryIsEnabled = enable &&
+    sentryIsEnabled =
+        enable &&
         appConfig.sentryDsn != null &&
         !isFDroidClient &&
         shouldReportCrashes();
@@ -231,17 +232,16 @@ class SuperLogging {
     if (appConfig.body == null) return;
 
     if (enable && sentryIsEnabled) {
-      await SentryFlutter.init(
-        (options) {
-          options.dsn = appConfig!.sentryDsn;
-          options.httpClient = http.Client();
-          if (appConfig.tunnel != null) {
-            options.transport =
-                TunneledTransport(Uri.parse(appConfig.tunnel!), options);
-          }
-        },
-        appRunner: () => appConfig!.body!(),
-      );
+      await SentryFlutter.init((options) {
+        options.dsn = appConfig!.sentryDsn;
+        options.httpClient = http.Client();
+        if (appConfig.tunnel != null) {
+          options.transport = TunneledTransport(
+            Uri.parse(appConfig.tunnel!),
+            options,
+          );
+        }
+      }, appRunner: () => appConfig!.body!());
     } else {
       await appConfig.body!();
     }
@@ -251,7 +251,9 @@ class SuperLogging {
     if (config.sentryDsn != null) {
       $.finest("setting sentry user ID to: $userID");
       Sentry.configureScope(
-        (scope) => scope.setUser(SentryUser(id: userID)).onError(
+        (scope) => scope
+            .setUser(SentryUser(id: userID))
+            .onError(
               (e, s) => $.warning("failed to configure scope user", e, s),
             ),
       );
@@ -262,7 +264,8 @@ class SuperLogging {
     if (error is DioException) {
       return true;
     }
-    final bool result = error is StorageLimitExceededError ||
+    final bool result =
+        error is StorageLimitExceededError ||
         error is WiFiUnavailableError ||
         error is InvalidFileError ||
         error is NoActiveSubscriptionError;
@@ -288,18 +291,13 @@ class SuperLogging {
           error,
           stackTrace: stack,
           withScope: (scope) {
-            scope.setContexts('log_details', {
-              'message': rec.message,
-            });
+            scope.setContexts('log_details', {'message': rec.message});
             scope.setTag('logger', rec.loggerName);
             scope.setTag('level', rec.level.name);
           },
         );
       } else {
-        await Sentry.captureException(
-          error,
-          stackTrace: stack,
-        );
+        await Sentry.captureException(error, stackTrace: stack);
       }
     } catch (e) {
       $.info('Sending report to sentry failed: $e');
@@ -380,9 +378,7 @@ class SuperLogging {
         if (_shouldSkipSentry(error)) {
           continue;
         }
-        await Sentry.captureException(
-          error,
-        );
+        await Sentry.captureException(error);
       } catch (e) {
         $.fine(
           "sentry upload failed; will retry after ${config.sentryRetryDelay}",
@@ -453,9 +449,7 @@ class SuperLogging {
 
       for (final file in toDelete) {
         try {
-          $.fine(
-            "deleting log file ${file.path}",
-          );
+          $.fine("deleting log file ${file.path}");
           await file.delete();
         } catch (_) {}
       }
@@ -488,9 +482,7 @@ class SuperLogging {
   static void showLogViewer(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const LogViewerPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const LogViewerPage()),
     );
   }
 }

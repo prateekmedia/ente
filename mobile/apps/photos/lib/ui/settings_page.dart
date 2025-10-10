@@ -114,31 +114,33 @@ class SettingsPage extends StatelessWidget {
       // show banner in debug mode and ente production
       final showStorageBonusBanner =
           storageBonusService.shouldShowStorageBonus() &&
-              (kDebugMode || Configuration.instance.isEnteProduction());
+          (kDebugMode || Configuration.instance.isEnteProduction());
       contents.addAll([
         const StorageCardWidget(),
         (showStorageBonusBanner)
             ? RepaintBoundary(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: NotificationWidget(
-                    startIcon: Icons.auto_awesome,
-                    actionIcon: Icons.arrow_forward_outlined,
-                    text: AppLocalizations.of(context).doubleYourStorage,
-                    subText:
-                        AppLocalizations.of(context).referFriendsAnd2xYourPlan,
-                    type: NotificationType.goldenBanner,
-                    onTap: () async {
-                      storageBonusService.markStorageBonusAsDone();
-                      // ignore: unawaited_futures
-                      routeToPage(context, const ReferralScreen());
-                    },
-                  ),
-                ).animate(onPlay: (controller) => controller.repeat()).shimmer(
-                      duration: 1000.ms,
-                      delay: 3200.ms,
-                      size: 0.6,
-                    ),
+                child:
+                    Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: NotificationWidget(
+                            startIcon: Icons.auto_awesome,
+                            actionIcon: Icons.arrow_forward_outlined,
+                            text: AppLocalizations.of(
+                              context,
+                            ).doubleYourStorage,
+                            subText: AppLocalizations.of(
+                              context,
+                            ).referFriendsAnd2xYourPlan,
+                            type: NotificationType.goldenBanner,
+                            onTap: () async {
+                              storageBonusService.markStorageBonusAsDone();
+                              // ignore: unawaited_futures
+                              routeToPage(context, const ReferralScreen());
+                            },
+                          ),
+                        )
+                        .animate(onPlay: (controller) => controller.repeat())
+                        .shimmer(duration: 1000.ms, delay: 3200.ms, size: 0.6),
               )
             : const SizedBox(height: 12),
         const BackupSectionWidget(),
@@ -155,10 +157,7 @@ class SettingsPage extends StatelessWidget {
     ]);
 
     if (Platform.isAndroid || kDebugMode) {
-      contents.addAll([
-        const ThemeSwitchWidget(),
-        sectionSpacing,
-      ]);
+      contents.addAll([const ThemeSwitchWidget(), sectionSpacing]);
     }
 
     contents.addAll([
@@ -175,11 +174,7 @@ class SettingsPage extends StatelessWidget {
     }
     contents.add(const AppVersionWidget());
     contents.add(const DeveloperSettingsWidget());
-    contents.add(
-      const Padding(
-        padding: EdgeInsets.only(bottom: 60),
-      ),
-    );
+    contents.add(const Padding(padding: EdgeInsets.only(bottom: 60)));
 
     return SafeArea(
       bottom: false,
@@ -191,9 +186,7 @@ class SettingsPage extends StatelessWidget {
             const SettingsTitleBarWidget(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              child: Column(
-                children: contents,
-              ),
+              child: Column(children: contents),
             ),
           ],
         ),

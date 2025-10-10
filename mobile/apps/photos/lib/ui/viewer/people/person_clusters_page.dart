@@ -20,10 +20,7 @@ import "package:visibility_detector/visibility_detector.dart";
 class PersonClustersPage extends StatefulWidget {
   final PersonEntity person;
 
-  const PersonClustersPage(
-    this.person, {
-    super.key,
-  });
+  const PersonClustersPage(this.person, {super.key});
 
   @override
   State<PersonClustersPage> createState() => _PersonClustersPageState();
@@ -34,12 +31,11 @@ class _PersonClustersPageState extends State<PersonClustersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.person.data.name),
-      ),
+      appBar: AppBar(title: Text(widget.person.data.name)),
       body: FutureBuilder<Map<String, List<EnteFile>>>(
-        future: SearchService.instance
-            .getClusterFilesForPersonID(widget.person.remoteID),
+        future: SearchService.instance.getClusterFilesForPersonID(
+          widget.person.remoteID,
+        ),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             final clusters = snapshot.data!;
@@ -80,12 +76,8 @@ class _PersonClustersPageState extends State<PersonClustersPage> {
                               ),
                             ),
                             child: files.isNotEmpty
-                                ? PersonFaceWidget(
-                                    clusterID: clusterID,
-                                  )
-                                : const NoThumbnailWidget(
-                                    addBorder: false,
-                                  ),
+                                ? PersonFaceWidget(clusterID: clusterID)
+                                : const NoThumbnailWidget(addBorder: false),
                           ),
                         ),
                         const SizedBox(
@@ -93,14 +85,16 @@ class _PersonClustersPageState extends State<PersonClustersPage> {
                         ), // Add some spacing between the thumbnail and the text
                         Expanded(
                           child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8.0,
+                            ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  AppLocalizations.of(context)
-                                      .photosCount(count: files.length),
+                                  AppLocalizations.of(
+                                    context,
+                                  ).photosCount(count: files.length),
                                   style: getEnteTextTheme(context).body,
                                 ),
                                 (index != 0)
@@ -109,14 +103,16 @@ class _PersonClustersPageState extends State<PersonClustersPage> {
                                           try {
                                             await PersonService.instance
                                                 .removeClusterToPerson(
-                                              personID: widget.person.remoteID,
-                                              clusterID: clusterID,
-                                            );
+                                                  personID:
+                                                      widget.person.remoteID,
+                                                  clusterID: clusterID,
+                                                );
                                             _logger.info(
                                               "Removed cluster $clusterID from person ${widget.person.remoteID}",
                                             );
-                                            Bus.instance
-                                                .fire(PeopleChangedEvent());
+                                            Bus.instance.fire(
+                                              PeopleChangedEvent(),
+                                            );
                                             setState(() {});
                                           } catch (e) {
                                             _logger.severe(
@@ -156,10 +152,7 @@ class _PersonClustersPageState extends State<PersonClustersPage> {
 class PersonClustersWidget extends StatefulWidget {
   final PersonEntity person;
 
-  const PersonClustersWidget(
-    this.person, {
-    super.key,
-  });
+  const PersonClustersWidget(this.person, {super.key});
 
   @override
   State<PersonClustersWidget> createState() => _PersonClustersWidgetState();
@@ -171,8 +164,9 @@ class _PersonClustersWidgetState extends State<PersonClustersWidget> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, List<EnteFile>>>(
-      future: SearchService.instance
-          .getClusterFilesForPersonID(widget.person.remoteID),
+      future: SearchService.instance.getClusterFilesForPersonID(
+        widget.person.remoteID,
+      ),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           final clusters = snapshot.data!;
@@ -186,10 +180,12 @@ class _PersonClustersWidgetState extends State<PersonClustersWidget> {
             builder: (context, constraints) {
               // Determine number of columns based on available width
               // Minimum column width of 150, maximum of 250
-              final double columnWidth =
-                  MediaQuery.of(context).size.width > 600 ? 250 : 150;
-              final int crossAxisCount =
-                  (constraints.maxWidth / columnWidth).floor().clamp(2, 5);
+              final double columnWidth = MediaQuery.of(context).size.width > 600
+                  ? 250
+                  : 150;
+              final int crossAxisCount = (constraints.maxWidth / columnWidth)
+                  .floor()
+                  .clamp(2, 5);
 
               return GridView.builder(
                 shrinkWrap: true,
@@ -231,11 +227,7 @@ class _ClusterWrapperForGird extends StatefulWidget {
   final String clusterID;
   final PersonEntity person;
 
-  const _ClusterWrapperForGird(
-    this.files,
-    this.clusterID,
-    this.person,
-  );
+  const _ClusterWrapperForGird(this.files, this.clusterID, this.person);
 
   @override
   State<_ClusterWrapperForGird> createState() => __ClusterWrapperForGirdState();
@@ -282,20 +274,17 @@ class __ClusterWrapperForGirdState extends State<_ClusterWrapperForGird> {
                         ),
                       ),
                       child: widget.files.isNotEmpty
-                          ? PersonFaceWidget(
-                              clusterID: widget.clusterID,
-                            )
-                          : const NoThumbnailWidget(
-                              addBorder: false,
-                            ),
+                          ? PersonFaceWidget(clusterID: widget.clusterID)
+                          : const NoThumbnailWidget(addBorder: false),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     context.l10n.memoryCount(
                       count: widget.files.length,
-                      formattedCount:
-                          NumberFormat().format(widget.files.length),
+                      formattedCount: NumberFormat().format(
+                        widget.files.length,
+                      ),
                     ),
                     style: getEnteTextTheme(context).small,
                     textAlign: TextAlign.center,
@@ -305,9 +294,7 @@ class __ClusterWrapperForGirdState extends State<_ClusterWrapperForGird> {
             : SizedBox(
                 width: 100,
                 height: 100,
-                child: EnteLoadingWidget(
-                  color: loadingColor,
-                ),
+                child: EnteLoadingWidget(color: loadingColor),
               ),
       ),
     );

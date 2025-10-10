@@ -62,10 +62,12 @@ class FaceEmbeddingService extends MlModel {
   ) {
     final runOptions = OrtRunOptions();
     final int numberOfFaces = input.length ~/ (kInputSize * kInputSize * 3);
-    final inputOrt = OrtValueTensor.createTensorWithDataList(
-      input,
-      [numberOfFaces, kInputSize, kInputSize, kNumChannels],
-    );
+    final inputOrt = OrtValueTensor.createTensorWithDataList(input, [
+      numberOfFaces,
+      kInputSize,
+      kInputSize,
+      kNumChannels,
+    ]);
     final inputs = {'img_inputs': inputOrt};
     final session = OrtSession.fromAddress(sessionAddress);
     final List<OrtValue?> outputs = session.run(runOptions, inputs);
@@ -90,14 +92,12 @@ class FaceEmbeddingService extends MlModel {
     final OnnxDart plugin = OnnxDart();
     final int numberOfFaces =
         inputImageList.length ~/ (kInputSize * kInputSize * 3);
-    final result = await plugin.predict(
-      inputImageList,
-      _modelName,
-    );
+    final result = await plugin.predict(inputImageList, _modelName);
     final List<List<double>> embeddings = [];
     for (int i = 0; i < numberOfFaces; i++) {
-      embeddings
-          .add(result!.sublist(i * kEmbeddingSize, (i + 1) * kEmbeddingSize));
+      embeddings.add(
+        result!.sublist(i * kEmbeddingSize, (i + 1) * kEmbeddingSize),
+      );
     }
     for (final embedding in embeddings) {
       normalizeEmbedding(embedding);

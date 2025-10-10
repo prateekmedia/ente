@@ -32,7 +32,8 @@ class SearchableItemWidget extends StatelessWidget {
     final heroTagPrefix = additionalPrefix + searchResult.heroTag();
     final textTheme = getEnteTextTheme(context);
     final colorScheme = getEnteColorScheme(context);
-    final bool isCluster = (searchResult.type() == ResultType.faces &&
+    final bool isCluster =
+        (searchResult.type() == ResultType.faces &&
         int.tryParse(searchResult.name()) != null);
 
     return GestureDetector(
@@ -44,18 +45,12 @@ class SearchableItemWidget extends StatelessWidget {
           if (searchResult.type() == ResultType.shared) {
             routeToPage(
               context,
-              ContactResultPage(
-                searchResult,
-                tagPrefix: additionalPrefix,
-              ),
+              ContactResultPage(searchResult, tagPrefix: additionalPrefix),
             );
           } else {
             routeToPage(
               context,
-              SearchResultPage(
-                searchResult,
-                tagPrefix: additionalPrefix,
-              ),
+              SearchResultPage(searchResult, tagPrefix: additionalPrefix),
             );
           }
         }
@@ -63,9 +58,7 @@ class SearchableItemWidget extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: colorScheme.strokeFainter),
-          borderRadius: const BorderRadius.all(
-            Radius.circular(6),
-          ),
+          borderRadius: const BorderRadius.all(Radius.circular(6)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -99,23 +92,24 @@ class SearchableItemWidget extends StatelessWidget {
                               ? const SizedBox.shrink()
                               : Text(
                                   searchResult.name(),
-                                  style: searchResult.type() ==
+                                  style:
+                                      searchResult.type() ==
                                           ResultType.locationSuggestion
                                       ? textTheme.bodyFaint
                                       : textTheme.body,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                          const SizedBox(
-                            height: 2,
-                          ),
+                          const SizedBox(height: 2),
                           FutureBuilder<int>(
-                            future: resultCount ??
+                            future:
+                                resultCount ??
                                 Future.value(searchResult.resultFiles().length),
                             builder: (context, snapshot) {
                               if (snapshot.hasData && snapshot.data! > 0) {
                                 final noOfMemories = snapshot.data;
-                                final String suffix =
-                                    noOfMemories! > 1 ? " memories" : " memory";
+                                final String suffix = noOfMemories! > 1
+                                    ? " memories"
+                                    : " memory";
 
                                 return Text(
                                   noOfMemories.toString() + suffix,
@@ -177,8 +171,9 @@ class SearchableItemPlaceholder extends StatelessWidget {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  borderRadius:
-                      const BorderRadius.horizontal(left: Radius.circular(4)),
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(4),
+                  ),
                   color: colorScheme.fillFaint,
                 ),
                 child: Icon(
@@ -187,10 +182,7 @@ class SearchableItemPlaceholder extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                sectionType.getCTAText(context),
-                style: textTheme.body,
-              ),
+              Text(sectionType.getCTAText(context), style: textTheme.body),
             ],
           ),
         ),

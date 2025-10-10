@@ -1,10 +1,7 @@
 import "package:flutter/material.dart";
 
 class VideoEditorMainActions extends StatelessWidget {
-  const VideoEditorMainActions({
-    super.key,
-    required this.children,
-  });
+  const VideoEditorMainActions({super.key, required this.children});
 
   final List<Widget> children;
 

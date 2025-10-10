@@ -15,9 +15,7 @@ import "package:photos/ui/components/title_bar_widget.dart";
 import "package:photos/ui/components/toggle_switch_widget.dart";
 
 class MemoriesSettingsScreen extends StatefulWidget {
-  const MemoriesSettingsScreen({
-    super.key,
-  });
+  const MemoriesSettingsScreen({super.key});
 
   @override
   State<MemoriesSettingsScreen> createState() => _MemoriesSettingsScreenState();
@@ -47,68 +45,63 @@ class _MemoriesSettingsScreenState extends State<MemoriesSettingsScreen> {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: AppLocalizations.of(context).showMemories,
-                        ),
-                        menuItemColor: colorScheme.fillFaint,
-                        singleBorderRadius: 8,
-                        alignCaptionedTextToLeft: true,
-                        trailingWidget: ToggleSwitchWidget(
-                          value: () => memoriesCacheService.showAnyMemories,
-                          onChanged: () async {
-                            await memoriesCacheService.setShowAnyMemories(
-                              !memoriesCacheService.showAnyMemories,
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: AppLocalizations.of(context).showMemories,
+                      ),
+                      menuItemColor: colorScheme.fillFaint,
+                      singleBorderRadius: 8,
+                      alignCaptionedTextToLeft: true,
+                      trailingWidget: ToggleSwitchWidget(
+                        value: () => memoriesCacheService.showAnyMemories,
+                        onChanged: () async {
+                          await memoriesCacheService.setShowAnyMemories(
+                            !memoriesCacheService.showAnyMemories,
+                          );
+                          if (!memoriesCacheService.showAnyMemories) {
+                            unawaited(
+                              MemoryHomeWidgetService.instance.clearWidget(),
                             );
-                            if (!memoriesCacheService.showAnyMemories) {
-                              unawaited(
-                                MemoryHomeWidgetService.instance.clearWidget(),
-                              );
-                            }
-                            setState(() {});
-                          },
-                        ),
+                          }
+                          setState(() {});
+                        },
                       ),
-                      const SizedBox(
-                        height: 24,
-                      ),
-                      memoriesCacheService.curatedMemoriesOption
-                          ? MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context)
-                                    .curatedMemories,
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              trailingWidget: ToggleSwitchWidget(
-                                value: () =>
-                                    localSettings.isSmartMemoriesEnabled,
-                                onChanged: () async {
-                                  unawaited(_toggleUpdateMemories());
-                                },
-                              ),
-                            )
-                          : const SizedBox(),
-                      memoriesCacheService.curatedMemoriesOption
-                          ? const SizedBox(
-                              height: 24,
-                            )
-                          : const SizedBox(),
-                    ],
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+                    ),
+                    const SizedBox(height: 24),
+                    memoriesCacheService.curatedMemoriesOption
+                        ? MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(
+                                context,
+                              ).curatedMemories,
+                            ),
+                            menuItemColor: colorScheme.fillFaint,
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () => localSettings.isSmartMemoriesEnabled,
+                              onChanged: () async {
+                                unawaited(_toggleUpdateMemories());
+                              },
+                            ),
+                          )
+                        : const SizedBox(),
+                    memoriesCacheService.curatedMemoriesOption
+                        ? const SizedBox(height: 24)
+                        : const SizedBox(),
+                  ],
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),
@@ -117,12 +110,8 @@ class _MemoriesSettingsScreenState extends State<MemoriesSettingsScreen> {
 }
 
 Future<void> _toggleUpdateMemories() async {
-  await localSettings.setSmartMemories(
-    !localSettings.isSmartMemoriesEnabled,
-  );
-  await memoriesCacheService.clearMemoriesCache(
-    fromDisk: false,
-  );
+  await localSettings.setSmartMemories(!localSettings.isSmartMemoriesEnabled);
+  await memoriesCacheService.clearMemoriesCache(fromDisk: false);
   await memoriesCacheService.getMemories();
   Bus.instance.fire(MemoriesChangedEvent());
 }

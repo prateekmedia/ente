@@ -41,134 +41,136 @@ class BackupSettingsScreen extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          children: [
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context)
-                                    .backupOverMobileData,
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              trailingWidget: ToggleSwitchWidget(
-                                value: () => Configuration.instance
-                                    .shouldBackupOverMobileData(),
-                                onChanged: () async {
-                                  await Configuration.instance
-                                      .setBackupOverMobileData(
-                                    !Configuration.instance
-                                        .shouldBackupOverMobileData(),
-                                  );
-                                },
-                              ),
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              isBottomBorderRadiusRemoved: true,
-                              isGestureDetectorDisabled: true,
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        children: [
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(
+                                context,
+                              ).backupOverMobileData,
                             ),
+                            menuItemColor: colorScheme.fillFaint,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () => Configuration.instance
+                                  .shouldBackupOverMobileData(),
+                              onChanged: () async {
+                                await Configuration.instance
+                                    .setBackupOverMobileData(
+                                      !Configuration.instance
+                                          .shouldBackupOverMobileData(),
+                                    );
+                              },
+                            ),
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            isBottomBorderRadiusRemoved: true,
+                            isGestureDetectorDisabled: true,
+                          ),
+                          DividerWidget(
+                            dividerType: DividerType.menuNoIcon,
+                            bgColor: colorScheme.fillFaint,
+                          ),
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(context).backupVideos,
+                            ),
+                            menuItemColor: colorScheme.fillFaint,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () =>
+                                  Configuration.instance.shouldBackupVideos(),
+                              onChanged: () =>
+                                  Configuration.instance.setShouldBackupVideos(
+                                    !Configuration.instance
+                                        .shouldBackupVideos(),
+                                  ),
+                            ),
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            isTopBorderRadiusRemoved: true,
+                            isGestureDetectorDisabled: true,
+                            isBottomBorderRadiusRemoved:
+                                flagService.enableMobMultiPart,
+                          ),
+                          if (flagService.enableMobMultiPart)
                             DividerWidget(
                               dividerType: DividerType.menuNoIcon,
                               bgColor: colorScheme.fillFaint,
                             ),
+                          if (flagService.enableMobMultiPart)
                             MenuItemWidget(
                               captionedTextWidget: CaptionedTextWidget(
-                                title:
-                                    AppLocalizations.of(context).backupVideos,
+                                title: AppLocalizations.of(
+                                  context,
+                                ).resumableUploads,
                               ),
                               menuItemColor: colorScheme.fillFaint,
+                              singleBorderRadius: 8,
                               trailingWidget: ToggleSwitchWidget(
                                 value: () =>
-                                    Configuration.instance.shouldBackupVideos(),
-                                onChanged: () => Configuration.instance
-                                    .setShouldBackupVideos(
-                                  !Configuration.instance.shouldBackupVideos(),
-                                ),
+                                    localSettings.userEnabledMultiplePart,
+                                onChanged: () async {
+                                  await localSettings
+                                      .setUserEnabledMultiplePart(
+                                        !localSettings.userEnabledMultiplePart,
+                                      );
+                                },
                               ),
-                              singleBorderRadius: 8,
                               alignCaptionedTextToLeft: true,
                               isTopBorderRadiusRemoved: true,
                               isGestureDetectorDisabled: true,
-                              isBottomBorderRadiusRemoved:
-                                  flagService.enableMobMultiPart,
                             ),
-                            if (flagService.enableMobMultiPart)
-                              DividerWidget(
-                                dividerType: DividerType.menuNoIcon,
-                                bgColor: colorScheme.fillFaint,
-                              ),
-                            if (flagService.enableMobMultiPart)
-                              MenuItemWidget(
-                                captionedTextWidget: CaptionedTextWidget(
-                                  title: AppLocalizations.of(context)
-                                      .resumableUploads,
-                                ),
-                                menuItemColor: colorScheme.fillFaint,
-                                singleBorderRadius: 8,
-                                trailingWidget: ToggleSwitchWidget(
-                                  value: () =>
-                                      localSettings.userEnabledMultiplePart,
-                                  onChanged: () async {
-                                    await localSettings
-                                        .setUserEnabledMultiplePart(
-                                      !localSettings.userEnabledMultiplePart,
-                                    );
-                                  },
-                                ),
-                                alignCaptionedTextToLeft: true,
-                                isTopBorderRadiusRemoved: true,
-                                isGestureDetectorDisabled: true,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        Platform.isIOS
-                            ? Column(
-                                children: [
-                                  MenuItemWidget(
-                                    captionedTextWidget: CaptionedTextWidget(
-                                      title: AppLocalizations.of(context)
-                                          .disableAutoLock,
-                                    ),
-                                    menuItemColor: colorScheme.fillFaint,
-                                    trailingWidget: ToggleSwitchWidget(
-                                      value: () => EnteWakeLockService.instance
-                                          .shouldKeepAppAwakeAcrossSessions,
-                                      onChanged: () async {
-                                        EnteWakeLockService.instance
-                                            .updateWakeLock(
-                                          enable: !EnteWakeLockService.instance
-                                              .shouldKeepAppAwakeAcrossSessions,
-                                          wakeLockFor: WakeLockFor
-                                              .fasterBackupsOniOSByKeepingScreenAwake,
-                                        );
-                                      },
-                                    ),
-                                    singleBorderRadius: 8,
-                                    alignCaptionedTextToLeft: true,
-                                    isGestureDetectorDisabled: true,
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Platform.isIOS
+                          ? Column(
+                              children: [
+                                MenuItemWidget(
+                                  captionedTextWidget: CaptionedTextWidget(
+                                    title: AppLocalizations.of(
+                                      context,
+                                    ).disableAutoLock,
                                   ),
-                                  MenuSectionDescriptionWidget(
-                                    content: AppLocalizations.of(context)
-                                        .deviceLockExplanation,
+                                  menuItemColor: colorScheme.fillFaint,
+                                  trailingWidget: ToggleSwitchWidget(
+                                    value: () => EnteWakeLockService
+                                        .instance
+                                        .shouldKeepAppAwakeAcrossSessions,
+                                    onChanged: () async {
+                                      EnteWakeLockService.instance.updateWakeLock(
+                                        enable: !EnteWakeLockService
+                                            .instance
+                                            .shouldKeepAppAwakeAcrossSessions,
+                                        wakeLockFor: WakeLockFor
+                                            .fasterBackupsOniOSByKeepingScreenAwake,
+                                      );
+                                    },
                                   ),
-                                ],
-                              )
-                            : const SizedBox.shrink(),
-                      ],
-                    ),
+                                  singleBorderRadius: 8,
+                                  alignCaptionedTextToLeft: true,
+                                  isGestureDetectorDisabled: true,
+                                ),
+                                MenuSectionDescriptionWidget(
+                                  content: AppLocalizations.of(
+                                    context,
+                                  ).deviceLockExplanation,
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ],
                   ),
-                );
-              },
-              childCount: 1,
-            ),
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),

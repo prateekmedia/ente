@@ -80,8 +80,9 @@ class _PeoplePageState extends State<PeoplePage> {
 
     filesFuture = loadPersonFiles();
 
-    _filesUpdatedEvent =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
+    _filesUpdatedEvent = Bus.instance.on<LocalPhotosUpdatedEvent>().listen((
+      event,
+    ) {
       if (event.type == EventType.deletedFromDevice ||
           event.type == EventType.deletedFromEverywhere ||
           event.type == EventType.deletedFromRemote ||
@@ -94,15 +95,16 @@ class _PeoplePageState extends State<PeoplePage> {
     });
     _searchFilterDataProvider = widget.searchResult != null
         ? SearchFilterDataProvider(
-            initialGalleryFilter:
-                widget.searchResult!.getHierarchicalSearchFilter(),
+            initialGalleryFilter: widget.searchResult!
+                .getHierarchicalSearchFilter(),
           )
         : null;
   }
 
   Future<List<EnteFile>> loadPersonFiles() async {
-    final result = await SearchService.instance
-        .getClusterFilesForPersonID(_person.remoteID);
+    final result = await SearchService.instance.getClusterFilesForPersonID(
+      _person.remoteID,
+    );
     if (result.isEmpty) {
       _logger.severe(
         "No files found for person with id ${_person.remoteID}, can't load files",
@@ -134,8 +136,9 @@ class _PeoplePageState extends State<PeoplePage> {
         searchFilterDataProvider: _searchFilterDataProvider,
         child: Scaffold(
           appBar: PreferredSize(
-            preferredSize:
-                Size.fromHeight(widget.searchResult != null ? 90.0 : 50.0),
+            preferredSize: Size.fromHeight(
+              widget.searchResult != null ? 90.0 : 50.0,
+            ),
             child: PeopleAppBar(
               GalleryType.peopleTag,
               _person.data.isIgnored
@@ -163,11 +166,7 @@ class _PeoplePageState extends State<PeoplePage> {
                               valueListenable: inheritedSearchFilterData
                                   .searchFilterDataProvider!
                                   .isSearchingNotifier,
-                              builder: (
-                                context,
-                                value,
-                                _,
-                              ) {
+                              builder: (context, value, _) {
                                 return value
                                     ? HierarchicalSearchGallery(
                                         tagPrefix: widget.tagPrefix,
@@ -198,14 +197,13 @@ class _PeoplePageState extends State<PeoplePage> {
                   ),
                 );
               } else if (snapshot.hasError) {
-                _logger
-                    .severe("Error: ${snapshot.error} ${snapshot.stackTrace}}");
+                _logger.severe(
+                  "Error: ${snapshot.error} ${snapshot.stackTrace}}",
+                );
                 //Need to show an error on the UI here
                 return const SizedBox.shrink();
               } else {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+                return const Center(child: CircularProgressIndicator());
               }
             },
           ),
@@ -240,19 +238,9 @@ class _GalleryState extends State<_Gallery> {
   @override
   Widget build(BuildContext context) {
     return Gallery(
-      asyncLoader: (
-        creationStartTime,
-        creationEndTime, {
-        limit,
-        asc,
-      }) async {
+      asyncLoader: (creationStartTime, creationEndTime, {limit, asc}) async {
         final result = await widget.loadPersonFiles();
-        return Future.value(
-          FileLoadResult(
-            result,
-            false,
-          ),
-        );
+        return Future.value(FileLoadResult(result, false));
       },
       reloadEvent: Bus.instance.on<LocalPhotosUpdatedEvent>(),
       forceReloadEvents: [Bus.instance.on<PeopleChangedEvent>()],
@@ -263,8 +251,9 @@ class _GalleryState extends State<_Gallery> {
       },
       tagPrefix: widget.tagPrefix + widget.tagPrefix,
       selectedFiles: widget.selectedFiles,
-      initialFiles:
-          widget.personFiles.isNotEmpty ? [widget.personFiles.first] : [],
+      initialFiles: widget.personFiles.isNotEmpty
+          ? [widget.personFiles.first]
+          : [],
       header: Column(
         children: [
           (widget.personEntity.data.email != null &&

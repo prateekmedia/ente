@@ -40,116 +40,108 @@ class AdvancedSettingsScreen extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: AppLocalizations.of(context).machineLearning,
-                        ),
-                        menuItemColor: colorScheme.fillFaint,
-                        trailingWidget: Icon(
-                          Icons.chevron_right_outlined,
-                          color: colorScheme.strokeBase,
-                        ),
-                        singleBorderRadius: 8,
-                        alignCaptionedTextToLeft: true,
-                        onTap: () async {
-                          // ignore: unawaited_futures
-                          routeToPage(
-                            context,
-                            const MachineLearningSettingsPage(),
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: AppLocalizations.of(context).machineLearning,
+                      ),
+                      menuItemColor: colorScheme.fillFaint,
+                      trailingWidget: Icon(
+                        Icons.chevron_right_outlined,
+                        color: colorScheme.strokeBase,
+                      ),
+                      singleBorderRadius: 8,
+                      alignCaptionedTextToLeft: true,
+                      onTap: () async {
+                        // ignore: unawaited_futures
+                        routeToPage(
+                          context,
+                          const MachineLearningSettingsPage(),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    MenuItemWidget(
+                      captionedTextWidget: const CaptionedTextWidget(
+                        title: "App icon",
+                      ),
+                      menuItemColor: colorScheme.fillFaint,
+                      trailingWidget: Icon(
+                        Icons.chevron_right_outlined,
+                        color: colorScheme.strokeBase,
+                      ),
+                      singleBorderRadius: 8,
+                      alignCaptionedTextToLeft: true,
+                      onTap: () async {
+                        // ignore: unawaited_futures
+                        routeToPage(context, const AppIconSelectionScreen());
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: AppLocalizations.of(context).maps,
+                      ),
+                      menuItemColor: colorScheme.fillFaint,
+                      singleBorderRadius: 8,
+                      alignCaptionedTextToLeft: true,
+                      trailingWidget: ToggleSwitchWidget(
+                        value: () => flagService.mapEnabled,
+                        onChanged: () async {
+                          final isEnabled = flagService.mapEnabled;
+                          await flagService.setMapEnabled(!isEnabled);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: AppLocalizations.of(context).videoStreaming,
+                      ),
+                      menuItemColor: colorScheme.fillFaint,
+                      trailingWidget: Icon(
+                        Icons.chevron_right_outlined,
+                        color: colorScheme.strokeBase,
+                      ),
+                      singleBorderRadius: 8,
+                      alignCaptionedTextToLeft: true,
+                      onTap: () async {
+                        // ignore: unawaited_futures
+                        routeToPage(
+                          context,
+                          const VideoStreamingSettingsPage(),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: AppLocalizations.of(context).crashReporting,
+                      ),
+                      menuItemColor: colorScheme.fillFaint,
+                      singleBorderRadius: 8,
+                      alignCaptionedTextToLeft: true,
+                      trailingWidget: ToggleSwitchWidget(
+                        value: () => SuperLogging.shouldReportCrashes(),
+                        onChanged: () async {
+                          await SuperLogging.setShouldReportCrashes(
+                            !SuperLogging.shouldReportCrashes(),
                           );
                         },
                       ),
-                      const SizedBox(
-                        height: 24,
-                      ),
-                      MenuItemWidget(
-                        captionedTextWidget: const CaptionedTextWidget(
-                          title: "App icon",
-                        ),
-                        menuItemColor: colorScheme.fillFaint,
-                        trailingWidget: Icon(
-                          Icons.chevron_right_outlined,
-                          color: colorScheme.strokeBase,
-                        ),
-                        singleBorderRadius: 8,
-                        alignCaptionedTextToLeft: true,
-                        onTap: () async {
-                          // ignore: unawaited_futures
-                          routeToPage(
-                            context,
-                            const AppIconSelectionScreen(),
-                          );
-                        },
-                      ),
-                      const SizedBox(
-                        height: 24,
-                      ),
-                      MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: AppLocalizations.of(context).maps,
-                        ),
-                        menuItemColor: colorScheme.fillFaint,
-                        singleBorderRadius: 8,
-                        alignCaptionedTextToLeft: true,
-                        trailingWidget: ToggleSwitchWidget(
-                          value: () => flagService.mapEnabled,
-                          onChanged: () async {
-                            final isEnabled = flagService.mapEnabled;
-                            await flagService.setMapEnabled(!isEnabled);
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: AppLocalizations.of(context).videoStreaming,
-                        ),
-                        menuItemColor: colorScheme.fillFaint,
-                        trailingWidget: Icon(
-                          Icons.chevron_right_outlined,
-                          color: colorScheme.strokeBase,
-                        ),
-                        singleBorderRadius: 8,
-                        alignCaptionedTextToLeft: true,
-                        onTap: () async {
-                          // ignore: unawaited_futures
-                          routeToPage(
-                            context,
-                            const VideoStreamingSettingsPage(),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: AppLocalizations.of(context).crashReporting,
-                        ),
-                        menuItemColor: colorScheme.fillFaint,
-                        singleBorderRadius: 8,
-                        alignCaptionedTextToLeft: true,
-                        trailingWidget: ToggleSwitchWidget(
-                          value: () => SuperLogging.shouldReportCrashes(),
-                          onChanged: () async {
-                            await SuperLogging.setShouldReportCrashes(
-                              !SuperLogging.shouldReportCrashes(),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+                    ),
+                  ],
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),

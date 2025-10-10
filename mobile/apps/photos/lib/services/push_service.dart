@@ -48,8 +48,8 @@ class PushService {
     final String? fcmToken = await FirebaseMessaging.instance.getToken();
     final shouldForceRefreshServerToken =
         DateTime.now().microsecondsSinceEpoch -
-                (_prefs.getInt(kLastFCMTokenUpdationTime) ?? 0) >
-            kFCMTokenUpdationIntervalInMicroSeconds;
+            (_prefs.getInt(kLastFCMTokenUpdationTime) ?? 0) >
+        kFCMTokenUpdationIntervalInMicroSeconds;
     if (fcmToken != null &&
         (_prefs.getString(kFCMPushToken) != fcmToken ||
             shouldForceRefreshServerToken)) {
@@ -71,16 +71,10 @@ class PushService {
     }
   }
 
-  Future<void> _setPushTokenOnServer(
-    String fcmToken,
-    String? apnsToken,
-  ) async {
+  Future<void> _setPushTokenOnServer(String fcmToken, String? apnsToken) async {
     await NetworkClient.instance.enteDio.post(
       "/push/token",
-      data: {
-        "fcmToken": fcmToken,
-        "apnsToken": apnsToken,
-      },
+      data: {"fcmToken": fcmToken, "apnsToken": apnsToken},
     );
   }
 

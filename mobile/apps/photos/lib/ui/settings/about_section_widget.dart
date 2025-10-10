@@ -112,9 +112,7 @@ class AboutMenuItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MenuItemWidget(
-      captionedTextWidget: CaptionedTextWidget(
-        title: title,
-      ),
+      captionedTextWidget: CaptionedTextWidget(title: title),
       pressedColor: getEnteColorScheme(context).fillFaint,
       trailingIcon: Icons.chevron_right_outlined,
       trailingIconIsMuted: true,

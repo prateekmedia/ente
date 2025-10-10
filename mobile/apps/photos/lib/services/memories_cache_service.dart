@@ -68,19 +68,23 @@ class MemoriesCacheService {
       );
     });
 
-    Bus.instance.on<FilesUpdatedEvent>().where((event) {
-      return event.type == EventType.deletedFromEverywhere;
-    }).listen((event) {
-      if (_cachedMemories == null) return;
-      final generatedIDs = event.updatedFiles
-          .where((element) => element.generatedID != null)
-          .map((e) => e.generatedID!)
-          .toSet();
-      for (final memory in _cachedMemories!) {
-        memory.memories
-            .removeWhere((m) => generatedIDs.contains(m.file.generatedID));
-      }
-    });
+    Bus.instance
+        .on<FilesUpdatedEvent>()
+        .where((event) {
+          return event.type == EventType.deletedFromEverywhere;
+        })
+        .listen((event) {
+          if (_cachedMemories == null) return;
+          final generatedIDs = event.updatedFiles
+              .where((element) => element.generatedID != null)
+              .map((e) => e.generatedID!)
+              .toSet();
+          for (final memory in _cachedMemories!) {
+            memory.memories.removeWhere(
+              (m) => generatedIDs.contains(m.file.generatedID),
+            );
+          }
+        });
   }
 
   int get lastMemoriesCacheUpdateTime {
@@ -176,8 +180,9 @@ class MemoriesCacheService {
           _logger.info("Found memories in cache");
         }
         if (_cachedMemories == null || _cachedMemories!.isEmpty) {
-          _logger
-              .severe("No memories found in (computed) cache, getting fillers");
+          _logger.severe(
+            "No memories found in (computed) cache, getting fillers",
+          );
           await _calculateRegularFillers();
         }
         return _cachedMemories!;
@@ -314,8 +319,9 @@ class MemoriesCacheService {
       );
       _isUpdatingMemories = true;
       try {
-        final EnteWatch? w =
-            kDebugMode ? EnteWatch("MemoriesCacheService") : null;
+        final EnteWatch? w = kDebugMode
+            ? EnteWatch("MemoriesCacheService")
+            : null;
         w?.start();
         final oldCache = await _readCacheFromDisk();
         w?.log("gotten old cache");
@@ -324,8 +330,10 @@ class MemoriesCacheService {
         // calculate memories for this period and for the next period
         final now = DateTime.now();
         final next = now.add(kMemoriesUpdateFrequency);
-        final nowResult =
-            await smartMemoriesService.calcSmartMemories(now, newCache);
+        final nowResult = await smartMemoriesService.calcSmartMemories(
+          now,
+          newCache,
+        );
         if (nowResult.isEmpty) {
           _cachedMemories = [];
           _logger.warning(
@@ -333,25 +341,30 @@ class MemoriesCacheService {
           );
           return;
         }
-        final nextResult =
-            await smartMemoriesService.calcSmartMemories(next, newCache);
+        final nextResult = await smartMemoriesService.calcSmartMemories(
+          next,
+          newCache,
+        );
         w?.log("calculated new memories");
         for (final nowMemory in nowResult.memories) {
-          newCache.toShowMemories
-              .add(ToShowMemory.fromSmartMemory(nowMemory, now));
+          newCache.toShowMemories.add(
+            ToShowMemory.fromSmartMemory(nowMemory, now),
+          );
         }
         for (final nextMemory in nextResult.memories) {
-          newCache.toShowMemories
-              .add(ToShowMemory.fromSmartMemory(nextMemory, next));
+          newCache.toShowMemories.add(
+            ToShowMemory.fromSmartMemory(nextMemory, next),
+          );
         }
         newCache.baseLocations.addAll(nowResult.baseLocations);
         w?.log("added memories to cache");
         _cachedMemories = nowResult.memories
             .where((memory) => memory.shouldShowNow())
             .toList();
-        await _scheduleMemoryNotifications(
-          [...nowResult.memories, ...nextResult.memories],
-        );
+        await _scheduleMemoryNotifications([
+          ...nowResult.memories,
+          ...nextResult.memories,
+        ]);
         locationService.baseLocations = nowResult.baseLocations;
         await writeToJsonFile<MemoriesCache>(
           await _getCachePath(),
@@ -459,9 +472,7 @@ class MemoriesCacheService {
     required bool hasAnyWidgets,
   }) async {
     if (!onThisDay && !pastYears && !smart) {
-      _logger.info(
-        'No memories requested, returning empty list',
-      );
+      _logger.info('No memories requested, returning empty list');
       return [];
     }
     final allMemories = await getMemories(onlyUseCache: !hasAnyWidgets);
@@ -537,9 +548,7 @@ class MemoriesCacheService {
       memoryIdx++;
     }
     if (!found) {
-      _logger.warning(
-        "Could not find onThisDay memory",
-      );
+      _logger.warning("Could not find onThisDay memory");
       return;
     }
     await routeToPage(
@@ -600,10 +609,7 @@ class MemoriesCacheService {
       }
       await routeToPage(
         context,
-        PeoplePage(
-          person: person,
-          searchResult: null,
-        ),
+        PeoplePage(person: person, searchResult: null),
         forceCustomPageRoute: true,
       );
     }
@@ -657,8 +663,9 @@ class MemoriesCacheService {
     List<SmartMemory> allMemories,
   ) async {
     if (!localSettings.isOnThisDayNotificationsEnabled) {
-      _logger
-          .info("On this day notifications are disabled, skipping scheduling");
+      _logger.info(
+        "On this day notifications are disabled, skipping scheduling",
+      );
       return;
     }
     await _clearAllScheduledOnThisDayNotifications();
@@ -669,8 +676,9 @@ class MemoriesCacheService {
       }
       final numberOfMemories = memory.memories.length;
       if (numberOfMemories < 5) continue;
-      final firstDateToShow =
-          DateTime.fromMicrosecondsSinceEpoch(memory.firstDateToShow);
+      final firstDateToShow = DateTime.fromMicrosecondsSinceEpoch(
+        memory.firstDateToShow,
+      );
       final scheduleTime = DateTime(
         firstDateToShow.year,
         firstDateToShow.month,
@@ -742,8 +750,9 @@ class MemoriesCacheService {
       }
     }
     for (final memory in toSchedule) {
-      final firstDateToShow =
-          DateTime.fromMicrosecondsSinceEpoch(memory.firstDateToShow);
+      final firstDateToShow = DateTime.fromMicrosecondsSinceEpoch(
+        memory.firstDateToShow,
+      );
       final scheduleTime = DateTime(
         firstDateToShow.year,
         firstDateToShow.month,
@@ -782,13 +791,15 @@ class MemoriesCacheService {
 
   Future<void> _clearAllScheduledOnThisDayNotifications() async {
     _logger.info('Clearing all scheduled On This Day notifications');
-    await NotificationService.instance
-        .clearAllScheduledNotifications(containingPayload: "onThisDay");
+    await NotificationService.instance.clearAllScheduledNotifications(
+      containingPayload: "onThisDay",
+    );
   }
 
   Future<void> _clearAllScheduledBirthdayNotifications() async {
     _logger.info('Clearing all scheduled birthday notifications');
-    await NotificationService.instance
-        .clearAllScheduledNotifications(containingPayload: "birthday");
+    await NotificationService.instance.clearAllScheduledNotifications(
+      containingPayload: "birthday",
+    );
   }
 }

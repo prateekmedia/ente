@@ -49,9 +49,7 @@ Future<Tuple2<List<LocalPathAsset>, List<EnteFile>>> getLocalPathAssetsAndFiles(
         );
       } catch (e) {
         _logger.severe("_getLocalIDsAndFilesFromAssets failed", e);
-        _logger.info(
-          "Failed for pathEntity: ${pathEntity.name}",
-        );
+        _logger.info("Failed for pathEntity: ${pathEntity.name}");
         rethrow;
       }
 
@@ -75,21 +73,21 @@ Future<Tuple2<List<LocalPathAsset>, List<EnteFile>>> getLocalPathAssetsAndFiles(
 // We use this result to update the latest thumbnail for deviceFolder and
 // identify (in future) which AssetPath needs to be re-synced again.
 Future<List<Tuple2<AssetPathEntity, String>>>
-    getDeviceFolderWithCountAndCoverID() async {
+getDeviceFolderWithCountAndCoverID() async {
   final List<Tuple2<AssetPathEntity, String>> result = [];
   final pathEntities = await _getGalleryList(
     needsTitle: false,
     containsModifiedPath: true,
-    orderOption:
-        const OrderOption(type: OrderOptionType.createDate, asc: false),
+    orderOption: const OrderOption(
+      type: OrderOptionType.createDate,
+      asc: false,
+    ),
   );
   for (AssetPathEntity pathEntity in pathEntities) {
-    final latestEntity = await pathEntity.getAssetListPaged(
-      page: 0,
-      size: 1,
-    );
-    final String localCoverID =
-        latestEntity.isEmpty ? '' : latestEntity.first.id;
+    final latestEntity = await pathEntity.getAssetListPaged(page: 0, size: 1);
+    final String localCoverID = latestEntity.isEmpty
+        ? ''
+        : latestEntity.first.id;
     result.add(Tuple2(pathEntity, localCoverID));
   }
   return result;
@@ -209,7 +207,8 @@ Future<Tuple2<Set<String>, List<EnteFile>>> _getLocalIDsAndFilesFromAssets(
   final Set<String> localIDs = {};
   for (AssetEntity entity in assetList) {
     localIDs.add(entity.id);
-    final bool assetCreatedOrUpdatedAfterGivenTime = max(
+    final bool assetCreatedOrUpdatedAfterGivenTime =
+        max(
           entity.createDateTime.millisecondsSinceEpoch,
           entity.modifiedDateTime.millisecondsSinceEpoch,
         ) >=

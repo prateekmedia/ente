@@ -76,11 +76,10 @@ Future<Locale> getFormatLocale() async {
   return firstLanguageMatch ?? locale;
 }
 
-Future<Locale?> getLocale({
-  bool noFallback = false,
-}) async {
-  final String? savedValue =
-      (await SharedPreferences.getInstance()).getString('locale');
+Future<Locale?> getLocale({bool noFallback = false}) async {
+  final String? savedValue = (await SharedPreferences.getInstance()).getString(
+    'locale',
+  );
   // if savedLocale is not null and is supported by the app, return it
   if (savedValue != null) {
     late Locale savedLocale;
@@ -112,6 +111,8 @@ Future<void> setLocale(Locale locale) async {
     out.write('_');
     out.write(locale.countryCode);
   }
-  await (await SharedPreferences.getInstance())
-      .setString('locale', out.toString());
+  await (await SharedPreferences.getInstance()).setString(
+    'locale',
+    out.toString(),
+  );
 }

@@ -125,14 +125,14 @@ class FaceClusteringService extends SuperIsolate {
       //     await _runLinearClusteringInComputer(input);
       final ClusteringResult faceIdToCluster =
           await runInIsolate(IsolateOperation.linearIncrementalClustering, {
-        'input': input,
-        'fileIDToCreationTime': fileIDToCreationTime,
-        'distanceThreshold': distanceThreshold,
-        'conservativeDistanceThreshold': conservativeDistanceThreshold,
-        'useDynamicThreshold': useDynamicThreshold,
-        'offset': offset,
-        'oldClusterSummaries': oldClusterSummaries,
-      });
+            'input': input,
+            'fileIDToCreationTime': fileIDToCreationTime,
+            'distanceThreshold': distanceThreshold,
+            'conservativeDistanceThreshold': conservativeDistanceThreshold,
+            'useDynamicThreshold': useDynamicThreshold,
+            'offset': offset,
+            'oldClusterSummaries': oldClusterSummaries,
+          });
       // return _runLinearClusteringInComputer(input);
       _logger.info(
         'predictLinear Clustering executed in ${stopwatchClustering.elapsed.inSeconds} seconds',
@@ -224,18 +224,20 @@ class FaceClusteringService extends SuperIsolate {
           .values
           .toSet();
       final startTime = DateTime.now();
-      final faceIdToCluster = await _computer.compute(
-        runLinearClustering,
-        param: {
-          "input": clusteringInput,
-          "fileIDToCreationTime": fileIDToCreationTime,
-          "oldClusterSummaries": oldClusterSummaries,
-          "distanceThreshold": distanceThreshold,
-          "conservativeDistanceThreshold": distanceThreshold - 0.08,
-          "useDynamicThreshold": false,
-        },
-        taskName: "createImageEmbedding",
-      ) as ClusteringResult;
+      final faceIdToCluster =
+          await _computer.compute(
+                runLinearClustering,
+                param: {
+                  "input": clusteringInput,
+                  "fileIDToCreationTime": fileIDToCreationTime,
+                  "oldClusterSummaries": oldClusterSummaries,
+                  "distanceThreshold": distanceThreshold,
+                  "conservativeDistanceThreshold": distanceThreshold - 0.08,
+                  "useDynamicThreshold": false,
+                },
+                taskName: "createImageEmbedding",
+              )
+              as ClusteringResult;
       final endTime = DateTime.now();
       _logger.info(
         "Linear Clustering took: ${endTime.difference(startTime).inMilliseconds}ms",
@@ -271,17 +273,19 @@ class FaceClusteringService extends SuperIsolate {
 
     try {
       final startTime = DateTime.now();
-      final clusteringResult = await _computer.compute(
-        _runCompleteClustering,
-        param: {
-          "input": input,
-          "fileIDToCreationTime": fileIDToCreationTime,
-          "oldClusterSummaries": oldClusterSummaries,
-          "distanceThreshold": distanceThreshold,
-          "mergeThreshold": mergeThreshold,
-        },
-        taskName: "createImageEmbedding",
-      ) as ClusteringResult;
+      final clusteringResult =
+          await _computer.compute(
+                _runCompleteClustering,
+                param: {
+                  "input": input,
+                  "fileIDToCreationTime": fileIDToCreationTime,
+                  "oldClusterSummaries": oldClusterSummaries,
+                  "distanceThreshold": distanceThreshold,
+                  "mergeThreshold": mergeThreshold,
+                },
+                taskName: "createImageEmbedding",
+              )
+              as ClusteringResult;
       final endTime = DateTime.now();
       _logger.info(
         "Complete Clustering took: ${endTime.difference(startTime).inMilliseconds}ms",
@@ -308,9 +312,7 @@ ClusteringResult runLinearClustering(Map args) {
   final oldClusterSummaries =
       args['oldClusterSummaries'] as Map<String, (Uint8List, int)>?;
 
-  _logger.info(
-    "Copied to isolate ${input.length} faces",
-  );
+  _logger.info("Copied to isolate ${input.length} faces");
 
   // Organize everything into a list of FaceInfo objects
   final List<FaceInfo> faceInfos = [];
@@ -320,7 +322,8 @@ ClusteringResult runLinearClustering(Map args) {
         faceID: face.faceID,
         faceScore: face.faceScore,
         blurValue: face.blurValue,
-        badFace: face.faceScore < kMinimumQualityFaceScore ||
+        badFace:
+            face.faceScore < kMinimumQualityFaceScore ||
             face.blurValue < kLaplacianSoftThreshold ||
             (face.blurValue < kLaplacianVerySoftThreshold &&
                 face.faceScore < kMediumQualityFaceScore) ||
@@ -407,7 +410,8 @@ ClusteringResult runLinearClustering(Map args) {
     }
     // WARNING: The loop below is now O(n^2) so be very careful with anything you put in there!
     for (int j = i - 1; j >= 0; j--) {
-      final double distance = 1 -
+      final double distance =
+          1 -
           sortedFaceInfos[i].vEmbedding!.dot(sortedFaceInfos[j].vEmbedding!);
       if (distance < closestDistance) {
         if (sortedFaceInfos[j].badFace! &&
@@ -417,8 +421,8 @@ ClusteringResult runLinearClustering(Map args) {
         if (faceHasBeenRejectedBefore &&
             sortedFaceInfos[j].clusterId != null &&
             sortedFaceInfos[i].rejectedClusterIds!.contains(
-                  sortedFaceInfos[j].clusterId!,
-                )) {
+              sortedFaceInfos[j].clusterId!,
+            )) {
           continue;
         }
         closestDistance = distance;
@@ -579,15 +583,19 @@ ClusteringResult _runCompleteClustering(Map args) {
     final count = clusterIdToFaceInfos[clusterId]!.length;
     final Vector meanEmbedding = embeddings.reduce((a, b) => a + b) / count;
     final Vector meanEmbeddingNormalized = meanEmbedding / meanEmbedding.norm();
-    clusterIdToMeanEmbeddingAndWeight[clusterId] =
-        (meanEmbeddingNormalized, count);
+    clusterIdToMeanEmbeddingAndWeight[clusterId] = (
+      meanEmbeddingNormalized,
+      count,
+    );
   }
 
   // Now merge the clusters that are close to each other, based on mean embedding
   final List<(String, String)> mergedClustersList = [];
-  final List<String> clusterIds =
-      clusterIdToMeanEmbeddingAndWeight.keys.toList();
-  log(' [CompleteClustering] ${DateTime.now()} ${clusterIds.length} clusters found, now checking for merges');
+  final List<String> clusterIds = clusterIdToMeanEmbeddingAndWeight.keys
+      .toList();
+  log(
+    ' [CompleteClustering] ${DateTime.now()} ${clusterIds.length} clusters found, now checking for merges',
+  );
   while (true) {
     if (clusterIds.length < 2) break;
     double distance = double.infinity;
@@ -595,10 +603,11 @@ ClusteringResult _runCompleteClustering(Map args) {
     for (int i = 0; i < clusterIds.length; i++) {
       for (int j = 0; j < clusterIds.length; j++) {
         if (i == j) continue;
-        final double newDistance = 1 -
-            clusterIdToMeanEmbeddingAndWeight[clusterIds[i]]!
-                .$1
-                .dot(clusterIdToMeanEmbeddingAndWeight[clusterIds[j]]!.$1);
+        final double newDistance =
+            1 -
+            clusterIdToMeanEmbeddingAndWeight[clusterIds[i]]!.$1.dot(
+              clusterIdToMeanEmbeddingAndWeight[clusterIds[j]]!.$1,
+            );
         if (newDistance < distance) {
           distance = newDistance;
           clusterIDsToMerge = (clusterIds[i], clusterIds[j]);
@@ -627,7 +636,9 @@ ClusteringResult _runCompleteClustering(Map args) {
       break;
     }
   }
-  log(' [CompleteClustering] ${DateTime.now()} ${mergedClustersList.length} clusters merged');
+  log(
+    ' [CompleteClustering] ${DateTime.now()} ${mergedClustersList.length} clusters merged',
+  );
 
   // Now assign the new clusterId to the faces
   for (final faceInfo in faceInfos) {
@@ -672,9 +683,7 @@ ClusteringResult _runCompleteClustering(Map args) {
 }
 
 /// Sort the faceInfos based on fileCreationTime, in descending order, so newest faces are first
-void _sortFaceInfosOnCreationTime(
-  List<FaceInfo> faceInfos,
-) {
+void _sortFaceInfosOnCreationTime(List<FaceInfo> faceInfos) {
   faceInfos.sort((b, a) {
     if (a.fileCreationTime == null && b.fileCreationTime == null) {
       return 0;
@@ -721,14 +730,14 @@ Map<String, (Uint8List, int)> _updateClusterSummaries({
       final newMeanVectorNormalized = newMeanVector / newMeanVector.norm();
       newClusterSummaries[clusterId] = (
         EVector(values: newMeanVectorNormalized.toList()).writeToBuffer(),
-        oldCount + newCount
+        oldCount + newCount,
       );
     } else {
       final newMeanVector = newEmbeddings.reduce((a, b) => a + b);
       final newMeanVectorNormalized = newMeanVector / newMeanVector.norm();
       newClusterSummaries[clusterId] = (
         EVector(values: newMeanVectorNormalized.toList()).writeToBuffer(),
-        newCount
+        newCount,
       );
     }
   }

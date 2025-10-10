@@ -18,6 +18,7 @@ class DeviceFolderItem extends StatelessWidget {
 
   const DeviceFolderItem(
     this.deviceCollection, {
+
     ///120 is default for the 'on device' scrollview in albums section
     this.sideOfThumbnail = 120,
     super.key,
@@ -57,7 +58,8 @@ class DeviceFolderItem extends StatelessWidget {
                     height: sideOfThumbnail - _borderWidth * 2,
                     width: sideOfThumbnail - _borderWidth * 2,
                     child: Hero(
-                      tag: "device_folder:" +
+                      tag:
+                          "device_folder:" +
                           deviceCollection.name +
                           deviceCollection.thumbnail!.tag,
                       transitionOnUserGestures: true,
@@ -99,8 +101,9 @@ class DeviceFolderItem extends StatelessWidget {
             child: Text(
               deviceCollection.count.toString(),
               textAlign: TextAlign.left,
-              style:
-                  Theme.of(context).colorScheme.enteTheme.textTheme.miniMuted,
+              style: Theme.of(
+                context,
+              ).colorScheme.enteTheme.textTheme.miniMuted,
               overflow: TextOverflow.ellipsis,
             ),
           ),

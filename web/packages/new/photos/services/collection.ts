@@ -1136,6 +1136,25 @@ const putCollectionsPublicMagicMetadata = async (
     );
 
 /**
+ * Set the parent of a collection to create nested hierarchies.
+ *
+ * Remote only, does not modify local state.
+ *
+ * @param collection - The collection to reparent
+ * @param parentID - The new parent ID (0 or undefined for root)
+ */
+export const setCollectionParent = async (
+    collection: Collection,
+    parentID: number | undefined,
+): Promise<void> => {
+    const normalizedParentID = parentID && parentID !== 0 ? parentID : undefined;
+
+    await updateCollectionPublicMagicMetadata(collection, {
+        parentID: normalizedParentID,
+    });
+};
+
+/**
  * Update the per-sharee magic metadata of a collection on remote.
  *
  * Remote only, does not modify local state.

@@ -20,24 +20,15 @@ import 'package:photos/ui/sharing/user_avator_widget.dart';
 import "package:photos/ui/sharing/verify_identity_dialog.dart";
 import "package:photos/utils/separators_util.dart";
 
-enum ActionTypesToShow {
-  addViewer,
-  addCollaborator,
-}
+enum ActionTypesToShow { addViewer, addCollaborator }
 
 class AddParticipantPage extends StatefulWidget {
   /// Cannot be empty
   final List<ActionTypesToShow> actionTypesToShow;
   final List<Collection> collections;
 
-  AddParticipantPage(
-    this.collections,
-    this.actionTypesToShow, {
-    super.key,
-  }) : assert(
-          actionTypesToShow.isNotEmpty,
-          'actionTypesToShow cannot be empty',
-        );
+  AddParticipantPage(this.collections, this.actionTypesToShow, {super.key})
+    : assert(actionTypesToShow.isNotEmpty, 'actionTypesToShow cannot be empty');
 
   @override
   State<StatefulWidget> createState() => _AddParticipantPage();
@@ -73,10 +64,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
   Widget build(BuildContext context) {
     final filterSuggestedUsers = _suggestedUsers
         .where(
-          (element) =>
-              (element.displayName ?? element.email).toLowerCase().contains(
-                    _textController.text.trim().toLowerCase(),
-                  ),
+          (element) => (element.displayName ?? element.email)
+              .toLowerCase()
+              .contains(_textController.text.trim().toLowerCase()),
         )
         .toList();
     isKeypadOpen = MediaQuery.viewInsetsOf(context).bottom > 100;
@@ -84,11 +74,7 @@ class _AddParticipantPage extends State<AddParticipantPage> {
     final enteColorScheme = getEnteColorScheme(context);
     return Scaffold(
       resizeToAvoidBottomInset: isKeypadOpen,
-      appBar: AppBar(
-        title: Text(
-          _getTitle(),
-        ),
-      ),
+      appBar: AppBar(title: Text(_getTitle())),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,8 +84,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               AppLocalizations.of(context).addANewEmail,
-              style: enteTextTheme.small
-                  .copyWith(color: enteColorScheme.textMuted),
+              style: enteTextTheme.small.copyWith(
+                color: enteColorScheme.textMuted,
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -114,8 +101,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
                 children: [
                   filterSuggestedUsers.isNotEmpty
                       ? MenuSectionTitle(
-                          title:
-                              AppLocalizations.of(context).orPickAnExistingOne,
+                          title: AppLocalizations.of(
+                            context,
+                          ).orPickAnExistingOne,
                         )
                       : const SizedBox.shrink(),
                   Expanded(
@@ -124,24 +112,24 @@ class _AddParticipantPage extends State<AddParticipantPage> {
                       itemBuilder: (context, index) {
                         if (index >= filterSuggestedUsers.length) {
                           return Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 8.0,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 filterSuggestedUsers.isNotEmpty
                                     ? MenuSectionDescriptionWidget(
-                                        content: AppLocalizations.of(context)
-                                            .longPressAnEmailToVerifyEndToEndEncryption,
+                                        content: AppLocalizations.of(
+                                          context,
+                                        ).longPressAnEmailToVerifyEndToEndEncryption,
                                       )
                                     : const SizedBox.shrink(),
                                 widget.actionTypesToShow.contains(
-                                  ActionTypesToShow.addCollaborator,
-                                )
+                                      ActionTypesToShow.addCollaborator,
+                                    )
                                     ? MenuSectionDescriptionWidget(
-                                        content: AppLocalizations.of(context)
-                                            .collaboratorsCanAddPhotosAndVideosToTheSharedAlbum,
+                                        content: AppLocalizations.of(
+                                          context,
+                                        ).collaboratorsCanAddPhotosAndVideosToTheSharedAlbum,
                                       )
                                     : const SizedBox.shrink(),
                               ],
@@ -156,7 +144,8 @@ class _AddParticipantPage extends State<AddParticipantPage> {
                                 currentUser.displayName ?? currentUser.email,
                               ),
                               captionedTextWidget: CaptionedTextWidget(
-                                title: currentUser.displayName ??
+                                title:
+                                    currentUser.displayName ??
                                     currentUser.email,
                               ),
                               leadingIconSize: 24.0,
@@ -164,18 +153,21 @@ class _AddParticipantPage extends State<AddParticipantPage> {
                                 currentUser,
                                 type: AvatarType.mini,
                               ),
-                              menuItemColor:
-                                  getEnteColorScheme(context).fillFaint,
-                              pressedColor:
-                                  getEnteColorScheme(context).fillFaint,
+                              menuItemColor: getEnteColorScheme(
+                                context,
+                              ).fillFaint,
+                              pressedColor: getEnteColorScheme(
+                                context,
+                              ).fillFaint,
                               trailingIcon:
                                   (_selectedEmails.contains(currentUser.email))
-                                      ? Icons.check
-                                      : null,
+                                  ? Icons.check
+                                  : null,
                               onTap: () async {
                                 textFieldFocusNode.unfocus();
-                                if (_selectedEmails
-                                    .contains(currentUser.email)) {
+                                if (_selectedEmails.contains(
+                                  currentUser.email,
+                                )) {
                                   _selectedEmails.remove(currentUser.email);
                                 } else {
                                   _selectedEmails.add(currentUser.email);
@@ -204,8 +196,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
                                 ? const SizedBox.shrink()
                                 : DividerWidget(
                                     dividerType: DividerType.menu,
-                                    bgColor:
-                                        getEnteColorScheme(context).fillFaint,
+                                    bgColor: getEnteColorScheme(
+                                      context,
+                                    ).fillFaint,
                                   ),
                           ],
                         );
@@ -247,8 +240,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
         ButtonWidget(
           buttonType: ButtonType.primary,
           buttonSize: ButtonSize.large,
-          labelText: AppLocalizations.of(context)
-              .addViewers(count: _selectedEmails.length),
+          labelText: AppLocalizations.of(
+            context,
+          ).addViewers(count: _selectedEmails.length),
           isDisabled: _selectedEmails.isEmpty,
           onTap: () async {
             final results = <bool>[];
@@ -270,8 +264,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
             final noOfSuccessfullAdds = results.where((e) => e).length;
             showToast(
               context,
-              AppLocalizations.of(context)
-                  .viewersSuccessfullyAdded(count: noOfSuccessfullAdds),
+              AppLocalizations.of(
+                context,
+              ).viewersSuccessfullyAdded(count: noOfSuccessfullAdds),
             );
 
             if (!results.any((e) => e == false) && mounted) {
@@ -281,18 +276,17 @@ class _AddParticipantPage extends State<AddParticipantPage> {
         ),
       );
     }
-    if (widget.actionTypesToShow.contains(
-      ActionTypesToShow.addCollaborator,
-    )) {
+    if (widget.actionTypesToShow.contains(ActionTypesToShow.addCollaborator)) {
       widgets.add(
         ButtonWidget(
           buttonType:
               widget.actionTypesToShow.contains(ActionTypesToShow.addViewer)
-                  ? ButtonType.neutral
-                  : ButtonType.primary,
+              ? ButtonType.neutral
+              : ButtonType.primary,
           buttonSize: ButtonSize.large,
-          labelText: AppLocalizations.of(context)
-              .addCollaborators(count: _selectedEmails.length),
+          labelText: AppLocalizations.of(
+            context,
+          ).addCollaborators(count: _selectedEmails.length),
           isDisabled: _selectedEmails.isEmpty,
           onTap: () async {
             // TODO: This is not currently designed for best UX for action on
@@ -318,8 +312,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
             final noOfSuccessfullAdds = results.where((e) => e).length;
             showToast(
               context,
-              AppLocalizations.of(context)
-                  .collaboratorsSuccessfullyAdded(count: noOfSuccessfullAdds),
+              AppLocalizations.of(
+                context,
+              ).collaboratorsSuccessfullyAdded(count: noOfSuccessfullAdds),
             );
 
             if (!results.any((e) => e == false) && mounted) {
@@ -331,9 +326,7 @@ class _AddParticipantPage extends State<AddParticipantPage> {
     }
     final widgetsWithSpaceBetween = addSeparators(
       widgets,
-      const SizedBox(
-        height: 8,
-      ),
+      const SizedBox(height: 8),
     );
     return widgetsWithSpaceBetween;
   }
@@ -358,8 +351,9 @@ class _AddParticipantPage extends State<AddParticipantPage> {
             decoration: InputDecoration(
               focusedBorder: OutlineInputBorder(
                 borderRadius: const BorderRadius.all(Radius.circular(4.0)),
-                borderSide:
-                    BorderSide(color: getEnteColorScheme(context).strokeMuted),
+                borderSide: BorderSide(
+                  color: getEnteColorScheme(context).strokeMuted,
+                ),
               ),
               fillColor: getEnteColorScheme(context).fillFaint,
               filled: true,
@@ -447,9 +441,7 @@ class _AddParticipantPage extends State<AddParticipantPage> {
     }
 
     final List<User> suggestedUsers = UserService.instance.getRelevantContacts()
-      ..removeWhere(
-        (element) => existingEmails.contains(element.email),
-      );
+      ..removeWhere((element) => existingEmails.contains(element.email));
 
     if (_textController.text.trim().isNotEmpty) {
       suggestedUsers.removeWhere(

@@ -17,11 +17,12 @@ import 'package:photos/theme/colors.dart';
 import 'package:photos/theme/ente_theme.dart';
 import "package:photos/ui/actions/collection/collection_file_actions.dart";
 import "package:photos/ui/actions/collection/collection_sharing_actions.dart";
-import 'package:photos/ui/collections/album/vertical_list.dart';
+import 'package:photos/ui/collections/album/new_list_item.dart';
 import 'package:photos/ui/common/loading_widget.dart';
 import "package:photos/ui/common/progress_dialog.dart";
 import 'package:photos/ui/components/bottom_of_title_bar_widget.dart';
 import 'package:photos/ui/components/buttons/button_widget.dart';
+import 'package:photos/ui/components/collection_tree_selector.dart';
 import 'package:photos/ui/components/models/button_type.dart';
 import "package:photos/ui/components/text_input_widget.dart";
 import 'package:photos/ui/components/title_bar_title_widget.dart';
@@ -38,7 +39,7 @@ enum CollectionActionType {
   shareCollection,
   addToHiddenAlbum,
   moveToHiddenCollection,
-  autoAddPeople;
+  autoAddPeople,
 }
 
 extension CollectionActionTypeExtension on CollectionActionType {
@@ -103,9 +104,7 @@ void showCollectionActionSheet(
     },
     shape: const RoundedRectangleBorder(
       side: BorderSide(width: 0),
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(5),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(5)),
     ),
     topControl: const SizedBox.shrink(),
     backgroundColor: getEnteColorScheme(context).backgroundElevated,
@@ -153,13 +152,14 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
         ((widget.actionType == CollectionActionType.addFiles ||
                 widget.actionType == CollectionActionType.addToHiddenAlbum) &&
             (widget.sharedFiles == null || widget.sharedFiles!.isEmpty));
-    _createNewAlbumSubscription =
-        Bus.instance.on<CreateNewAlbumEvent>().listen((event) {
-      setState(() {
-        _recentlyCreatedCollections.insert(0, event.collection);
-        _selectedCollections.add(event.collection);
-      });
-    });
+    _createNewAlbumSubscription = Bus.instance.on<CreateNewAlbumEvent>().listen(
+      (event) {
+        setState(() {
+          _recentlyCreatedCollections.insert(0, event.collection);
+          _selectedCollections.add(event.collection);
+        });
+      },
+    );
   }
 
   @override
@@ -177,12 +177,12 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
             : widget.selectedFiles?.files.length ?? 0;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final isKeyboardUp = bottomInset > 100;
-    final double bottomPadding =
-        max(0, bottomInset - (_enableSelection ? okButtonSize : 0));
+    final double bottomPadding = max(
+      0,
+      bottomInset - (_enableSelection ? okButtonSize : 0),
+    );
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: isKeyboardUp ? bottomPadding : 0,
-      ),
+      padding: EdgeInsets.only(bottom: isKeyboardUp ? bottomPadding : 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -218,8 +218,9 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
                             right: 16,
                           ),
                           child: TextInputWidget(
-                            hintText: AppLocalizations.of(context)
-                                .searchByAlbumNameHint,
+                            hintText: AppLocalizations.of(
+                              context,
+                            ).searchByAlbumNameHint,
                             prefixIcon: Icons.search_rounded,
                             onChange: (value) {
                               setState(() {
@@ -247,11 +248,7 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
                           ),
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          ..._actionButtons(),
-                        ],
-                      ),
+                      child: Column(children: [..._actionButtons()]),
                     ),
                   ),
                 ],
@@ -300,8 +297,9 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
               await dialog.hide();
               return;
             }
-            final CollectionActions collectionActions =
-                CollectionActions(CollectionsService.instance);
+            final CollectionActions collectionActions = CollectionActions(
+              CollectionsService.instance,
+            );
             final result = await collectionActions.addToMultipleCollections(
               context,
               _selectedCollections,
@@ -311,8 +309,9 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
             if (result) {
               showShortToast(
                 context,
-                AppLocalizations.of(context)
-                    .addedToAlbums(count: _selectedCollections.length),
+                AppLocalizations.of(
+                  context,
+                ).addedToAlbums(count: _selectedCollections.length),
               );
               widget.selectedFiles?.clearAll();
             }
@@ -357,19 +356,9 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
                 radius: const Radius.circular(2),
                 child: Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: AlbumVerticalListWidget(
+                  child: _buildCollectionList(
                     searchResults,
-                    widget.actionType,
-                    widget.selectedFiles,
-                    widget.sharedFiles,
-                    widget.selectedPeople,
-                    _searchQuery,
                     shouldShowCreateAlbum,
-                    enableSelection: _enableSelection,
-                    selectedCollections: _selectedCollections,
-                    onSelectionChanged: () {
-                      setState(() {});
-                    },
                   ),
                 ),
               );
@@ -380,6 +369,136 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
         ),
       ),
     );
+  }
+
+  Widget _buildCollectionList(
+    List<Collection> collections,
+    bool shouldShowCreateAlbum,
+  ) {
+    if (collections.isEmpty && shouldShowCreateAlbum) {
+      return _buildCreateAlbumWidget();
+    }
+
+    final items = <Widget>[];
+
+    // Add create album option at the top if needed
+    if (shouldShowCreateAlbum) {
+      items.add(_buildCreateAlbumWidget());
+      items.add(const SizedBox(height: 8));
+    }
+
+    // Add tree selector
+    items.add(
+      Expanded(
+        child: CollectionTreeSelector(
+          collections: collections,
+          selectedCollections: _selectedCollections,
+          enableSelection: _enableSelection,
+          searchQuery: _searchQuery,
+          onCollectionTap: (collection) {
+            if (_enableSelection) {
+              _toggleCollectionSelection(collection);
+            } else {
+              _handleCollectionTap(collection);
+            }
+          },
+        ),
+      ),
+    );
+
+    return Column(
+      children: items,
+    );
+  }
+
+  Widget _buildCreateAlbumWidget() {
+    return GestureDetector(
+      onTap: () async {
+        await _createNewAlbum();
+      },
+      behavior: HitTestBehavior.opaque,
+      child: const NewAlbumListItemWidget(),
+    );
+  }
+
+  Future<void> _createNewAlbum() async {
+    final filesCount = widget.sharedFiles != null
+        ? widget.sharedFiles!.length
+        : widget.selectedPeople != null
+            ? widget.selectedPeople!.length
+            : widget.selectedFiles?.files.length ?? 0;
+
+    if (filesCount > 0) {
+      final result = await showTextInputDialog(
+        context,
+        title: AppLocalizations.of(context).albumTitle,
+        submitButtonLabel: AppLocalizations.of(context).ok,
+        hintText: AppLocalizations.of(context).enterAlbumName,
+        onSubmit: (name) async {
+          return await _createAndAddToAlbum(name);
+        },
+        showOnlyLoadingState: true,
+        textCapitalization: TextCapitalization.words,
+        popnavAfterSubmission: true,
+      );
+      if (result is Exception) {
+        await showGenericErrorDialog(context: context, error: result);
+      }
+    }
+  }
+
+  Future<void> _createAndAddToAlbum(String albumName) async {
+    try {
+      final collection = await CollectionsService.instance.createAlbum(
+        albumName,
+      );
+      Bus.instance.fire(CreateNewAlbumEvent(collection));
+    } catch (e) {
+      _logger.severe("Failed to create album", e);
+      rethrow;
+    }
+  }
+
+  void _toggleCollectionSelection(Collection collection) {
+    setState(() {
+      if (_selectedCollections.contains(collection)) {
+        _selectedCollections.remove(collection);
+      } else {
+        _selectedCollections.add(collection);
+      }
+    });
+  }
+
+  Future<void> _handleCollectionTap(Collection collection) async {
+    final CollectionActions collectionActions = CollectionActions(
+      CollectionsService.instance,
+    );
+
+    try {
+      if (widget.actionType == CollectionActionType.addFiles ||
+          widget.actionType == CollectionActionType.addToHiddenAlbum) {
+        await collectionActions.addToCollection(
+          context,
+          collection.id,
+          true,
+          selectedFiles: widget.selectedFiles?.files.toList(),
+          sharedFiles: widget.sharedFiles,
+        );
+      } else if (widget.actionType == CollectionActionType.moveFiles ||
+          widget.actionType == CollectionActionType.moveToHiddenCollection) {
+        await collectionActions.moveFilesFromCurrentCollection(
+          context,
+          collection,
+          widget.selectedFiles!.files.toList(),
+        );
+      }
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      _logger.severe("Failed to handle collection tap", e);
+      await showGenericErrorDialog(context: context, error: e);
+    }
   }
 
   Future<List<Collection>> _getCollections() async {
@@ -451,9 +570,7 @@ class _CollectionActionSheetState extends State<CollectionActionSheet> {
   void _removeIncomingCollections(List<Collection> items) {
     if (widget.actionType == CollectionActionType.shareCollection) {
       final ownerID = Configuration.instance.getUserID();
-      items.removeWhere(
-        (e) => !e.isOwner(ownerID!),
-      );
+      items.removeWhere((e) => !e.isOwner(ownerID!));
     }
   }
 }

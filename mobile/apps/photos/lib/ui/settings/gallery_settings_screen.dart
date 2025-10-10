@@ -64,108 +64,105 @@ class _GallerySettingsScreenState extends State<GallerySettingsScreen> {
                   ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          routeToPage(
-                            context,
-                            const PhotoGridSizePickerPage(),
-                          ).then((value) {
-                            setState(() {
-                              _photoGridSize = localSettings.getPhotoGridSize();
-                            });
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        routeToPage(
+                          context,
+                          const PhotoGridSizePickerPage(),
+                        ).then((value) {
+                          setState(() {
+                            _photoGridSize = localSettings.getPhotoGridSize();
                           });
-                        },
-                        child: MenuItemWidget(
-                          captionedTextWidget: CaptionedTextWidget(
-                            title: AppLocalizations.of(context).photoGridSize,
-                            subTitle: _photoGridSize.toString(),
-                          ),
-                          menuItemColor: colorScheme.fillFaint,
-                          trailingWidget: Icon(
-                            Icons.chevron_right_outlined,
-                            color: colorScheme.strokeBase,
-                          ),
-                          singleBorderRadius: 8,
-                          alignCaptionedTextToLeft: true,
-                          isGestureDetectorDisabled: true,
+                        });
+                      },
+                      child: MenuItemWidget(
+                        captionedTextWidget: CaptionedTextWidget(
+                          title: AppLocalizations.of(context).photoGridSize,
+                          subTitle: _photoGridSize.toString(),
                         ),
+                        menuItemColor: colorScheme.fillFaint,
+                        trailingWidget: Icon(
+                          Icons.chevron_right_outlined,
+                          color: colorScheme.strokeBase,
+                        ),
+                        singleBorderRadius: 8,
+                        alignCaptionedTextToLeft: true,
+                        isGestureDetectorDisabled: true,
                       ),
-                      const SizedBox(
-                        height: 24,
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          routeToPage(
-                            context,
-                            const GalleryGroupTypePickerPage(),
-                          ).then((value) {
-                            setState(() {
-                              _groupType =
-                                  localSettings.getGalleryGroupType().name;
-                            });
+                    ),
+                    const SizedBox(height: 24),
+                    GestureDetector(
+                      onTap: () {
+                        routeToPage(
+                          context,
+                          const GalleryGroupTypePickerPage(),
+                        ).then((value) {
+                          setState(() {
+                            _groupType = localSettings
+                                .getGalleryGroupType()
+                                .name;
                           });
-                        },
-                        child: MenuItemWidget(
-                          captionedTextWidget: CaptionedTextWidget(
-                            title: AppLocalizations.of(context).groupBy,
-                            subTitle: _groupType,
-                          ),
-                          menuItemColor: colorScheme.fillFaint,
-                          trailingWidget: Icon(
-                            Icons.chevron_right_outlined,
-                            color: colorScheme.strokeBase,
-                          ),
-                          singleBorderRadius: 8,
-                          alignCaptionedTextToLeft: true,
-                          isGestureDetectorDisabled: true,
+                        });
+                      },
+                      child: MenuItemWidget(
+                        captionedTextWidget: CaptionedTextWidget(
+                          title: AppLocalizations.of(context).groupBy,
+                          subTitle: _groupType,
                         ),
+                        menuItemColor: colorScheme.fillFaint,
+                        trailingWidget: Icon(
+                          Icons.chevron_right_outlined,
+                          color: colorScheme.strokeBase,
+                        ),
+                        singleBorderRadius: 8,
+                        alignCaptionedTextToLeft: true,
+                        isGestureDetectorDisabled: true,
                       ),
-                      const SizedBox(
-                        height: 24,
-                      ),
-                      widget.fromGalleryLayoutSettingsCTA
-                          ? const SizedBox.shrink()
-                          : MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context)
-                                    .hideSharedItemsFromHomeGallery,
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              trailingWidget: ToggleSwitchWidget(
-                                value: () => localSettings
-                                    .hideSharedItemsFromHomeGallery,
-                                onChanged: () async {
-                                  final prevSetting = localSettings
-                                      .hideSharedItemsFromHomeGallery;
-                                  await localSettings
-                                      .setHideSharedItemsFromHomeGallery(
-                                    !prevSetting,
-                                  );
-
-                                  Bus.instance.fire(
-                                    HideSharedItemsFromHomeGalleryEvent(
-                                      !prevSetting,
-                                    ),
-                                  );
-                                },
-                              ),
+                    ),
+                    const SizedBox(height: 24),
+                    widget.fromGalleryLayoutSettingsCTA
+                        ? const SizedBox.shrink()
+                        : MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(
+                                context,
+                              ).hideSharedItemsFromHomeGallery,
                             ),
-                    ],
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+                            menuItemColor: colorScheme.fillFaint,
+                            singleBorderRadius: 8,
+                            alignCaptionedTextToLeft: true,
+                            trailingWidget: ToggleSwitchWidget(
+                              value: () =>
+                                  localSettings.hideSharedItemsFromHomeGallery,
+                              onChanged: () async {
+                                final prevSetting = localSettings
+                                    .hideSharedItemsFromHomeGallery;
+                                await localSettings
+                                    .setHideSharedItemsFromHomeGallery(
+                                      !prevSetting,
+                                    );
+
+                                Bus.instance.fire(
+                                  HideSharedItemsFromHomeGalleryEvent(
+                                    !prevSetting,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                  ],
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),

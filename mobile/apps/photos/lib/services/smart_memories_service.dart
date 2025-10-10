@@ -93,8 +93,9 @@ class SmartMemoriesService {
       final cities = await locationService.getCities();
       _logger.info('cities has ${cities.length} entries $t');
 
-      final Map<int, List<FaceWithoutEmbedding>> fileIdToFaces =
-          await MLDataDB.instance.getFileIDsToFacesWithoutEmbedding();
+      final Map<int, List<FaceWithoutEmbedding>> fileIdToFaces = await MLDataDB
+          .instance
+          .getFileIDsToFacesWithoutEmbedding();
       _logger.info('fileIdToFaces has ${fileIdToFaces.length} entries $t');
 
       final allImageEmbeddings = await MLDataDB.instance.getAllClipVectors();
@@ -133,26 +134,28 @@ class SmartMemoriesService {
       _logger.info('get locale and S $t');
 
       _logger.info('all data fetched $t at ${DateTime.now()}, to computer');
-      final memoriesResult = await Computer.shared().compute(
-        _allMemoriesCalculations,
-        param: <String, dynamic>{
-          "allFiles": allFiles,
-          "allFileIdsToFile": allFileIdsToFile,
-          "collectionIDsToExclude": collectionIDsToExclude,
-          "now": now,
-          "oldCache": oldCache,
-          "debugSurfaceAll": debugSurfaceAll,
-          "seenTimes": seenTimes,
-          "persons": persons,
-          "currentUserEmail": currentUserEmail,
-          "cities": cities,
-          "fileIdToFaces": fileIdToFaces,
-          "allImageEmbeddings": allImageEmbeddings,
-          "clipPositiveTextVector": clipPositiveTextVector,
-          "clipPeopleActivityVectors": clipPeopleActivityVectors,
-          "clipMemoryTypeVectors": clipMemoryTypeVectors,
-        },
-      ) as MemoriesResult;
+      final memoriesResult =
+          await Computer.shared().compute(
+                _allMemoriesCalculations,
+                param: <String, dynamic>{
+                  "allFiles": allFiles,
+                  "allFileIdsToFile": allFileIdsToFile,
+                  "collectionIDsToExclude": collectionIDsToExclude,
+                  "now": now,
+                  "oldCache": oldCache,
+                  "debugSurfaceAll": debugSurfaceAll,
+                  "seenTimes": seenTimes,
+                  "persons": persons,
+                  "currentUserEmail": currentUserEmail,
+                  "cities": cities,
+                  "fileIdToFaces": fileIdToFaces,
+                  "allImageEmbeddings": allImageEmbeddings,
+                  "clipPositiveTextVector": clipPositiveTextVector,
+                  "clipPeopleActivityVectors": clipPeopleActivityVectors,
+                  "clipMemoryTypeVectors": clipMemoryTypeVectors,
+                },
+              )
+              as MemoriesResult;
       _logger.info(
         '${memoriesResult.memories.length} memories computed in computer $t',
       );
@@ -181,7 +184,7 @@ class SmartMemoriesService {
   }
 
   Future<(Set<EnteFile>, Map<int, EnteFile>)>
-      _getFilesAndMapForMemories() async {
+  _getFilesAndMapForMemories() async {
     final allFilesFromSearchService = Set<EnteFile>.from(
       await SearchService.instance.getAllFilesForSearch(),
     );
@@ -320,8 +323,11 @@ class SmartMemoriesService {
       dev.log("All files length after time: ${allFiles.length} $t");
 
       // Filler memories
-      final fillerMemories =
-          await _getFillerResults(allFiles, now, seenTimes: seenTimes);
+      final fillerMemories = await _getFillerResults(
+        allFiles,
+        now,
+        seenTimes: seenTimes,
+      );
       _deductUsedMemories(allFiles, fillerMemories);
       memories.addAll(fillerMemories);
       dev.log("All files length after filler: ${allFiles.length} $t");
@@ -355,8 +361,11 @@ class SmartMemoriesService {
     }
 
     // Filler memories
-    final fillerMemories =
-        await _getFillerResults(allFiles, now, seenTimes: seenTimes);
+    final fillerMemories = await _getFillerResults(
+      allFiles,
+      now,
+      seenTimes: seenTimes,
+    );
     memories.addAll(fillerMemories);
 
     final local = await getLocale();
@@ -399,8 +408,9 @@ class SmartMemoriesService {
     final List<PeopleMemory> memoryResults = [];
     if (allFiles.isEmpty) return [];
     final nowInMicroseconds = currentTime.microsecondsSinceEpoch;
-    final windowEnd =
-        currentTime.add(kMemoriesUpdateFrequency).microsecondsSinceEpoch;
+    final windowEnd = currentTime
+        .add(kMemoriesUpdateFrequency)
+        .microsecondsSinceEpoch;
     w?.log('allFiles setup');
 
     // Get ordered (random) list of important people
@@ -417,8 +427,9 @@ class SmartMemoriesService {
       for (final cluster in person.data.assigned) {
         if (cluster.faces.isEmpty) continue;
         personIdToFaceIDs[personID]!.addAll(cluster.faces);
-        personIdToFileIDs[personID]!
-            .addAll(cluster.faces.map((faceID) => getFileIdFromFaceId(faceID)));
+        personIdToFileIDs[personID]!.addAll(
+          cluster.faces.map((faceID) => getFileIdFromFaceId(faceID)),
+        );
       }
     }
     final List<String> orderedImportantPersonsID = persons
@@ -443,7 +454,7 @@ class SmartMemoriesService {
 
     // Loop through the people and find all memories
     final Map<String, Map<PeopleMemoryType, List<PeopleMemory>>>
-        personToMemories = {};
+    personToMemories = {};
     for (final personID in orderedImportantPersonsID) {
       final personFileIDs = personIdToFileIDs[personID]!;
       final personName = personIdToPerson[personID]!.data.name;
@@ -507,7 +518,9 @@ class SmartMemoriesService {
             personID,
             personName,
           );
-          personToMemories.putIfAbsent(personID, () => {}).putIfAbsent(
+          personToMemories
+              .putIfAbsent(personID, () => {})
+              .putIfAbsent(
                 PeopleMemoryType.youAndThem,
                 () => [youAndThemMemory],
               );
@@ -532,8 +545,9 @@ class SmartMemoriesService {
           }
           final Map<int, double> similarities = {};
           for (final embedding in vectors) {
-            similarities[embedding.fileID] =
-                embedding.vector.dot(activityVector);
+            similarities[embedding.fileID] = embedding.vector.dot(
+              activityVector,
+            );
           }
           w?.log(
             'comparing embeddings for doingSomethingTogether and $activity',
@@ -565,10 +579,7 @@ class SmartMemoriesService {
             );
             personToMemories
                 .putIfAbsent(personID, () => {})
-                .putIfAbsent(
-                  PeopleMemoryType.doingSomethingTogether,
-                  () => [],
-                )
+                .putIfAbsent(PeopleMemoryType.doingSomethingTogether, () => [])
                 .add(activityMemory);
           }
         }
@@ -584,15 +595,17 @@ class SmartMemoriesService {
         final file = allFileIdsToFile[fileID];
         if (file != null && file.creationTime != null) {
           final creationTime = file.creationTime!;
-          final creationDateTime =
-              DateTime.fromMicrosecondsSinceEpoch(creationTime);
+          final creationDateTime = DateTime.fromMicrosecondsSinceEpoch(
+            creationTime,
+          );
           if (currentTime.difference(creationDateTime).inDays < 365) {
             longAgo = false;
             break;
           }
           if (creationTime > lastCreationTime - microSecondsInDay) {
-            final lastDateTime =
-                DateTime.fromMicrosecondsSinceEpoch(lastCreationTime);
+            final lastDateTime = DateTime.fromMicrosecondsSinceEpoch(
+              lastCreationTime,
+            );
             if (creationDateTime.difference(lastDateTime).inHours > 24) {
               lastTimeYouSawThemFiles.clear();
             }
@@ -615,7 +628,9 @@ class SmartMemoriesService {
           personName,
           lastCreationTime: lastCreationTime,
         );
-        personToMemories.putIfAbsent(personID, () => {}).putIfAbsent(
+        personToMemories
+            .putIfAbsent(personID, () => {})
+            .putIfAbsent(
               PeopleMemoryType.lastTimeYouSawThem,
               () => [lastTimeMemory],
             );
@@ -656,8 +671,11 @@ class SmartMemoriesService {
       // Check if we should surface memory based on birthday
       final birthdate = DateTime.tryParse(person.data.birthDate ?? "");
       if (birthdate != null) {
-        final thisBirthday =
-            DateTime(currentTime.year, birthdate.month, birthdate.day);
+        final thisBirthday = DateTime(
+          currentTime.year,
+          birthdate.month,
+          birthdate.day,
+        );
         final daysTillBirthday = thisBirthday.difference(currentTime).inDays;
         if (daysTillBirthday < 6 && daysTillBirthday >= 0) {
           final int newAge = currentTime.year - birthdate.year;
@@ -680,8 +698,9 @@ class SmartMemoriesService {
                 isBirthday: true,
                 newAge: newAge,
                 firstDateToShow: thisBirthday.microsecondsSinceEpoch,
-                lastDateToShow:
-                    thisBirthday.add(kDayItself).microsecondsSinceEpoch,
+                lastDateToShow: thisBirthday
+                    .add(kDayItself)
+                    .microsecondsSinceEpoch,
               ),
             );
           }
@@ -703,8 +722,9 @@ class SmartMemoriesService {
                 isBirthday: true,
                 newAge: newAge,
                 firstDateToShow: thisBirthday.microsecondsSinceEpoch,
-                lastDateToShow:
-                    thisBirthday.add(kDayItself).microsecondsSinceEpoch,
+                lastDateToShow: thisBirthday
+                    .add(kDayItself)
+                    .microsecondsSinceEpoch,
               ),
             );
           }
@@ -720,8 +740,9 @@ class SmartMemoriesService {
         max(1, amountOfPersons) * kMemoriesUpdateFrequencyDays,
       ),
     );
-    final shownPersonAndTypeTimeout =
-        Duration(days: shownPersonTimeout.inDays * 2);
+    final shownPersonAndTypeTimeout = Duration(
+      days: shownPersonTimeout.inDays * 2,
+    );
     peopleRotationLoop:
     for (final personID in orderedImportantPersonsID) {
       for (final memory in memoryResults) {
@@ -731,8 +752,9 @@ class SmartMemoriesService {
       }
       for (final shownLog in shownPeople) {
         if (shownLog.personID != personID) continue;
-        final shownDate =
-            DateTime.fromMicrosecondsSinceEpoch(shownLog.lastTimeShown);
+        final shownDate = DateTime.fromMicrosecondsSinceEpoch(
+          shownLog.lastTimeShown,
+        );
         final bool seenPersonRecently =
             currentTime.difference(shownDate) < shownPersonTimeout;
         if (seenPersonRecently) continue peopleRotationLoop;
@@ -760,8 +782,9 @@ class SmartMemoriesService {
           if (shownLog.peopleMemoryType != potentialMemory.peopleMemoryType) {
             continue;
           }
-          final shownTypeDate =
-              DateTime.fromMicrosecondsSinceEpoch(shownLog.lastTimeShown);
+          final shownTypeDate = DateTime.fromMicrosecondsSinceEpoch(
+            shownLog.lastTimeShown,
+          );
           final bool seenPersonTypeRecently =
               currentTime.difference(shownTypeDate) < shownPersonAndTypeTimeout;
           if (manyMemoryTypes && seenPersonTypeRecently) {
@@ -792,8 +815,9 @@ class SmartMemoriesService {
     final List<ClipMemory> clipResults = [];
     if (allFiles.isEmpty) return [];
     final nowInMicroseconds = currentTime.microsecondsSinceEpoch;
-    final windowEnd =
-        currentTime.add(kMemoriesUpdateFrequency).microsecondsSinceEpoch;
+    final windowEnd = currentTime
+        .add(kMemoriesUpdateFrequency)
+        .microsecondsSinceEpoch;
     final Map<ClipMemoryType, ClipMemory> clipTypeToMemory = {};
     w?.log('allFiles setup');
 
@@ -808,12 +832,11 @@ class SmartMemoriesService {
       }
       final Map<int, double> similarities = {};
       for (final fileID in fileIDToImageEmbedding.keys) {
-        similarities[fileID] =
-            fileIDToImageEmbedding[fileID]!.vector.dot(activityVector);
+        similarities[fileID] = fileIDToImageEmbedding[fileID]!.vector.dot(
+          activityVector,
+        );
       }
-      w?.log(
-        'comparing embeddings for clipMemoryType $clipMemoryType',
-      );
+      w?.log('comparing embeddings for clipMemoryType $clipMemoryType');
       for (final file in allFiles) {
         final similarity = similarities[file.uploadedFileID!];
         if (similarity == null) continue;
@@ -824,8 +847,9 @@ class SmartMemoriesService {
       if (clipFiles.length < 10) continue;
       // sort based on highest similarity first
       clipFiles.sort((a, b) {
-        return similarities[b.uploadedFileID!]!
-            .compareTo(similarities[a.uploadedFileID!]!);
+        return similarities[b.uploadedFileID!]!.compareTo(
+          similarities[a.uploadedFileID!]!,
+        );
       });
       clipTypeToMemory[clipMemoryType] = ClipMemory(
         clipFiles.take(10).map((f) => Memory.fromFile(f, seenTimes)).toList(),
@@ -851,8 +875,9 @@ class SmartMemoriesService {
       if (clipMemory == null) continue;
       for (final shownLog in shownClip) {
         if (shownLog.clipMemoryType != clipMemoryType) continue;
-        final shownDate =
-            DateTime.fromMicrosecondsSinceEpoch(shownLog.lastTimeShown);
+        final shownDate = DateTime.fromMicrosecondsSinceEpoch(
+          shownLog.lastTimeShown,
+        );
         final bool seenRecently =
             currentTime.difference(shownDate) < kClipShowTimeout;
         if (seenRecently) continue clipMemoriesLoop;
@@ -880,8 +905,9 @@ class SmartMemoriesService {
     final List<TripMemory> memoryResults = [];
     if (allFiles.isEmpty) return (<TripMemory>[], <BaseLocation>[]);
     final nowInMicroseconds = currentTime.microsecondsSinceEpoch;
-    final windowEnd =
-        currentTime.add(kMemoriesUpdateFrequency).microsecondsSinceEpoch;
+    final windowEnd = currentTime
+        .add(kMemoriesUpdateFrequency)
+        .microsecondsSinceEpoch;
     final currentMonth = currentTime.month;
     final cutOffTime = currentTime.subtract(const Duration(days: 365));
 
@@ -940,8 +966,11 @@ class SmartMemoriesService {
       for (final file in files) {
         creationTimes.add(file.creationTime!);
         final date = DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
-        final dayStamp =
-            DateTime(date.year, date.month, date.day).microsecondsSinceEpoch;
+        final dayStamp = DateTime(
+          date.year,
+          date.month,
+          date.day,
+        ).microsecondsSinceEpoch;
         uniqueDays.add(dayStamp);
       }
       creationTimes.sort();
@@ -968,9 +997,7 @@ class SmartMemoriesService {
       if (maxGap > gapThreshold) continue;
       // Check if it's a current or old base location
       final bool isCurrent = lastCreationTime.isAfter(
-        DateTime.now().subtract(
-          const Duration(days: 90),
-        ),
+        DateTime.now().subtract(const Duration(days: 90)),
       );
       baseLocations.add(
         BaseLocation(
@@ -1009,9 +1036,9 @@ class SmartMemoriesService {
       for (int i = 1; i < files.length; i++) {
         final currentFile = files[i];
         final currentTime = currentFile.creationTime!;
-        final gap = DateTime.fromMicrosecondsSinceEpoch(currentTime)
-            .difference(lastDateTime)
-            .inDays;
+        final gap = DateTime.fromMicrosecondsSinceEpoch(
+          currentTime,
+        ).difference(lastDateTime).inDays;
 
         // If gap is too large, end current block and check if it's a valid trip
         if (gap > 15) {
@@ -1026,10 +1053,7 @@ class SmartMemoriesService {
           if (blockDuration >= 2 && blockDuration <= 30) {
             tripLocations.add(
               TripMemory(
-                Memory.fromFiles(
-                  currentBlockFiles,
-                  seenTimes,
-                ),
+                Memory.fromFiles(currentBlockFiles, seenTimes),
                 0,
                 0,
                 location,
@@ -1078,12 +1102,15 @@ class SmartMemoriesService {
       bool merged = false;
       for (int idx = 0; idx < mergedTrips.length; idx++) {
         final otherTrip = mergedTrips[idx];
-        final otherTripFirstTime =
-            DateTime.fromMicrosecondsSinceEpoch(otherTrip.firstCreationTime!);
-        final otherTripLastTime =
-            DateTime.fromMicrosecondsSinceEpoch(otherTrip.lastCreationTime!);
-        if (tripFirstTime
-                .isBefore(otherTripLastTime.add(const Duration(days: 3))) &&
+        final otherTripFirstTime = DateTime.fromMicrosecondsSinceEpoch(
+          otherTrip.firstCreationTime!,
+        );
+        final otherTripLastTime = DateTime.fromMicrosecondsSinceEpoch(
+          otherTrip.lastCreationTime!,
+        );
+        if (tripFirstTime.isBefore(
+              otherTripLastTime.add(const Duration(days: 3)),
+            ) &&
             tripLastTime.isAfter(
               otherTripFirstTime.subtract(const Duration(days: 3)),
             )) {
@@ -1092,10 +1119,14 @@ class SmartMemoriesService {
             0,
             0,
             otherTrip.location,
-            firstCreationTime:
-                min(otherTrip.firstCreationTime!, trip.firstCreationTime!),
-            lastCreationTime:
-                max(otherTrip.lastCreationTime!, trip.lastCreationTime!),
+            firstCreationTime: min(
+              otherTrip.firstCreationTime!,
+              trip.firstCreationTime!,
+            ),
+            lastCreationTime: max(
+              otherTrip.lastCreationTime!,
+              trip.lastCreationTime!,
+            ),
           );
           dev.log('Merged two trip locations');
           merged = true;
@@ -1156,8 +1187,10 @@ class SmartMemoriesService {
         final year = DateTime.fromMicrosecondsSinceEpoch(
           trip.averageCreationTime(),
         ).year;
-        final String? locationName =
-            _tryFindLocationName(trip.memories, cities);
+        final String? locationName = _tryFindLocationName(
+          trip.memories,
+          cities,
+        );
         final photoSelection = await _bestSelection(
           trip.memories,
           fileIdToFaces: fileIdToFaces,
@@ -1182,8 +1215,9 @@ class SmartMemoriesService {
     // Group the trips per month and then year
     final Map<int, Map<int, List<TripMemory>>> tripsByMonthYear = {};
     for (final trip in validTrips) {
-      final tripDate =
-          DateTime.fromMicrosecondsSinceEpoch(trip.averageCreationTime());
+      final tripDate = DateTime.fromMicrosecondsSinceEpoch(
+        trip.averageCreationTime(),
+      );
       tripsByMonthYear
           .putIfAbsent(tripDate.month, () => {})
           .putIfAbsent(tripDate.year, () => [])
@@ -1207,11 +1241,13 @@ class SmartMemoriesService {
       );
       final tripsToShow = currentMonthTrips.take(2);
       for (final trip in tripsToShow) {
-        final year =
-            DateTime.fromMicrosecondsSinceEpoch(trip.averageCreationTime())
-                .year;
-        final String? locationName =
-            _tryFindLocationName(trip.memories, cities);
+        final year = DateTime.fromMicrosecondsSinceEpoch(
+          trip.averageCreationTime(),
+        ).year;
+        final String? locationName = _tryFindLocationName(
+          trip.memories,
+          cities,
+        );
         final photoSelection = await _bestSelection(
           trip.memories,
           fileIdToFaces: fileIdToFaces,
@@ -1249,8 +1285,10 @@ class SmartMemoriesService {
     // Otherwise, if no trips happened in the current month,
     // look for the earliest upcoming trip in another month that has 3+ trips.
     else {
-      final sortedUpcomingMonths =
-          List<int>.generate(6, (i) => ((currentMonth + i) % 12) + 1);
+      final sortedUpcomingMonths = List<int>.generate(
+        6,
+        (i) => ((currentMonth + i) % 12) + 1,
+      );
       checkUpcomingMonths:
       for (final month in sortedUpcomingMonths) {
         if (tripsByMonthYear.containsKey(month)) {
@@ -1267,8 +1305,10 @@ class SmartMemoriesService {
             checkPotentialTrips:
             for (final trip in thatMonthTrips.sublist(2)) {
               for (final shownTrip in shownTrips) {
-                final distance =
-                    calculateDistance(trip.location, shownTrip.location);
+                final distance = calculateDistance(
+                  trip.location,
+                  shownTrip.location,
+                );
                 final shownTripDate = DateTime.fromMicrosecondsSinceEpoch(
                   shownTrip.lastTimeShown,
                 );
@@ -1281,8 +1321,10 @@ class SmartMemoriesService {
               final year = DateTime.fromMicrosecondsSinceEpoch(
                 trip.averageCreationTime(),
               ).year;
-              final String? locationName =
-                  _tryFindLocationName(trip.memories, cities);
+              final String? locationName = _tryFindLocationName(
+                trip.memories,
+                cities,
+              );
               final photoSelection = await _bestSelection(
                 trip.memories,
                 fileIdToFaces: fileIdToFaces,
@@ -1335,8 +1377,9 @@ class SmartMemoriesService {
     for (final file in allFiles) {
       if (file.creationTime! > cutOffTime.microsecondsSinceEpoch) continue;
 
-      final creationTime =
-          DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
+      final creationTime = DateTime.fromMicrosecondsSinceEpoch(
+        file.creationTime!,
+      );
       final dayMonth = creationTime.month * 100 + creationTime.day;
       final year = creationTime.year;
 
@@ -1360,8 +1403,11 @@ class SmartMemoriesService {
 
       if (significantDays.length >= 3) {
         // Combine all years for this day-month
-        final date =
-            DateTime(currentTime.year, dayMonth ~/ 100, dayMonth % 100);
+        final date = DateTime(
+          currentTime.year,
+          dayMonth ~/ 100,
+          dayMonth % 100,
+        );
         final allPhotos = yearGroups.values.expand((x) => x).toList();
         final photoSelection = await _bestSelection(
           allPhotos,
@@ -1383,8 +1429,11 @@ class SmartMemoriesService {
         // Individual entries for significant years
         for (final year in significantDays) {
           final date = DateTime(year, dayMonth ~/ 100, dayMonth % 100);
-          final showDate =
-              DateTime(currentYear, dayMonth ~/ 100, dayMonth % 100);
+          final showDate = DateTime(
+            currentYear,
+            dayMonth ~/ 100,
+            dayMonth % 100,
+          );
           final files = yearGroups[year]!;
           final photoSelection = await _bestSelection(
             files,
@@ -1413,8 +1462,9 @@ class SmartMemoriesService {
       for (final file in allFiles) {
         if (file.creationTime! > cutOffTime.microsecondsSinceEpoch) continue;
 
-        final creationTime =
-            DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
+        final creationTime = DateTime.fromMicrosecondsSinceEpoch(
+          file.creationTime!,
+        );
         final week = _getWeekNumber(creationTime);
         if (week != currentWeek) continue;
         final year = creationTime.year;
@@ -1432,8 +1482,9 @@ class SmartMemoriesService {
             .toList();
         if (significantWeeks.length >= 3) {
           // Combine all years for this week
-          final allPhotos =
-              currentWeekYearGroups.values.expand((x) => x).toList();
+          final allPhotos = currentWeekYearGroups.values
+              .expand((x) => x)
+              .toList();
           final photoSelection = await _bestSelection(
             allPhotos,
             fileIdToFaces: fileIdToFaces,
@@ -1452,9 +1503,11 @@ class SmartMemoriesService {
         } else {
           // Individual entries for significant years
           for (final year in significantWeeks) {
-            final date = DateTime(year, 1, 1).add(
-              Duration(days: (currentWeek - 1) * 7),
-            );
+            final date = DateTime(
+              year,
+              1,
+              1,
+            ).add(Duration(days: (currentWeek - 1) * 7));
             final files = currentWeekYearGroups[year]!;
             final photoSelection = await _bestSelection(
               files,
@@ -1487,8 +1540,9 @@ class SmartMemoriesService {
     for (final file in allFiles) {
       if (file.creationTime! > cutOffTime.microsecondsSinceEpoch) continue;
 
-      final creationTime =
-          DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
+      final creationTime = DateTime.fromMicrosecondsSinceEpoch(
+        file.creationTime!,
+      );
       final month = creationTime.month;
       if (month != currentMonth) continue;
       final year = creationTime.year;
@@ -1502,8 +1556,8 @@ class SmartMemoriesService {
     final sortedYearsForCurrentMonth = currentMonthYearGroups.keys.toList()
       ..sort(
         (a, b) => currentMonthYearGroups[b]!.length.compareTo(
-              currentMonthYearGroups[a]!.length,
-            ),
+          currentMonthYearGroups[a]!.length,
+        ),
       );
     for (int i = 0; i < 2; i++) {
       if (sortedYearsForCurrentMonth.isEmpty) break;
@@ -1566,11 +1620,13 @@ class SmartMemoriesService {
     final List<FillerMemory> memoryResults = [];
     if (allFiles.isEmpty) return [];
     final nowInMicroseconds = currentTime.microsecondsSinceEpoch;
-    final windowEnd =
-        currentTime.add(kMemoriesUpdateFrequency).microsecondsSinceEpoch;
+    final windowEnd = currentTime
+        .add(kMemoriesUpdateFrequency)
+        .microsecondsSinceEpoch;
     final currentYear = currentTime.year;
-    final cutOffTime = currentTime
-        .subtract(const Duration(days: 364) - kMemoriesUpdateFrequency);
+    final cutOffTime = currentTime.subtract(
+      const Duration(days: 364) - kMemoriesUpdateFrequency,
+    );
     final timeTillYearEnd = DateTime(currentYear + 1).difference(currentTime);
     final bool almostYearEnd = timeTillYearEnd < kMemoriesUpdateFrequency;
 
@@ -1588,9 +1644,9 @@ class SmartMemoriesService {
             .putIfAbsent(yearsAgo, () => [])
             .add(Memory.fromFile(file, seenTimes));
       } else if (almostYearEnd) {
-        final altDiff = fileDate.copyWith(year: currentYear + 1).difference(
-              currentTime,
-            );
+        final altDiff = fileDate
+            .copyWith(year: currentYear + 1)
+            .difference(currentTime);
         if (!altDiff.isNegative && altDiff < kMemoriesUpdateFrequency) {
           final yearsAgo = currentYear - fileDate.year + 1;
           yearsAgoToMemories
@@ -1670,8 +1726,9 @@ class SmartMemoriesService {
     final currentMonth = currentTime.month;
     final currentDay = currentTime.day;
     final startPoint = DateTime(currentYear, currentMonth, currentDay);
-    final cutOffTime = startPoint
-        .subtract(const Duration(days: 363) - kMemoriesUpdateFrequency);
+    final cutOffTime = startPoint.subtract(
+      const Duration(days: 363) - kMemoriesUpdateFrequency,
+    );
     final diffThreshold = Duration(days: daysToCompute);
 
     final Map<int, List<Memory>> daysToMemories = {};
@@ -1695,9 +1752,9 @@ class SmartMemoriesService {
             .add(Memory.fromFile(file, seenTimes));
         daysToYears.putIfAbsent(diff.inDays, () => []).add(fileDate.year);
       } else if (almostYearEnd) {
-        final altDiff = fileDate.copyWith(year: currentYear + 1).difference(
-              currentTime,
-            );
+        final altDiff = fileDate
+            .copyWith(year: currentYear + 1)
+            .difference(currentTime);
         if (!altDiff.isNegative && altDiff < diffThreshold) {
           daysToMemories
               .putIfAbsent(altDiff.inDays, () => [])
@@ -1720,8 +1777,9 @@ class SmartMemoriesService {
         // Group memories by year
         final Map<int, List<Memory>> memoriesByYear = {};
         for (final memory in memories) {
-          final creationTime =
-              DateTime.fromMicrosecondsSinceEpoch(memory.file.creationTime!);
+          final creationTime = DateTime.fromMicrosecondsSinceEpoch(
+            memory.file.creationTime!,
+          );
           final year = creationTime.year;
           memoriesByYear.putIfAbsent(year, () => []).add(memory);
         }
@@ -1795,9 +1853,7 @@ class SmartMemoriesService {
       context != null
           ? Localizations.localeOf(context).languageCode
           : languageCode ?? "en",
-    ).format(
-      DateTime.fromMicrosecondsSinceEpoch(creationTime),
-    );
+    ).format(DateTime.fromMicrosecondsSinceEpoch(creationTime));
   }
 
   /// TODO: lau: replace this by just taking next 7 days
@@ -1872,16 +1928,19 @@ class SmartMemoriesService {
       int offset = 0;
       for (int i = 0; i < numBuckets; i++) {
         final int bucketSize = quotient + (i < remainder ? 1 : 0);
-        timeBuckets
-            .add(sortedTimeMemories.sublist(offset, offset + bucketSize));
+        timeBuckets.add(
+          sortedTimeMemories.sublist(offset, offset + bucketSize),
+        );
         offset += bucketSize;
       }
 
       final finalSelection = <Memory>[];
       for (final bucket in timeBuckets) {
         // Get X% most nostalgic photos
-        final bucketFileIDs =
-            bucket.map((memory) => memory.file.uploadedFileID!).toSet().toSet();
+        final bucketFileIDs = bucket
+            .map((memory) => memory.file.uploadedFileID!)
+            .toSet()
+            .toSet();
         final bucketVectors = _getEmbeddingsForFileIDs(
           fileIDToImageEmbedding,
           bucketFileIDs,
@@ -1890,8 +1949,9 @@ class SmartMemoriesService {
             bucketVectors.length < bucket.length * 0.5;
         final Map<int, double> nostalgiaScores = {};
         for (final embedding in bucketVectors) {
-          nostalgiaScores[embedding.fileID] =
-              embedding.vector.dot(clipPositiveTextVector);
+          nostalgiaScores[embedding.fileID] = embedding.vector.dot(
+            clipPositiveTextVector,
+          );
         }
         final sortedNostalgia = bucket
           ..sort(
@@ -1927,8 +1987,10 @@ class SmartMemoriesService {
             if (selected.file.location == null || mem.file.location == null) {
               continue;
             }
-            final distance =
-                calculateDistance(mem.file.location!, selected.file.location!);
+            final distance = calculateDistance(
+              mem.file.location!,
+              selected.file.location!,
+            );
             if (distance < minDistance) {
               minDistance = distance;
             }
@@ -1941,8 +2003,9 @@ class SmartMemoriesService {
         finalSelection.add(mostNostalgic[farthestDistanceIdx]);
       }
 
-      finalSelection
-          .sort((a, b) => b.file.creationTime!.compareTo(a.file.creationTime!));
+      finalSelection.sort(
+        (a, b) => b.file.creationTime!.compareTo(a.file.creationTime!),
+      );
 
       dev.log(
         'People memories selection done, returning ${finalSelection.length} memories',
@@ -1972,20 +2035,19 @@ class SmartMemoriesService {
     final fileIDs = memories.map((e) => e.file.uploadedFileID!).toSet();
 
     final allYears = memories.map((e) {
-      final creationTime =
-          DateTime.fromMicrosecondsSinceEpoch(e.file.creationTime!);
+      final creationTime = DateTime.fromMicrosecondsSinceEpoch(
+        e.file.creationTime!,
+      );
       return creationTime.year;
     }).toSet();
 
     // Get clip scores for each file
-    final vectors = _getEmbeddingsForFileIDs(
-      fileIDToImageEmbedding,
-      fileIDs,
-    );
+    final vectors = _getEmbeddingsForFileIDs(fileIDToImageEmbedding, fileIDs);
     final Map<int, double> fileToScore = {};
     for (final embedding in vectors) {
-      fileToScore[embedding.fileID] =
-          embedding.vector.dot(clipPositiveTextVector);
+      fileToScore[embedding.fileID] = embedding.vector.dot(
+        clipPositiveTextVector,
+      );
     }
 
     // Get face scores for each file
@@ -2011,13 +2073,15 @@ class SmartMemoriesService {
       // TODO: lau: eventually this sorting might have to be replaced with some scoring system
       // sort first on clip embeddings score (descending)
       memories.sort(
-        (a, b) => (fileToScore[b.file.uploadedFileID!] ?? 0.0)
-            .compareTo((fileToScore[a.file.uploadedFileID!] ?? 0.0)),
+        (a, b) => (fileToScore[b.file.uploadedFileID!] ?? 0.0).compareTo(
+          (fileToScore[a.file.uploadedFileID!] ?? 0.0),
+        ),
       );
       // then sort on faces (descending), heavily prioritizing named faces
       memories.sort(
-        (a, b) => fileToFaceCount[b.file.uploadedFileID!]!
-            .compareTo(fileToFaceCount[a.file.uploadedFileID!]!),
+        (a, b) => fileToFaceCount[b.file.uploadedFileID!]!.compareTo(
+          fileToFaceCount[a.file.uploadedFileID!]!,
+        ),
       );
 
       // then filter out similar images as much as possible
@@ -2051,8 +2115,9 @@ class SmartMemoriesService {
       // Group files by year and sort each year's list by CLIP then face count
       final yearToFiles = <int, List<Memory>>{};
       for (final mem in memories) {
-        final creationTime =
-            DateTime.fromMicrosecondsSinceEpoch(mem.file.creationTime!);
+        final creationTime = DateTime.fromMicrosecondsSinceEpoch(
+          mem.file.creationTime!,
+        );
         final year = creationTime.year;
         yearToFiles.putIfAbsent(year, () => []).add(mem);
       }
@@ -2061,13 +2126,15 @@ class SmartMemoriesService {
         final yearFiles = yearToFiles[year]!;
         // sort first on clip embeddings score (descending)
         yearFiles.sort(
-          (a, b) => (fileToScore[b.file.uploadedFileID!] ?? 0.0)
-              .compareTo((fileToScore[a.file.uploadedFileID!] ?? 0.0)),
+          (a, b) => (fileToScore[b.file.uploadedFileID!] ?? 0.0).compareTo(
+            (fileToScore[a.file.uploadedFileID!] ?? 0.0),
+          ),
         );
         // then sort on faces (descending), heavily prioritizing named faces
         yearFiles.sort(
-          (a, b) => fileToFaceCount[b.file.uploadedFileID!]!
-              .compareTo(fileToFaceCount[a.file.uploadedFileID!]!),
+          (a, b) => fileToFaceCount[b.file.uploadedFileID!]!.compareTo(
+            fileToFaceCount[a.file.uploadedFileID!]!,
+          ),
         );
       }
 
@@ -2112,8 +2179,9 @@ class SmartMemoriesService {
     }
 
     // Order the final selection chronologically
-    filteredMemories
-        .sort((a, b) => a.file.creationTime!.compareTo(b.file.creationTime!));
+    filteredMemories.sort(
+      (a, b) => a.file.creationTime!.compareTo(b.file.creationTime!),
+    );
     return filteredMemories;
   }
 }

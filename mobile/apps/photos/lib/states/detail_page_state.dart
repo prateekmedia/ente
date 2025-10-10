@@ -3,10 +3,7 @@ import "package:flutter/services.dart";
 
 class InheritedDetailPageState extends InheritedWidget {
   final enableFullScreenNotifier = ValueNotifier(false);
-  InheritedDetailPageState({
-    super.key,
-    required super.child,
-  });
+  InheritedDetailPageState({super.key, required super.child});
 
   static InheritedDetailPageState of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<InheritedDetailPageState>()!;
@@ -21,10 +18,7 @@ class InheritedDetailPageState extends InheritedWidget {
     enableFullScreenNotifier.value = !enableFullScreenNotifier.value;
     if (enableFullScreenNotifier.value) {
       Future.delayed(const Duration(milliseconds: 200), () {
-        SystemChrome.setEnabledSystemUIMode(
-          SystemUiMode.manual,
-          overlays: [],
-        );
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
       });
     } else {
       SystemChrome.setEnabledSystemUIMode(

@@ -29,20 +29,23 @@ class _MemoriesWidgetState extends State<MemoriesWidget> {
   @override
   void initState() {
     super.initState();
-    _memoriesSettingSubscription =
-        Bus.instance.on<MemoriesSettingChanged>().listen((event) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    _memoriesChangedSubscription =
-        Bus.instance.on<MemoriesChangedEvent>().listen((event) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    _memorySeenSubscription =
-        Bus.instance.on<MemorySeenEvent>().listen((event) {
+    _memoriesSettingSubscription = Bus.instance
+        .on<MemoriesSettingChanged>()
+        .listen((event) {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+    _memoriesChangedSubscription = Bus.instance
+        .on<MemoriesChangedEvent>()
+        .listen((event) {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+    _memorySeenSubscription = Bus.instance.on<MemorySeenEvent>().listen((
+      event,
+    ) {
       if (mounted) {
         setState(() {});
       }
@@ -89,16 +92,14 @@ class _MemoriesWidgetState extends State<MemoriesWidget> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
               _buildMemories(snapshot.data!),
               const SizedBox(height: 10),
             ],
           ).animate().fadeIn(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOutCirc,
-              );
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOutCirc,
+          );
         }
       },
     );

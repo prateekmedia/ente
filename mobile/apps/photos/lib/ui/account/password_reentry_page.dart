@@ -41,10 +41,7 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
     _volatilePassword = Configuration.instance.getVolatilePassword();
     if (_volatilePassword != null) {
       _passwordController.text = _volatilePassword!;
-      Future.delayed(
-        Duration.zero,
-        () => verifyPassword(_volatilePassword!),
-      );
+      Future.delayed(Duration.zero, () => verifyPassword(_volatilePassword!));
     }
     _passwordFocusNode.addListener(() {
       setState(() {
@@ -102,8 +99,10 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
 
   Future<void> verifyPassword(String password) async {
     FocusScope.of(context).unfocus();
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       final kek = await Configuration.instance.decryptSecretsAndGetKeyEncKey(
@@ -194,8 +193,10 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
             child: ListView(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     AppLocalizations.of(context).welcomeBack,
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -206,9 +207,7 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
                   // password
                   visible: false,
                   child: TextFormField(
-                    autofillHints: const [
-                      AutofillHints.email,
-                    ],
+                    autofillHints: const [AutofillHints.email],
                     autocorrect: false,
                     keyboardType: TextInputType.emailAddress,
                     initialValue: email,
@@ -246,9 +245,7 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
                             )
                           : null,
                     ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(fontSize: 14),
                     controller: _passwordController,
                     autofocus: true,
                     autocorrect: false,
@@ -285,11 +282,11 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
                         },
                         child: Text(
                           AppLocalizations.of(context).forgotPassword,
-                          style:
-                              Theme.of(context).textTheme.titleMedium!.copyWith(
-                                    fontSize: 14,
-                                    decoration: TextDecoration.underline,
-                                  ),
+                          style: Theme.of(context).textTheme.titleMedium!
+                              .copyWith(
+                                fontSize: 14,
+                                decoration: TextDecoration.underline,
+                              ),
                         ),
                       ),
                       GestureDetector(
@@ -302,16 +299,17 @@ class _PasswordReentryPageState extends State<PasswordReentryPage> {
                           await dialog.show();
                           await Configuration.instance.logout();
                           await dialog.hide();
-                          Navigator.of(context)
-                              .popUntil((route) => route.isFirst);
+                          Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst);
                         },
                         child: Text(
                           AppLocalizations.of(context).changeEmail,
-                          style:
-                              Theme.of(context).textTheme.titleMedium!.copyWith(
-                                    fontSize: 14,
-                                    decoration: TextDecoration.underline,
-                                  ),
+                          style: Theme.of(context).textTheme.titleMedium!
+                              .copyWith(
+                                fontSize: 14,
+                                decoration: TextDecoration.underline,
+                              ),
                         ),
                       ),
                     ],

@@ -41,9 +41,9 @@ class SyncService {
       sync();
     });
 
-    Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> result) {
+    Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> result,
+    ) {
       _logger.info("Connectivity change detected " + result.toString());
       if (Configuration.instance.hasConfiguredAccount()) {
         sync();
@@ -102,18 +102,12 @@ class SyncService {
       );
     } on NoActiveSubscriptionError {
       Bus.instance.fire(
-        SyncStatusUpdate(
-          SyncStatus.error,
-          error: NoActiveSubscriptionError(),
-        ),
+        SyncStatusUpdate(SyncStatus.error, error: NoActiveSubscriptionError()),
       );
     } on StorageLimitExceededError {
       _showStorageLimitExceededNotification();
       Bus.instance.fire(
-        SyncStatusUpdate(
-          SyncStatus.error,
-          error: StorageLimitExceededError(),
-        ),
+        SyncStatusUpdate(SyncStatus.error, error: StorageLimitExceededError()),
       );
     } on UnauthorizedError {
       _logger.info("Logging user out");
@@ -121,10 +115,7 @@ class SyncService {
     } on NoMediaLocationAccessError {
       _logger.severe("Not uploading due to no media location access");
       Bus.instance.fire(
-        SyncStatusUpdate(
-          SyncStatus.error,
-          error: NoMediaLocationAccessError(),
-        ),
+        SyncStatusUpdate(SyncStatus.error, error: NoMediaLocationAccessError()),
       );
     } catch (e) {
       if (e is DioException) {
@@ -176,21 +167,15 @@ class SyncService {
   }
 
   void onDeviceCollectionSet(Set<int> collectionIDs) {
-    _uploader.removeFromQueueWhere(
-      (file) {
-        return !collectionIDs.contains(file.collectionID);
-      },
-      UserCancelledUploadError(),
-    );
+    _uploader.removeFromQueueWhere((file) {
+      return !collectionIDs.contains(file.collectionID);
+    }, UserCancelledUploadError());
   }
 
   void onVideoBackupPaused() {
-    _uploader.removeFromQueueWhere(
-      (file) {
-        return file.fileType == FileType.video;
-      },
-      UserCancelledUploadError(),
-    );
+    _uploader.removeFromQueueWhere((file) {
+      return file.fileType == FileType.video;
+    }, UserCancelledUploadError());
   }
 
   Future<void> _doSync() async {

@@ -36,14 +36,12 @@ class MemoriesDB {
   }
 
   Future _onCreate(Database db, int version) async {
-    await db.execute(
-      '''
+    await db.execute('''
                 CREATE TABLE $table (
                   $columnFileID INTEGER PRIMARY KEY NOT NULL,
                   $columnSeenTime TEXT NOT NULL
                 )
-                ''',
-    );
+                ''');
   }
 
   Future<void> clearTable() async {

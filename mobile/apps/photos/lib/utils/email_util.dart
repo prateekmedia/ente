@@ -238,9 +238,7 @@ Future<void> sendEmail(
   try {
     final String clientDebugInfo = await _clientInfo();
     final EmailContent emailContent = EmailContent(
-      to: [
-        to,
-      ],
+      to: [to],
       subject: subject ?? '[Support]',
       body: (body ?? '') + clientDebugInfo,
     );
@@ -261,9 +259,9 @@ Future<void> sendEmail(
     } else {
       final OpenMailAppResult result =
           await OpenMailApp.composeNewEmailInMailApp(
-        nativePickerTitle: 'Select emailContent app',
-        emailContent: emailContent,
-      );
+            nativePickerTitle: 'Select emailContent app',
+            emailContent: emailContent,
+          );
       if (!result.didOpen && !result.canOpen) {
         _showNoMailAppsDialog(context, to);
       } else if (!result.didOpen && result.canOpen) {

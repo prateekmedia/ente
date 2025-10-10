@@ -5,14 +5,7 @@ import "package:photos/generated/l10n.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/utils/standalone/date_time.dart";
 
-enum GroupType {
-  day,
-  week,
-  month,
-  size,
-  year,
-  none,
-}
+enum GroupType { day, week, month, size, year, none }
 
 extension GroupTypeExtension on GroupType {
   String get name {
@@ -43,10 +36,7 @@ extension GroupTypeExtension on GroupType {
 
   bool showScrollbarDivisions() => timeGrouping();
 
-  String getTitle(
-    BuildContext context,
-    EnteFile file,
-  ) {
+  String getTitle(BuildContext context, EnteFile file) {
     if (this == GroupType.day) {
       return _getDayTitle(context, file.creationTime!);
     } else if (this == GroupType.week) {
@@ -77,27 +67,33 @@ extension GroupTypeExtension on GroupType {
         );
       case GroupType.week:
         return modifiedFiles.any((file) {
-          final firstDate =
-              DateTime.fromMicrosecondsSinceEpoch(fistFile.creationTime!);
-          final fileDate =
-              DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
+          final firstDate = DateTime.fromMicrosecondsSinceEpoch(
+            fistFile.creationTime!,
+          );
+          final fileDate = DateTime.fromMicrosecondsSinceEpoch(
+            file.creationTime!,
+          );
           return areDatesInSameWeek(firstDate, fileDate);
         });
       case GroupType.month:
         return modifiedFiles.any((file) {
-          final firstDate =
-              DateTime.fromMicrosecondsSinceEpoch(fistFile.creationTime!);
-          final fileDate =
-              DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
+          final firstDate = DateTime.fromMicrosecondsSinceEpoch(
+            fistFile.creationTime!,
+          );
+          final fileDate = DateTime.fromMicrosecondsSinceEpoch(
+            file.creationTime!,
+          );
           return firstDate.year == fileDate.year &&
               firstDate.month == fileDate.month;
         });
       case GroupType.year:
         return modifiedFiles.any((file) {
-          final firstDate =
-              DateTime.fromMicrosecondsSinceEpoch(fistFile.creationTime!);
-          final fileDate =
-              DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
+          final firstDate = DateTime.fromMicrosecondsSinceEpoch(
+            fistFile.creationTime!,
+          );
+          final fileDate = DateTime.fromMicrosecondsSinceEpoch(
+            file.creationTime!,
+          );
           return firstDate.year == fileDate.year;
         });
       default:
@@ -117,12 +113,15 @@ extension GroupTypeExtension on GroupType {
         );
       case GroupType.week:
         final date = DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
-        final startOfWeek = DateTime(date.year, date.month, date.day)
-            .subtract(Duration(days: date.weekday - 1));
+        final startOfWeek = DateTime(
+          date.year,
+          date.month,
+          date.day,
+        ).subtract(Duration(days: date.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 7));
         return (
           startOfWeek.microsecondsSinceEpoch,
-          endOfWeek.microsecondsSinceEpoch - 1
+          endOfWeek.microsecondsSinceEpoch - 1,
         );
       case GroupType.month:
         final date = DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
@@ -130,7 +129,7 @@ extension GroupTypeExtension on GroupType {
         final endOfMonth = DateTime(date.year, date.month + 1);
         return (
           startOfMonth.microsecondsSinceEpoch,
-          endOfMonth.microsecondsSinceEpoch - 1
+          endOfMonth.microsecondsSinceEpoch - 1,
         );
       case GroupType.year:
         final date = DateTime.fromMicrosecondsSinceEpoch(file.creationTime!);
@@ -138,7 +137,7 @@ extension GroupTypeExtension on GroupType {
         final endOfYear = DateTime(date.year + 1);
         return (
           startOfYear.microsecondsSinceEpoch,
-          endOfYear.microsecondsSinceEpoch - 1
+          endOfYear.microsecondsSinceEpoch - 1,
         );
       default:
         throw UnimplementedError("not implemented for $this");
@@ -151,18 +150,21 @@ extension GroupTypeExtension on GroupType {
         return areFromSameDay(first.creationTime!, second.creationTime!);
       case GroupType.month:
         return DateTime.fromMicrosecondsSinceEpoch(first.creationTime!).year ==
-                DateTime.fromMicrosecondsSinceEpoch(second.creationTime!)
-                    .year &&
+                DateTime.fromMicrosecondsSinceEpoch(
+                  second.creationTime!,
+                ).year &&
             DateTime.fromMicrosecondsSinceEpoch(first.creationTime!).month ==
                 DateTime.fromMicrosecondsSinceEpoch(second.creationTime!).month;
       case GroupType.year:
         return DateTime.fromMicrosecondsSinceEpoch(first.creationTime!).year ==
             DateTime.fromMicrosecondsSinceEpoch(second.creationTime!).year;
       case GroupType.week:
-        final firstDate =
-            DateTime.fromMicrosecondsSinceEpoch(first.creationTime!);
-        final secondDate =
-            DateTime.fromMicrosecondsSinceEpoch(second.creationTime!);
+        final firstDate = DateTime.fromMicrosecondsSinceEpoch(
+          first.creationTime!,
+        );
+        final secondDate = DateTime.fromMicrosecondsSinceEpoch(
+          second.creationTime!,
+        );
         return areDatesInSameWeek(firstDate, secondDate);
       default:
         throw UnimplementedError("not implemented for $this");
@@ -180,11 +182,13 @@ extension GroupTypeExtension on GroupType {
       }
     }
     if (date.year != DateTime.now().year) {
-      return DateFormat.yMMMEd(Localizations.localeOf(context).languageCode)
-          .format(date);
+      return DateFormat.yMMMEd(
+        Localizations.localeOf(context).languageCode,
+      ).format(date);
     } else {
-      return DateFormat.MMMEd(Localizations.localeOf(context).languageCode)
-          .format(date);
+      return DateFormat.MMMEd(
+        Localizations.localeOf(context).languageCode,
+      ).format(date);
     }
   }
 
@@ -223,8 +227,9 @@ extension GroupTypeExtension on GroupType {
       return AppLocalizations.of(context).thisMonth;
     }
 
-    return DateFormat.yMMM(Localizations.localeOf(context).languageCode)
-        .format(date);
+    return DateFormat.yMMM(
+      Localizations.localeOf(context).languageCode,
+    ).format(date);
   }
 
   String _getYearTitle(BuildContext context, int timestamp) {
@@ -235,7 +240,8 @@ extension GroupTypeExtension on GroupType {
       return AppLocalizations.of(context).thisYear;
     }
 
-    return DateFormat.y(Localizations.localeOf(context).languageCode)
-        .format(date);
+    return DateFormat.y(
+      Localizations.localeOf(context).languageCode,
+    ).format(date);
   }
 }

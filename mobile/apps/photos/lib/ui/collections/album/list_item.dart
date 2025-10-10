@@ -51,9 +51,7 @@ class AlbumListItemWidget extends StatelessWidget {
                       shouldShowOwnerAvatar: false,
                     );
                   } else {
-                    return const NoThumbnailWidget(
-                      addBorder: false,
-                    );
+                    return const NoThumbnailWidget(addBorder: false);
                   }
                 },
               ),
@@ -65,10 +63,7 @@ class AlbumListItemWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  collection.displayName,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(collection.displayName, overflow: TextOverflow.ellipsis),
                 FutureBuilder<int>(
                   future: CollectionsService.instance.getFileCount(collection),
                   builder: (context, snapshot) {

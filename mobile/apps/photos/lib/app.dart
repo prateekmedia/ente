@@ -30,11 +30,7 @@ class EnteApp extends StatefulWidget {
   final AdaptiveThemeMode? savedThemeMode;
   final Locale? locale;
 
-  const EnteApp(
-    this.locale,
-    this.savedThemeMode, {
-    super.key,
-  });
+  const EnteApp(this.locale, this.savedThemeMode, {super.key});
 
   static void setLocale(BuildContext context, Locale newLocale) {
     final state = context.findAncestorStateOfType<_EnteAppState>()!;
@@ -63,23 +59,20 @@ class _EnteAppState extends State<EnteApp> with WidgetsBindingObserver {
   }
 
   void setupSubscription() {
-    _memoriesChangedSubscription =
-        Bus.instance.on<MemoriesChangedEvent>().listen(
-      (event) async {
-        await MemoryHomeWidgetService.instance.memoryChanged();
-      },
-    );
+    _memoriesChangedSubscription = Bus.instance
+        .on<MemoriesChangedEvent>()
+        .listen((event) async {
+          await MemoryHomeWidgetService.instance.memoryChanged();
+        });
     _changeCallbackDebouncer = Debouncer(const Duration(milliseconds: 1500));
-    _peopleChangedSubscription = Bus.instance.on<PeopleChangedEvent>().listen(
-      (event) async {
-        _changeCallbackDebouncer.run(
-          () async {
-            unawaited(PeopleHomeWidgetService.instance.checkPeopleChanged());
-            unawaited(smartAlbumsService.syncSmartAlbums());
-          },
-        );
-      },
-    );
+    _peopleChangedSubscription = Bus.instance.on<PeopleChangedEvent>().listen((
+      event,
+    ) async {
+      _changeCallbackDebouncer.run(() async {
+        unawaited(PeopleHomeWidgetService.instance.checkPeopleChanged());
+        unawaited(smartAlbumsService.syncSmartAlbums());
+      });
+    });
   }
 
   @override
@@ -130,12 +123,15 @@ class _EnteAppState extends State<EnteApp> with WidgetsBindingObserver {
             themeMode: ThemeMode.system,
             theme: lightTheme,
             darkTheme: dartTheme,
-            home: AppLifecycleService.instance.mediaExtensionAction.action ==
+            home:
+                AppLifecycleService.instance.mediaExtensionAction.action ==
                         IntentAction.view &&
                     (AppLifecycleService.instance.mediaExtensionAction.type ==
                             MediaType.image ||
                         AppLifecycleService
-                                .instance.mediaExtensionAction.type ==
+                                .instance
+                                .mediaExtensionAction
+                                .type ==
                             MediaType.video)
                 ? const FileViewer()
                 : const HomeWidget(),
@@ -186,8 +182,9 @@ class _EnteAppState extends State<EnteApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final String stateChangeReason = 'app -> $state';
     if (state == AppLifecycleState.resumed) {
-      AppLifecycleService.instance
-          .onAppInForeground(stateChangeReason + ': sync now');
+      AppLifecycleService.instance.onAppInForeground(
+        stateChangeReason + ': sync now',
+      );
       SyncService.instance.sync();
     } else {
       AppLifecycleService.instance.onAppInBackground(stateChangeReason);

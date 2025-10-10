@@ -30,11 +30,7 @@ class CastServiceImpl extends CastService {
         });
       } else {
         if (onMessage != null && message.containsKey("code")) {
-          onMessage(
-            {
-              CastMessageType.pairCode: message,
-            },
-          );
+          onMessage({CastMessageType.pairCode: message});
         } else {
           if (kDebugMode) {
             print('receive message: $message');
@@ -65,8 +61,8 @@ class CastServiceImpl extends CastService {
     return CastDiscoveryService()
         .search(timeout: const Duration(seconds: 7))
         .then((devices) {
-      return devices.map((device) => (device.name, device)).toList();
-    });
+          return devices.map((device) => (device.name, device)).toList();
+        });
   }
 
   @override

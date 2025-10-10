@@ -61,12 +61,14 @@ class _ContactResultPageState extends State<ContactResultPage> {
   void initState() {
     super.initState();
     files = widget.searchResult.resultFiles();
-    collections = (widget.searchResult as GenericSearchResult)
+    collections =
+        (widget.searchResult as GenericSearchResult)
             .params[kContactCollections] ??
         <Collection>[];
     _searchResultName = widget.searchResult.name();
-    _filesUpdatedEvent =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
+    _filesUpdatedEvent = Bus.instance.on<LocalPhotosUpdatedEvent>().listen((
+      event,
+    ) {
       if (event.type == EventType.deletedFromDevice ||
           event.type == EventType.deletedFromEverywhere ||
           event.type == EventType.deletedFromRemote ||
@@ -101,10 +103,7 @@ class _ContactResultPageState extends State<ContactResultPage> {
             )
             .toList();
         return Future.value(
-          FileLoadResult(
-            result,
-            result.length < files.length,
-          ),
+          FileLoadResult(result, result.length < files.length),
         );
       },
       reloadEvent: Bus.instance.on<LocalPhotosUpdatedEvent>(),
@@ -170,9 +169,9 @@ class _ContactResultPageState extends State<ContactResultPage> {
                 Builder(
                   builder: (context) {
                     return ValueListenableBuilder(
-                      valueListenable: InheritedSearchFilterData.of(context)
-                          .searchFilterDataProvider!
-                          .isSearchingNotifier,
+                      valueListenable: InheritedSearchFilterData.of(
+                        context,
+                      ).searchFilterDataProvider!.isSearchingNotifier,
                       builder: (context, value, _) {
                         return value
                             ? HierarchicalSearchGallery(
@@ -198,10 +197,7 @@ class _ContactResultPageState extends State<ContactResultPage> {
 }
 
 class _AlbumsSection extends StatelessWidget {
-  const _AlbumsSection({
-    required this.context,
-    required this.collections,
-  });
+  const _AlbumsSection({required this.context, required this.collections});
 
   final BuildContext context;
   final List<Collection> collections;
@@ -231,11 +227,7 @@ class _AlbumsSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 itemBuilder: (context, index) {
                   final item = collections[index];
-                  return AlbumRowItemWidget(
-                    item,
-                    120,
-                    showFileCount: false,
-                  );
+                  return AlbumRowItemWidget(item, 120, showFileCount: false);
                 },
               ),
             ),

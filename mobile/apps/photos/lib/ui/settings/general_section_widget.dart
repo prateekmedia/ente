@@ -69,10 +69,7 @@ class GeneralSectionWidget extends StatelessWidget {
           trailingIconIsMuted: true,
           onTap: () async {
             // ignore: unawaited_futures
-            routeToPage(
-              context,
-              const ReferralScreen(),
-            );
+            routeToPage(context, const ReferralScreen());
           },
         ),
         sectionOptionSpacing,
@@ -90,8 +87,9 @@ class GeneralSectionWidget extends StatelessWidget {
         ),
         sectionOptionSpacing,
         MenuItemWidget(
-          captionedTextWidget:
-              CaptionedTextWidget(title: AppLocalizations.of(context).language),
+          captionedTextWidget: CaptionedTextWidget(
+            title: AppLocalizations.of(context).language,
+          ),
           pressedColor: getEnteColorScheme(context).fillFaint,
           trailingIcon: Icons.chevron_right_outlined,
           trailingIconIsMuted: true,
@@ -99,14 +97,10 @@ class GeneralSectionWidget extends StatelessWidget {
             final locale = (await getLocale())!;
             await routeToPage(
               context,
-              LanguageSelectorPage(
-                appSupportedLocales,
-                (locale) async {
-                  await setLocale(locale);
-                  EnteApp.setLocale(context, locale);
-                },
-                locale,
-              ),
+              LanguageSelectorPage(appSupportedLocales, (locale) async {
+                await setLocale(locale);
+                EnteApp.setLocale(context, locale);
+              }, locale),
             );
           },
         ),
@@ -152,46 +146,33 @@ class GeneralSectionWidget extends StatelessWidget {
   }
 
   Future<void> _onFamilyPlansTapped(BuildContext context) async {
-    final userDetails =
-        await UserService.instance.getUserDetailsV2(memoryCount: false);
+    final userDetails = await UserService.instance.getUserDetailsV2(
+      memoryCount: false,
+    );
     // ignore: unawaited_futures
     billingService.launchFamilyPortal(context, userDetails);
   }
 
   void _onNotificationsTapped(BuildContext context) {
-    routeToPage(
-      context,
-      const NotificationSettingsScreen(),
-    );
+    routeToPage(context, const NotificationSettingsScreen());
   }
 
   void _onWidgetsTapped(BuildContext context) {
-    routeToPage(
-      context,
-      const WidgetSettingsScreen(),
-    );
+    routeToPage(context, const WidgetSettingsScreen());
   }
 
   void _onAdvancedTapped(BuildContext context) {
-    routeToPage(
-      context,
-      const AdvancedSettingsScreen(),
-    );
+    routeToPage(context, const AdvancedSettingsScreen());
   }
 
   void _onGallerySettingsTapped(BuildContext context) {
     routeToPage(
       context,
-      const GallerySettingsScreen(
-        fromGalleryLayoutSettingsCTA: false,
-      ),
+      const GallerySettingsScreen(fromGalleryLayoutSettingsCTA: false),
     );
   }
 
   void _onMemoriesSettingsTapped(BuildContext context) {
-    routeToPage(
-      context,
-      const MemoriesSettingsScreen(),
-    );
+    routeToPage(context, const MemoriesSettingsScreen());
   }
 }

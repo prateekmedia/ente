@@ -28,24 +28,17 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
     final maxTrim = widget.controller.maxTrim;
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
+      appBar: AppBar(elevation: 0, toolbarHeight: 0),
       body: SafeArea(
         child: Column(
           children: [
-            VideoEditorPlayerControl(
-              controller: widget.controller,
-            ),
+            VideoEditorPlayerControl(controller: widget.controller),
             Expanded(
               child: Hero(
                 tag: "video-editor-preview",
                 child: RotatedBox(
                   quarterTurns: widget.quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.preview(
-                    controller: widget.controller,
-                  ),
+                  child: CropGridViewer.preview(controller: widget.controller),
                 ),
               ),
             ),
@@ -88,7 +81,7 @@ class _VideoTrimPageState extends State<VideoTrimPage> {
   }
 
   String formatter(Duration duration) => [
-        duration.inMinutes.remainder(60).toString().padLeft(2, '0'),
-        duration.inSeconds.remainder(60).toString().padLeft(2, '0'),
-      ].join(":");
+    duration.inMinutes.remainder(60).toString().padLeft(2, '0'),
+    duration.inSeconds.remainder(60).toString().padLeft(2, '0'),
+  ].join(":");
 }

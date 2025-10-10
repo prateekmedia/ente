@@ -31,10 +31,7 @@ import 'package:photos/utils/file_util.dart';
 import 'package:photos/utils/navigation_util.dart';
 import "package:photos/utils/thumbnail_util.dart";
 
-enum DetailPageMode {
-  minimalistic,
-  full,
-}
+enum DetailPageMode { minimalistic, full }
 
 class DetailPageConfiguration {
   final List<EnteFile> files;
@@ -104,8 +101,9 @@ class _BodyState extends State<_Body> {
 
     _selectedIndexNotifier.value = widget.config.selectedIndex;
     _pageController = PageController(initialPage: _selectedIndexNotifier.value);
-    _guestViewEventSubscription =
-        Bus.instance.on<GuestViewEvent>().listen((event) {
+    _guestViewEventSubscription = Bus.instance.on<GuestViewEvent>().listen((
+      event,
+    ) {
       setState(() {
         isGuestView = event.isGuestView;
         swipeLocked = event.swipeLocked;
@@ -121,16 +119,10 @@ class _BodyState extends State<_Body> {
     super.dispose();
 
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        systemNavigationBarColor: Color(0x00010000),
-      ),
+      const SystemUiOverlayStyle(systemNavigationBarColor: Color(0x00010000)),
     );
 
-    unawaited(
-      SystemChrome.setEnabledSystemUIMode(
-        SystemUiMode.edgeToEdge,
-      ),
-    );
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
   }
 
   @override
@@ -170,8 +162,9 @@ class _BodyState extends State<_Body> {
                 _files![selectedIndex],
                 _onFileRemoved,
                 widget.config.mode == DetailPageMode.full,
-                enableFullScreenNotifier: InheritedDetailPageState.of(context)
-                    .enableFullScreenNotifier,
+                enableFullScreenNotifier: InheritedDetailPageState.of(
+                  context,
+                ).enableFullScreenNotifier,
               );
             },
             valueListenable: _selectedIndexNotifier,
@@ -193,9 +186,9 @@ class _BodyState extends State<_Body> {
                         !isGuestView,
                     onFileRemoved: _onFileRemoved,
                     userID: Configuration.instance.getUserID(),
-                    enableFullScreenNotifier:
-                        InheritedDetailPageState.of(context)
-                            .enableFullScreenNotifier,
+                    enableFullScreenNotifier: InheritedDetailPageState.of(
+                      context,
+                    ).enableFullScreenNotifier,
                   );
                 },
                 valueListenable: _selectedIndexNotifier,
@@ -205,8 +198,9 @@ class _BodyState extends State<_Body> {
                 builder: (BuildContext context, int selectedIndex, _) {
                   if (_files![selectedIndex].isPanorama() == true) {
                     return ValueListenableBuilder(
-                      valueListenable: InheritedDetailPageState.of(context)
-                          .enableFullScreenNotifier,
+                      valueListenable: InheritedDetailPageState.of(
+                        context,
+                      ).enableFullScreenNotifier,
                       builder: (context, value, child) {
                         return IgnorePointer(
                           ignoring: value,
@@ -256,16 +250,18 @@ class _BodyState extends State<_Body> {
       return;
     }
     final fetchedThumbnail = await getThumbnail(file);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) {
-          return PanoramaViewerScreen(
-            file: fetchedFile,
-            thumbnail: fetchedThumbnail,
-          );
-        },
-      ),
-    ).ignore();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) {
+              return PanoramaViewerScreen(
+                file: fetchedFile,
+                thumbnail: fetchedThumbnail,
+              );
+            },
+          ),
+        )
+        .ignore();
   }
 
   Widget _buildPageView() {
@@ -288,8 +284,9 @@ class _BodyState extends State<_Body> {
           },
           playbackCallback: (isPlaying) {
             Future.delayed(Duration.zero, () {
-              InheritedDetailPageState.of(context)
-                  .toggleFullScreen(shouldEnable: isPlaying);
+              InheritedDetailPageState.of(
+                context,
+              ).toggleFullScreen(shouldEnable: isPlaying);
             });
           },
           backgroundDecoration: const BoxDecoration(color: Colors.black),
@@ -381,13 +378,16 @@ class _BodyState extends State<_Body> {
       showErrorDialog(
         context,
         AppLocalizations.of(context).sorry,
-        AppLocalizations.of(context)
-            .weDontSupportEditingPhotosAndAlbumsThatYouDont,
+        AppLocalizations.of(
+          context,
+        ).weDontSupportEditingPhotosAndAlbumsThatYouDont,
       );
       return;
     }
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
 
     try {
@@ -415,8 +415,10 @@ class _BodyState extends State<_Body> {
         );
         return;
       }
-      final imageProvider =
-          ExtendedFileImageProvider(ioFile, cacheRawData: true);
+      final imageProvider = ExtendedFileImageProvider(
+        ioFile,
+        cacheRawData: true,
+      );
       await precacheImage(imageProvider, context);
       await dialog.hide();
       replacePage(

@@ -55,10 +55,12 @@ class _PanoramaViewerScreenState extends State<PanoramaViewerScreen> {
 
   Future<void> init() async {
     final data = XMPExtractor().extract(widget.file.readAsBytesSync());
-    double? cWidth =
-        double.tryParse(data["GPano:CroppedAreaImageWidthPixels"] ?? "");
-    double? cHeight =
-        double.tryParse(data["GPano:CroppedAreaImageHeightPixels"] ?? "");
+    double? cWidth = double.tryParse(
+      data["GPano:CroppedAreaImageWidthPixels"] ?? "",
+    );
+    double? cHeight = double.tryParse(
+      data["GPano:CroppedAreaImageHeightPixels"] ?? "",
+    );
     double? fWidth = double.tryParse(data["GPano:FullPanoWidthPixels"] ?? "");
     double? fHeight = double.tryParse(data["GPano:FullPanoHeightPixels"] ?? "");
     double? cLeft = double.tryParse(data["GPano:CroppedAreaLeftPixels"] ?? "");
@@ -72,10 +74,12 @@ class _PanoramaViewerScreenState extends State<PanoramaViewerScreen> {
 
     // handle inconsistent sizing (e.g. rotated image taken with OnePlus EB2103)
     if (cHeight != null && fWidth != null && fHeight != null) {
-      final croppedOrientation =
-          cWidth! > cHeight ? Orientation.landscape : Orientation.portrait;
-      final fullOrientation =
-          fWidth > fHeight ? Orientation.landscape : Orientation.portrait;
+      final croppedOrientation = cWidth! > cHeight
+          ? Orientation.landscape
+          : Orientation.portrait;
+      final fullOrientation = fWidth > fHeight
+          ? Orientation.landscape
+          : Orientation.portrait;
       var inconsistent = false;
       if (croppedOrientation != fullOrientation) {
         // inconsistent orientation
@@ -152,9 +156,7 @@ class _PanoramaViewerScreenState extends State<PanoramaViewerScreen> {
             background: widget.thumbnail != null
                 ? Image.memory(widget.thumbnail!)
                 : null,
-            child: Image.file(
-              widget.file,
-            ),
+            child: Image.file(widget.file),
           ),
           Visibility(
             visible: isVisible,

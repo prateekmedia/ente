@@ -21,17 +21,14 @@ class StartBackupHookWidget extends StatelessWidget {
         headerWidget,
         Padding(
           padding: const EdgeInsets.only(top: 64),
-          child: Image.asset(
-            "assets/onboarding_safe.png",
-            height: 206,
-          ),
+          child: Image.asset("assets/onboarding_safe.png", height: 206),
         ),
         Text(
           AppLocalizations.of(context).noPhotosAreBeingBackedUpRightNow,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall!
-              .copyWith(fontFamily: 'Inter-Medium', fontSize: 16),
+          style: Theme.of(context).textTheme.bodySmall!.copyWith(
+            fontFamily: 'Inter-Medium',
+            fontSize: 16,
+          ),
         ),
         Center(
           child: Material(
@@ -48,9 +45,7 @@ class StartBackupHookWidget extends StatelessWidget {
                     // ignore: unawaited_futures
                     routeToPage(
                       context,
-                      const BackupFolderSelectionPage(
-                        isFirstBackup: true,
-                      ),
+                      const BackupFolderSelectionPage(isFirstBackup: true),
                     );
                   }
                 },

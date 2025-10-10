@@ -29,16 +29,17 @@ class _FileTypeSectionState extends State<FileTypeSection> {
     super.initState();
     _fileTypesSearchResults = widget.fileTypesSearchResults;
 
-    final streamsToListenTo =
-        SectionType.fileTypesAndExtension.sectionUpdateEvents();
+    final streamsToListenTo = SectionType.fileTypesAndExtension
+        .sectionUpdateEvents();
     for (Stream<Event> stream in streamsToListenTo) {
       streamSubscriptions.add(
         stream.listen((event) async {
           _fileTypesSearchResults =
               (await SectionType.fileTypesAndExtension.getData(
-            context,
-            limit: kSearchSectionLimit,
-          )) as List<GenericSearchResult>;
+                    context,
+                    limit: kSearchSectionLimit,
+                  ))
+                  as List<GenericSearchResult>;
           setState(() {});
         }),
       );
@@ -79,8 +80,9 @@ class _FileTypeSectionState extends State<FileTypeSection> {
                   Padding(
                     padding: const EdgeInsets.only(left: 4),
                     child: Text(
-                      SectionType.fileTypesAndExtension
-                          .getEmptyStateText(context),
+                      SectionType.fileTypesAndExtension.getEmptyStateText(
+                        context,
+                      ),
                       style: textTheme.smallMuted,
                     ),
                   ),
@@ -147,8 +149,9 @@ class FileTypeRecommendation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileTypeKey =
-        fileTypeKeyFromSearchResult(fileTypeSearchResult.name.call());
+    final fileTypeKey = fileTypeKeyFromSearchResult(
+      fileTypeSearchResult.name.call(),
+    );
     final assetPath = knownTypesToAssetPath[fileTypeKey];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -160,10 +163,7 @@ class FileTypeRecommendation extends StatelessWidget {
             if (fileTypeSearchResult.onResultTap != null) {
               fileTypeSearchResult.onResultTap!(context);
             } else {
-              routeToPage(
-                context,
-                SearchResultPage(fileTypeSearchResult),
-              );
+              routeToPage(context, SearchResultPage(fileTypeSearchResult));
             }
           },
           child: assetPath != null
@@ -171,9 +171,7 @@ class FileTypeRecommendation extends StatelessWidget {
               : Stack(
                   alignment: Alignment.center,
                   children: [
-                    Image.asset(
-                      "assets/type_unknown.png",
-                    ),
+                    Image.asset("assets/type_unknown.png"),
                     Positioned(
                       bottom: 18,
                       child: ConstrainedBox(

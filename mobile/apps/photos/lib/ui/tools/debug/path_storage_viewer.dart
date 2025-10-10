@@ -17,11 +17,7 @@ class PathStorageItem {
   final String title;
   final bool allowCacheClear;
 
-  PathStorageItem.name(
-    this.path,
-    this.title, {
-    this.allowCacheClear = false,
-  });
+  PathStorageItem.name(this.path, this.title, {this.allowCacheClear = false});
 }
 
 class PathStorageViewer extends StatefulWidget {
@@ -90,9 +86,9 @@ class _PathStorageViewerState extends State<PathStorageViewer> {
               padding: const EdgeInsets.only(left: 12.0),
               child: Text(
                 formatBytes(stat.size),
-                style: getEnteTextTheme(context)
-                    .small
-                    .copyWith(color: getEnteColorScheme(context).textFaint),
+                style: getEnteTextTheme(
+                  context,
+                ).small.copyWith(color: getEnteColorScheme(context).textFaint),
               ),
             )
           : SizedBox.fromSize(

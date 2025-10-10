@@ -75,8 +75,10 @@ class EnteFile {
     file.localID = asset.id;
     file.title = asset.title;
     file.deviceFolder = pathName;
-    file.location =
-        Location(latitude: asset.latitude, longitude: asset.longitude);
+    file.location = Location(
+      latitude: asset.latitude,
+      longitude: asset.longitude,
+    );
     file.fileType = fileTypeFromAsset(asset);
     file.creationTime = parseFileCreationTime(file.title, asset);
     file.modificationTime = asset.modifiedDateTime.microsecondsSinceEpoch;
@@ -177,8 +179,10 @@ class EnteFile {
       creationTime = exifTime.time!.microsecondsSinceEpoch;
     }
     if (mediaUploadData.exifData != null) {
-      mediaUploadData.isPanorama =
-          checkPanoramaFromEXIF(null, mediaUploadData.exifData);
+      mediaUploadData.isPanorama = checkPanoramaFromEXIF(
+        null,
+        mediaUploadData.exifData,
+      );
     }
     if (mediaUploadData.isPanorama != true &&
         fileType == FileType.image &&
@@ -200,7 +204,8 @@ class EnteFile {
         // This is done because many times the fileTimeStamp will only give us
         // the date, not time value but the photo_manager's creation time will
         // contain the time.
-        final bool useFileTimeStamp = creationTime == null ||
+        final bool useFileTimeStamp =
+            creationTime == null ||
             !areFromSameDay(
               creationTime!,
               timeFromFileName.microsecondsSinceEpoch,

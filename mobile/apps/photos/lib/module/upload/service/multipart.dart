@@ -32,8 +32,9 @@ class MultiPartUploader {
     int collectionID,
     String encFileName,
   ) async {
-    final collectionKey =
-        CollectionsService.instance.getCollectionKey(collectionID);
+    final collectionKey = CollectionsService.instance.getCollectionKey(
+      collectionID,
+    );
     final result = await _db.getFileEncryptionData(
       localId,
       fileHash,
@@ -72,9 +73,7 @@ class MultiPartUploader {
     try {
       final response = await _enteDio.get(
         "/files/multipart-upload-urls",
-        queryParameters: {
-          "count": count,
-        },
+        queryParameters: {"count": count},
       );
       return MultipartUploadURLs.fromMap(response.data);
     } on Exception catch (e) {
@@ -93,13 +92,11 @@ class MultiPartUploader {
     Uint8List fileKey,
     Uint8List fileNonce,
   ) async {
-    final collectionKey =
-        CollectionsService.instance.getCollectionKey(collectionID);
-
-    final encryptedResult = CryptoUtil.encryptSync(
-      fileKey,
-      collectionKey,
+    final collectionKey = CollectionsService.instance.getCollectionKey(
+      collectionID,
     );
+
+    final encryptedResult = CryptoUtil.encryptSync(fileKey, collectionKey);
 
     await _db.createTrackUploadsEntry(
       localId,
@@ -278,12 +275,7 @@ class MultiPartUploader {
   ) async {
     final body = convertJs2Xml({
       'CompleteMultipartUpload': partEtags.entries
-          .map(
-            (e) => PartETag(
-              e.key + 1,
-              e.value,
-            ),
-          )
+          .map((e) => PartETag(e.key + 1, e.value))
           .toList(),
     }).replaceAll('"', '').replaceAll('&quot;', '');
 
@@ -291,14 +283,9 @@ class MultiPartUploader {
       await _s3Dio.post(
         completeURL,
         data: body,
-        options: Options(
-          contentType: "text/xml",
-        ),
+        options: Options(contentType: "text/xml"),
       );
-      await _db.updateTrackUploadStatus(
-        objectKey,
-        MultipartStatus.completed,
-      );
+      await _db.updateTrackUploadStatus(objectKey, MultipartStatus.completed);
     } catch (e) {
       Logger("MultipartUpload").severe("upload failed for key $objectKey}", e);
       rethrow;

@@ -34,9 +34,7 @@ class _GrantPermissionsWidgetState extends State<GrantPermissionsWidget> {
           padding: const EdgeInsets.only(top: 20, bottom: 120),
           child: Column(
             children: [
-              const SizedBox(
-                height: 24,
-              ),
+              const SizedBox(height: 24),
               Center(
                 child: Stack(
                   alignment: Alignment.center,
@@ -54,10 +52,7 @@ class _GrantPermissionsWidgetState extends State<GrantPermissionsWidget> {
                       child: Column(
                         children: [
                           const SizedBox(height: 42),
-                          Image.asset(
-                            "assets/gallery_locked.png",
-                            height: 160,
-                          ),
+                          Image.asset("assets/gallery_locked.png", height: 160),
                         ],
                       ),
                     ),
@@ -69,15 +64,12 @@ class _GrantPermissionsWidgetState extends State<GrantPermissionsWidget> {
                 padding: const EdgeInsets.fromLTRB(40, 0, 40, 0),
                 child: StyledText(
                   text: AppLocalizations.of(context).entePhotosPerm,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall!
-                      .copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   tags: {
                     'i': StyledTextTag(
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall!
+                      style: Theme.of(context).textTheme.headlineSmall!
                           .copyWith(fontWeight: FontWeight.w400),
                     ),
                   },
@@ -99,18 +91,14 @@ class _GrantPermissionsWidgetState extends State<GrantPermissionsWidget> {
           ],
         ),
         width: double.infinity,
-        padding: const EdgeInsets.only(
-          left: 20,
-          right: 20,
-          bottom: 16,
-        ),
+        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
         child: OutlinedButton(
           key: const ValueKey("grantPermissionButton"),
           child: Text(AppLocalizations.of(context).grantPermission),
           onPressed: () async {
             try {
-              final state =
-                  await permissionService.requestPhotoMangerPermissions();
+              final state = await permissionService
+                  .requestPhotoMangerPermissions();
               _logger.info("Permission state: $state");
               if (state == PermissionState.authorized ||
                   state == PermissionState.limited) {

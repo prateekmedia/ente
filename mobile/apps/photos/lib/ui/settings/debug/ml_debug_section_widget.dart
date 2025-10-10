@@ -113,8 +113,8 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
           trailingIconIsMuted: true,
           onTap: () async {
             try {
-              final amount =
-                  await NotificationService.instance.pendingNotifications();
+              final amount = await NotificationService.instance
+                  .pendingNotifications();
               showShortToast(context, '$amount pending notifications');
             } catch (e, s) {
               logger.severe('pendingNotifications failed ', e, s);
@@ -155,9 +155,7 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
               await NotificationService.instance.scheduleNotification(
                 "test",
                 id: 10,
-                dateTime: DateTime.now().add(
-                  const Duration(seconds: 10),
-                ),
+                dateTime: DateTime.now().add(const Duration(seconds: 10)),
               );
               showShortToast(context, 'done');
             } catch (e, s) {
@@ -179,9 +177,7 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
               await NotificationService.instance.scheduleNotification(
                 "test",
                 id: 11,
-                dateTime: DateTime.now().add(
-                  const Duration(hours: 1),
-                ),
+                dateTime: DateTime.now().add(const Duration(hours: 1)),
               );
               showShortToast(context, 'done');
             } catch (e, s) {
@@ -203,9 +199,7 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
               await NotificationService.instance.scheduleNotification(
                 "test",
                 id: 12,
-                dateTime: DateTime.now().add(
-                  const Duration(hours: 12),
-                ),
+                dateTime: DateTime.now().add(const Duration(hours: 12)),
               );
               showShortToast(context, 'done');
             } catch (e, s) {
@@ -226,17 +220,14 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
             try {
               // randomly generate some vectors and keys
               final random = Random();
-              final tenEmbeddings = List.generate(
-                10,
-                (index) {
-                  final randomList = List<double>.generate(
-                    192,
-                    (_) => random.nextDouble(), // Values between 0 and 1
-                  );
-                  final randomVector = Vector.fromList(randomList).normalize();
-                  return Float32List.fromList(randomVector.toList());
-                },
-              );
+              final tenEmbeddings = List.generate(10, (index) {
+                final randomList = List<double>.generate(
+                  192,
+                  (_) => random.nextDouble(), // Values between 0 and 1
+                );
+                final randomVector = Vector.fromList(randomList).normalize();
+                return Float32List.fromList(randomVector.toList());
+              });
               final tenKeys = Uint64List.fromList(
                 List.generate(
                   tenEmbeddings.length,
@@ -244,7 +235,8 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
                 ),
               );
               final embedDimensions = BigInt.from(tenEmbeddings.first.length);
-              final indexPath = (await getApplicationSupportDirectory()).path +
+              final indexPath =
+                  (await getApplicationSupportDirectory()).path +
                   "/ml/test/vector_db_index.usearch";
               final rustVectorDB = VectorDb(
                 filePath: indexPath,
@@ -399,8 +391,8 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
               if (laurensID.isEmpty) {
                 throw Exception('Laurens not found');
               }
-              final laurensFaceIDs =
-                  await MLDataDB.instance.getFaceIDsForPerson(laurensID);
+              final laurensFaceIDs = await MLDataDB.instance
+                  .getFaceIDsForPerson(laurensID);
               w?.log(
                 'getting all face ids for laurens (${laurensFaceIDs.length} faces)',
               );
@@ -421,7 +413,8 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
                 ),
               );
               final vectorDB = VectorDb(
-                filePath: (await getApplicationSupportDirectory()).path +
+                filePath:
+                    (await getApplicationSupportDirectory()).path +
                     "/ml/test/vector_db_face_index.usearch",
                 dimensions: BigInt.from(
                   laurensFaceIdToFloat32.values.first.length,
@@ -453,11 +446,11 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
               // Benchmarking our own vector comparisons
               final laurensFaceIdToEmbeddingVectors =
                   laurensFaceIdToEmbeddingData.map(
-                (key, value) => MapEntry(
-                  key,
-                  Vector.fromList(EVector.fromBuffer(value).values),
-                ),
-              );
+                    (key, value) => MapEntry(
+                      key,
+                      Vector.fromList(EVector.fromBuffer(value).values),
+                    ),
+                  );
               final faceVectors = laurensFaceIdToEmbeddingVectors.values;
               w?.reset();
               for (final faceVector in faceVectors) {
@@ -496,9 +489,7 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
 
               // Fill the vector DB with all embeddings
               final clipFloat32 = clipEmbeddings
-                  .map(
-                    (value) => Float32List.fromList(value.vector.toList()),
-                  )
+                  .map((value) => Float32List.fromList(value.vector.toList()))
                   .toList();
               final keys = Uint64List.fromList(
                 List.generate(
@@ -507,17 +498,13 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
                 ),
               );
               final vectorDB = VectorDb(
-                filePath: (await getApplicationSupportDirectory()).path +
+                filePath:
+                    (await getApplicationSupportDirectory()).path +
                     "/ml/test/vector_db_clip_index.usearch",
-                dimensions: BigInt.from(
-                  clipFloat32.first.length,
-                ),
+                dimensions: BigInt.from(clipFloat32.first.length),
               );
               await vectorDB.resetIndex();
-              await vectorDB.bulkAddVectors(
-                keys: keys,
-                vectors: clipFloat32,
-              );
+              await vectorDB.bulkAddVectors(keys: keys, vectors: clipFloat32);
 
               // Benchmarking the vector DB
               final count = BigInt.from(10);
@@ -636,9 +623,7 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
         ),
         sectionOptionSpacing,
         MenuItemWidget(
-          captionedTextWidget: const CaptionedTextWidget(
-            title: "Remote fetch",
-          ),
+          captionedTextWidget: const CaptionedTextWidget(title: "Remote fetch"),
           trailingWidget: ToggleSwitchWidget(
             value: () => localSettings.remoteFetchEnabled,
             onChanged: () async {
@@ -651,15 +636,8 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
                   setState(() {});
                 }
               } catch (e, s) {
-                logger.warning(
-                  'Remote fetch toggle failed ',
-                  e,
-                  s,
-                );
-                await showGenericErrorDialog(
-                  context: context,
-                  error: e,
-                );
+                logger.warning('Remote fetch toggle failed ', e, s);
+                await showGenericErrorDialog(context: context, error: e);
               }
             },
           ),
@@ -920,8 +898,9 @@ class _MLDebugSectionWidgetState extends State<MLDebugSectionWidget> {
               firstButtonLabel: "Yes, confirm",
               firstButtonOnTap: () async {
                 try {
-                  final List<PersonEntity> persons =
-                      await PersonService.instance.getPersons();
+                  final List<PersonEntity> persons = await PersonService
+                      .instance
+                      .getPersons();
                   for (final PersonEntity p in persons) {
                     await PersonService.instance.deletePerson(p.remoteID);
                   }

@@ -72,8 +72,9 @@ class UserService {
   static final UserService instance = UserService._privateConstructor();
 
   Future<void> init() async {
-    emailValueNotifier =
-        ValueNotifier<String?>(Configuration.instance.getEmail());
+    emailValueNotifier = ValueNotifier<String?>(
+      Configuration.instance.getEmail(),
+    );
     _preferences = await SharedPreferences.getInstance();
     if (Configuration.instance.isLoggedIn()) {
       // add artificial delay in refreshing 2FA status
@@ -95,8 +96,10 @@ class UserService {
     bool isResetPasswordScreen = false,
     String? purpose,
   }) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       final response = await _dio.post(
@@ -161,9 +164,7 @@ class UserService {
     } catch (e, s) {
       await dialog.hide();
       _logger.severe(e, s);
-      unawaited(
-        showGenericErrorDialog(context: context, error: e),
-      );
+      unawaited(showGenericErrorDialog(context: context, error: e));
     }
   }
 
@@ -211,9 +212,7 @@ class UserService {
     try {
       final response = await _enteDio.get(
         "/users/details/v2",
-        queryParameters: {
-          "memoryCount": memoryCount,
-        },
+        queryParameters: {"memoryCount": memoryCount},
       );
       final userDetails = UserDetails.fromMap(response.data);
       if (shouldCache) {
@@ -244,9 +243,7 @@ class UserService {
     try {
       await _enteDio.delete(
         "/users/session",
-        queryParameters: {
-          "token": token,
-        },
+        queryParameters: {"token": token},
       );
     } on DioException catch (e) {
       _logger.info(e);
@@ -274,7 +271,7 @@ class UserService {
       }
     } catch (e) {
       // Determine if we should silently ignore the error and proceed with logout
-      final bool silentlyIgnoreError = 
+      final bool silentlyIgnoreError =
           // Token is already invalid (401 response)
           (e is DioException && e.response?.statusCode == 401) ||
           // Custom endpoints where server might be non-existent or unavailable
@@ -288,9 +285,9 @@ class UserService {
         } else {
           _logger.info("Token already invalid, proceeding with local logout");
         }
-        
+
         await Configuration.instance.logout();
-        
+
         // Navigate to first route if context is still mounted
         if (context.mounted) {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -359,9 +356,7 @@ class UserService {
     try {
       final response = await _dio.get(
         "${_config.getHttpEndpoint()}/users/two-factor/passkeys/get-token",
-        queryParameters: {
-          "sessionID": sessionID,
-        },
+        queryParameters: {"sessionID": sessionID},
       );
       return response.data;
     } on DioException catch (e) {
@@ -381,8 +376,10 @@ class UserService {
   }
 
   Future<void> onPassKeyVerified(BuildContext context, Map response) async {
-    final ProgressDialog dialog =
-        createProgressDialog(context, context.l10n.pleaseWait);
+    final ProgressDialog dialog = createProgressDialog(
+      context,
+      context.l10n.pleaseWait,
+    );
     await dialog.show();
     try {
       final userPassword = Configuration.instance.getVolatilePassword();
@@ -423,13 +420,12 @@ class UserService {
     String ott, {
     bool isResettingPasswordScreen = false,
   }) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
-    final verifyData = {
-      "email": _config.getEmail(),
-      "ott": ott,
-    };
+    final verifyData = {"email": _config.getEmail(), "ott": ott};
     if (!_config.isLoggedIn()) {
       verifyData["source"] = _getRefSource();
     }
@@ -466,9 +462,7 @@ class UserService {
               page = const PasswordReentryPage();
             }
           } else {
-            page = const PasswordEntryPage(
-              mode: PasswordEntryMode.set,
-            );
+            page = const PasswordEntryPage(mode: PasswordEntryMode.set);
           }
         }
         await Navigator.of(context).pushAndRemoveUntil(
@@ -531,16 +525,15 @@ class UserService {
     String email,
     String ott,
   ) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       final response = await _enteDio.post(
         "/users/change-email",
-        data: {
-          "email": email,
-          "ott": ott,
-        },
+        data: {"email": email, "ott": ott},
       );
       await dialog.hide();
       if (response.statusCode == 200) {
@@ -593,9 +586,7 @@ class UserService {
       await registerOrUpdateSrp(result.loginKey);
       await _enteDio.put(
         "/users/attributes",
-        data: {
-          "keyAttributes": result.keyAttributes.toMap(),
-        },
+        data: {"keyAttributes": result.keyAttributes.toMap()},
       );
       await _config.setKey(result.privateKeyAttributes.key);
       await _config.setSecretKey(result.privateKeyAttributes.secretKey);
@@ -610,9 +601,7 @@ class UserService {
     try {
       final response = await _dio.get(
         _config.getHttpEndpoint() + "/users/srp/attributes",
-        queryParameters: {
-          "email": email,
-        },
+        queryParameters: {"email": email},
       );
       if (response.statusCode == 200) {
         return SrpAttributes.fromMap(response.data);
@@ -665,10 +654,12 @@ class UserService {
         data: request.toMap(),
       );
       if (response.statusCode == 200) {
-        final SetupSRPResponse setupSRPResponse =
-            SetupSRPResponse.fromJson(response.data);
-        final serverB =
-            SRP6Util.decodeBigInt(base64Decode(setupSRPResponse.srpB));
+        final SetupSRPResponse setupSRPResponse = SetupSRPResponse.fromJson(
+          response.data,
+        );
+        final serverB = SRP6Util.decodeBigInt(
+          base64Decode(setupSRPResponse.srpB),
+        );
         // ignore: unused_local_variable, need to calculate secret to get M1
         final clientS = client.calculateSecret(serverB);
         final clientM = client.calculateClientEvidenceMessage();
@@ -878,10 +869,7 @@ class UserService {
     try {
       final response = await _dio.post(
         _config.getHttpEndpoint() + "/users/two-factor/verify",
-        data: {
-          "sessionID": sessionID,
-          "code": code,
-        },
+        data: {"sessionID": sessionID, "code": code},
       );
       await dialog.hide();
       if (response.statusCode == 200) {
@@ -937,8 +925,10 @@ class UserService {
     String sessionID,
     TwoFactorType type,
   ) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       _logger.info("recovering two factor");
@@ -1012,8 +1002,10 @@ class UserService {
     String encryptedSecret,
     String secretDecryptionNonce,
   ) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     String secret;
     try {
@@ -1105,8 +1097,10 @@ class UserService {
   }
 
   Future<void> setupTwoFactor(BuildContext context, Completer completer) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       final response = await _enteDio.post("/users/two-factor/setup");
@@ -1141,20 +1135,26 @@ class UserService {
       await showGenericErrorDialog(context: context, error: e);
       return false;
     }
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).verifying);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).verifying,
+    );
     await dialog.show();
-    final encryptionResult =
-        CryptoUtil.encryptSync(CryptoUtil.base642bin(secret), recoveryKey);
+    final encryptionResult = CryptoUtil.encryptSync(
+      CryptoUtil.base642bin(secret),
+      recoveryKey,
+    );
     try {
       await _enteDio.post(
         "/users/two-factor/enable",
         data: {
           "code": code,
-          "encryptedTwoFactorSecret":
-              CryptoUtil.bin2base64(encryptionResult.encryptedData!),
-          "twoFactorSecretDecryptionNonce":
-              CryptoUtil.bin2base64(encryptionResult.nonce!),
+          "encryptedTwoFactorSecret": CryptoUtil.bin2base64(
+            encryptionResult.encryptedData!,
+          ),
+          "twoFactorSecretDecryptionNonce": CryptoUtil.bin2base64(
+            encryptionResult.nonce!,
+          ),
         },
       );
       await dialog.hide();
@@ -1192,9 +1192,7 @@ class UserService {
     );
     await dialog.show();
     try {
-      await _enteDio.post(
-        "/users/two-factor/disable",
-      );
+      await _enteDio.post("/users/two-factor/disable");
       await dialog.hide();
       Bus.instance.fire(TwoFactorStatusChangeEvent(false));
       showShortToast(
@@ -1224,8 +1222,9 @@ class UserService {
   }
 
   Future<Uint8List> getOrCreateRecoveryKey(BuildContext context) async {
-    final String? encryptedRecoveryKey =
-        _config.getKeyAttributes()!.recoveryKeyEncryptedWithMasterKey;
+    final String? encryptedRecoveryKey = _config
+        .getKeyAttributes()!
+        .recoveryKeyEncryptedWithMasterKey;
     if (encryptedRecoveryKey == null || encryptedRecoveryKey.isEmpty) {
       final dialog = createProgressDialog(
         context,
@@ -1282,8 +1281,9 @@ class UserService {
 
     await Configuration.instance.setUserID(responseData["id"]);
     if (responseData["encryptedToken"] != null) {
-      await Configuration.instance
-          .setEncryptedToken(responseData["encryptedToken"]);
+      await Configuration.instance.setEncryptedToken(
+        responseData["encryptedToken"],
+      );
       await Configuration.instance.setKeyAttributes(
         KeyAttributes.fromMap(responseData["keyAttributes"]),
       );
@@ -1316,12 +1316,7 @@ class UserService {
 
   Future<void> updateEmailMFA(bool isEnabled) async {
     try {
-      await _enteDio.put(
-        "/users/email-mfa",
-        data: {
-          "isEnabled": isEnabled,
-        },
-      );
+      await _enteDio.put("/users/email-mfa", data: {"isEnabled": isEnabled});
 
       final UserDetails? profile = getCachedUserDetails();
       if (profile != null && profile.profileData != null) {

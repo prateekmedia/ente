@@ -33,34 +33,30 @@ class LanguageSelectorPage extends StatelessWidget {
             ),
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 20,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipRRect(
-                        borderRadius:
-                            const BorderRadius.all(Radius.circular(8)),
-                        child: ItemsWidget(
-                          supportedLocales,
-                          onLocaleChanged,
-                          currentLocale,
-                        ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(8)),
+                      child: ItemsWidget(
+                        supportedLocales,
+                        onLocaleChanged,
+                        currentLocale,
                       ),
-                      // MenuSectionDescriptionWidget(
-                      //   content: context.l10n.maxDeviceLimitSpikeHandling(50),
-                      // )
-                    ],
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+                    ),
+                    // MenuSectionDescriptionWidget(
+                    //   content: context.l10n.maxDeviceLimitSpikeHandling(50),
+                    // )
+                  ],
+                ),
+              );
+            }, childCount: 1),
           ),
           const SliverPadding(padding: EdgeInsets.symmetric(vertical: 12)),
         ],
@@ -103,15 +99,10 @@ class _ItemsWidgetState extends State<ItemsWidget> {
       if (currentLocale == locale) {
         foundMatch = true;
       }
-      items.add(
-        _menuItemForPicker(locale),
-      );
+      items.add(_menuItemForPicker(locale));
     }
     if (!foundMatch && kDebugMode) {
-      items.insert(
-        0,
-        Text("(i) Locale : ${currentLocale.toString()}"),
-      );
+      items.insert(0, Text("(i) Locale : ${currentLocale.toString()}"));
     }
     items = addSeparators(
       items,
@@ -120,10 +111,7 @@ class _ItemsWidgetState extends State<ItemsWidget> {
         bgColor: getEnteColorScheme(context).fillFaint,
       ),
     );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: items,
-    );
+    return Column(mainAxisSize: MainAxisSize.min, children: items);
   }
 
   String _getLanguageName(Locale locale) {

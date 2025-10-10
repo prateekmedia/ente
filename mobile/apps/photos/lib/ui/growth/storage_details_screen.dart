@@ -57,107 +57,106 @@ class _StorageDetailsScreenState extends State<StorageDetailsScreen> {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    // wrap the child inside a FutureBuilder to get the
-                    // current state of the TextField
-                    child: FutureBuilder<BonusDetails>(
-                      future: storageBonusService.getBonusDetails(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.only(top: 48.0),
-                              child: EnteLoadingWidget(),
-                            ),
-                          );
-                        }
-                        if (snapshot.hasError) {
-                          debugPrint(snapshot.error.toString());
-                          return Text(
-                            AppLocalizations.of(context).oopsSomethingWentWrong,
-                          );
-                        } else {
-                          final BonusDetails data = snapshot.data!;
-                          return Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                BonusInfoSection(
-                                  sectionName: AppLocalizations.of(context)
-                                      .peopleUsingYourCode,
-                                  leftValue: data.refUpgradeCount,
-                                  leftUnitName:
-                                      AppLocalizations.of(context).eligible,
-                                  rightValue: data.refUpgradeCount >= 0
-                                      ? data.refCount
-                                      : null,
-                                  rightUnitName:
-                                      AppLocalizations.of(context).total,
-                                  showUnit: data.refCount > 0,
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  // wrap the child inside a FutureBuilder to get the
+                  // current state of the TextField
+                  child: FutureBuilder<BonusDetails>(
+                    future: storageBonusService.getBonusDetails(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 48.0),
+                            child: EnteLoadingWidget(),
+                          ),
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        debugPrint(snapshot.error.toString());
+                        return Text(
+                          AppLocalizations.of(context).oopsSomethingWentWrong,
+                        );
+                      } else {
+                        final BonusDetails data = snapshot.data!;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              BonusInfoSection(
+                                sectionName: AppLocalizations.of(
+                                  context,
+                                ).peopleUsingYourCode,
+                                leftValue: data.refUpgradeCount,
+                                leftUnitName: AppLocalizations.of(
+                                  context,
+                                ).eligible,
+                                rightValue: data.refUpgradeCount >= 0
+                                    ? data.refCount
+                                    : null,
+                                rightUnitName: AppLocalizations.of(
+                                  context,
+                                ).total,
+                                showUnit: data.refCount > 0,
+                              ),
+                              data.hasAppliedCode
+                                  ? BonusInfoSection(
+                                      sectionName: AppLocalizations.of(
+                                        context,
+                                      ).codeUsedByYou,
+                                      leftValue: 1,
+                                      showUnit: false,
+                                    )
+                                  : const SizedBox.shrink(),
+                              BonusInfoSection(
+                                sectionName: AppLocalizations.of(
+                                  context,
+                                ).freeStorageClaimed,
+                                leftValue: convertBytesToAbsoluteGBs(
+                                  widget.referralView.claimedStorage,
                                 ),
-                                data.hasAppliedCode
-                                    ? BonusInfoSection(
-                                        sectionName:
-                                            AppLocalizations.of(context)
-                                                .codeUsedByYou,
-                                        leftValue: 1,
-                                        showUnit: false,
-                                      )
-                                    : const SizedBox.shrink(),
-                                BonusInfoSection(
-                                  sectionName: AppLocalizations.of(context)
-                                      .freeStorageClaimed,
-                                  leftValue: convertBytesToAbsoluteGBs(
+                                leftUnitName: "GB",
+                                rightValue: null,
+                              ),
+                              BonusInfoSection(
+                                sectionName: AppLocalizations.of(
+                                  context,
+                                ).freeStorageUsable,
+                                leftValue: convertBytesToAbsoluteGBs(
+                                  min(
                                     widget.referralView.claimedStorage,
-                                  ),
-                                  leftUnitName: "GB",
-                                  rightValue: null,
-                                ),
-                                BonusInfoSection(
-                                  sectionName: AppLocalizations.of(context)
-                                      .freeStorageUsable,
-                                  leftValue: convertBytesToAbsoluteGBs(
-                                    min(
-                                      widget.referralView.claimedStorage,
-                                      widget.userDetails
-                                          .getPlanPlusAddonStorage(),
-                                    ),
-                                  ),
-                                  leftUnitName: "GB",
-                                  rightValue: convertBytesToAbsoluteGBs(
                                     widget.userDetails
                                         .getPlanPlusAddonStorage(),
                                   ),
-                                  rightUnitName: "GB",
                                 ),
-                                const SizedBox(
-                                  height: 24,
+                                leftUnitName: "GB",
+                                rightValue: convertBytesToAbsoluteGBs(
+                                  widget.userDetails.getPlanPlusAddonStorage(),
                                 ),
-                                Text(
-                                  AppLocalizations.of(context)
-                                      .usableReferralStorageInfo,
-                                  style: textStyle.small
-                                      .copyWith(color: colorScheme.textMuted),
+                                rightUnitName: "GB",
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                AppLocalizations.of(
+                                  context,
+                                ).usableReferralStorageInfo,
+                                style: textStyle.small.copyWith(
+                                  color: colorScheme.textMuted,
                                 ),
-                              ],
-                            ),
-                          );
-                        }
-                      },
-                    ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
                   ),
-                );
-              },
-              childCount: 1,
-            ),
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),
@@ -192,18 +191,13 @@ class BonusInfoSection extends StatelessWidget {
       children: [
         Text(
           sectionName,
-          style: textStyle.body.copyWith(
-            color: colorScheme.textMuted,
-          ),
+          style: textStyle.body.copyWith(color: colorScheme.textMuted),
         ),
         const SizedBox(height: 2),
         RichText(
           text: TextSpan(
             children: [
-              TextSpan(
-                text: leftValue.toString(),
-                style: textStyle.h3,
-              ),
+              TextSpan(text: leftValue.toString(), style: textStyle.h3),
               TextSpan(
                 text: showUnit ? " $leftUnitName" : "",
                 style: textStyle.large,

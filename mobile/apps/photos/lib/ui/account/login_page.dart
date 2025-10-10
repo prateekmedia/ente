@@ -86,9 +86,7 @@ class _LoginPageState extends State<LoginPage> {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (BuildContext context) {
-                  return LoginPasswordVerificationPage(
-                    srpAttributes: attr!,
-                  );
+                  return LoginPasswordVerificationPage(srpAttributes: attr!);
                 },
               ),
             );
@@ -117,8 +115,10 @@ class _LoginPageState extends State<LoginPage> {
             child: ListView(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     l10n.accountWelcomeBack,
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -179,24 +179,24 @@ class _LoginPageState extends State<LoginPage> {
                         flex: 5,
                         child: StyledText(
                           text: AppLocalizations.of(context).loginTerms,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium!
-                              .copyWith(fontSize: 12),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium!.copyWith(fontSize: 12),
                           tags: {
                             'u-terms': StyledTextActionTag(
                               (String? text, Map<String?, String?> attrs) =>
                                   Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (BuildContext context) {
-                                    return WebPage(
-                                      AppLocalizations.of(context)
-                                          .termsOfServicesTitle,
-                                      "https://ente.io/terms",
-                                    );
-                                  },
-                                ),
-                              ),
+                                    MaterialPageRoute(
+                                      builder: (BuildContext context) {
+                                        return WebPage(
+                                          AppLocalizations.of(
+                                            context,
+                                          ).termsOfServicesTitle,
+                                          "https://ente.io/terms",
+                                        );
+                                      },
+                                    ),
+                                  ),
                               style: const TextStyle(
                                 decoration: TextDecoration.underline,
                               ),
@@ -204,16 +204,17 @@ class _LoginPageState extends State<LoginPage> {
                             'u-policy': StyledTextActionTag(
                               (String? text, Map<String?, String?> attrs) =>
                                   Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (BuildContext context) {
-                                    return WebPage(
-                                      AppLocalizations.of(context)
-                                          .privacyPolicyTitle,
-                                      "https://ente.io/privacy",
-                                    );
-                                  },
-                                ),
-                              ),
+                                    MaterialPageRoute(
+                                      builder: (BuildContext context) {
+                                        return WebPage(
+                                          AppLocalizations.of(
+                                            context,
+                                          ).privacyPolicyTitle,
+                                          "https://ente.io/privacy",
+                                        );
+                                      },
+                                    ),
+                                  ),
                               style: const TextStyle(
                                 decoration: TextDecoration.underline,
                               ),
@@ -221,10 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                           },
                         ),
                       ),
-                      const Expanded(
-                        flex: 1,
-                        child: SizedBox.shrink(),
-                      ),
+                      const Expanded(flex: 1, child: SizedBox.shrink()),
                     ],
                   ),
                 ),

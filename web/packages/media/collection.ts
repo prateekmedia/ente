@@ -683,6 +683,15 @@ export interface CollectionPublicMagicMetadataData {
      * When undefined, the UI defaults to "grouped" behavior.
      */
     layout?: string;
+    /**
+     * The ID of the parent collection in a nested hierarchy.
+     *
+     * When set, this collection is a child of the specified parent collection.
+     * When undefined or 0, this collection is at the root level.
+     *
+     * This enables hierarchical organization of collections (albums).
+     */
+    parentID?: number;
 }
 
 /**
@@ -692,6 +701,7 @@ export const CollectionPublicMagicMetadataData = z.looseObject({
     asc: z.boolean().nullish().transform(nullToUndefined),
     coverID: z.number().nullish().transform(nullToUndefined),
     layout: z.string().nullish().transform(nullToUndefined),
+    parentID: z.number().nullish().transform(nullToUndefined),
 });
 
 /**

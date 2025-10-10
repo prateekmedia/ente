@@ -21,10 +21,7 @@ class VideoRotatePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final rotation = controller.rotation;
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
+      appBar: AppBar(elevation: 0, toolbarHeight: 0),
       body: SafeArea(
         child: Column(
           children: [
@@ -33,15 +30,11 @@ class VideoRotatePage extends StatelessWidget {
                 tag: "video-editor-preview",
                 child: RotatedBox(
                   quarterTurns: quarterTurnsForRotationCorrection,
-                  child: CropGridViewer.preview(
-                    controller: controller,
-                  ),
+                  child: CropGridViewer.preview(controller: controller),
                 ),
               ),
             ),
-            VideoEditorPlayerControl(
-              controller: controller,
-            ),
+            VideoEditorPlayerControl(controller: controller),
             VideoEditorMainActions(
               children: [
                 VideoEditorBottomAction(

@@ -93,15 +93,13 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
                       // ignore: unawaited_futures
                       routeToPage(
                         context,
-                        LanguageSelectorPage(
-                          appSupportedLocales,
-                          (locale) async {
-                            await setLocale(locale);
-                            EnteApp.setLocale(context, locale);
-                            unawaited(AppLocalizations.delegate.load(locale));
-                          },
+                        LanguageSelectorPage(appSupportedLocales, (
                           locale,
-                        ),
+                        ) async {
+                          await setLocale(locale);
+                          EnteApp.setLocale(context, locale);
+                          unawaited(AppLocalizations.delegate.load(locale));
+                        }, locale),
                       ).then((value) {
                         setState(() {});
                       });
@@ -117,19 +115,16 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
                 fontSize: 42,
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.all(28),
-            ),
+            const Padding(padding: EdgeInsets.all(28)),
             _getFeatureSlider(),
-            const Padding(
-              padding: EdgeInsets.all(12),
-            ),
+            const Padding(padding: EdgeInsets.all(12)),
             DotsIndicator(
               dotsCount: 3,
               position: _featureIndex,
               decorator: DotsDecorator(
-                activeColor:
-                    Theme.of(context).colorScheme.dotsIndicatorActiveColor,
+                activeColor: Theme.of(
+                  context,
+                ).colorScheme.dotsIndicatorActiveColor,
                 color: Theme.of(context).colorScheme.dotsIndicatorInactiveColor,
                 activeShape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(3),
@@ -142,9 +137,7 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
                 spacing: const EdgeInsets.all(3),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.all(28),
-            ),
+            const Padding(padding: EdgeInsets.all(28)),
             _getSignUpButton(context),
             Container(
               width: double.infinity,
@@ -153,8 +146,9 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
                 tag: "log_in",
                 child: ElevatedButton(
                   key: const ValueKey("signInButton"),
-                  style:
-                      Theme.of(context).colorScheme.optionalActionButtonStyle,
+                  style: Theme.of(
+                    context,
+                  ).colorScheme.optionalActionButtonStyle,
                   onPressed: _navigateToSignInPage,
                   child: Text(
                     AppLocalizations.of(context).existingUser,
@@ -168,9 +162,7 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
             // const DeveloperSettingsWidget() does not refresh when the endpoint is changed
             // ignore: prefer_const_constructors
             DeveloperSettingsWidget(),
-            const Padding(
-              padding: EdgeInsets.all(20),
-            ),
+            const Padding(padding: EdgeInsets.all(20)),
           ],
         ),
       ),
@@ -232,9 +224,7 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
       // No key
       if (Configuration.instance.getKeyAttributes() == null) {
         // Never had a key
-        page = const PasswordEntryPage(
-          mode: PasswordEntryMode.set,
-        );
+        page = const PasswordEntryPage(mode: PasswordEntryMode.set);
       } else if (Configuration.instance.getKey() == null) {
         // Yet to decrypt the key
         page = const PasswordReentryPage();
@@ -262,9 +252,7 @@ class _LandingPageWidgetState extends State<LandingPageWidget> {
       // No key
       if (Configuration.instance.getKeyAttributes() == null) {
         // Never had a key
-        page = const PasswordEntryPage(
-          mode: PasswordEntryMode.set,
-        );
+        page = const PasswordEntryPage(mode: PasswordEntryMode.set);
       } else if (Configuration.instance.getKey() == null) {
         // Yet to decrypt the key
         page = const PasswordReentryPage();
@@ -325,10 +313,7 @@ class FeatureItemWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Image.asset(
-          assetPath,
-          height: 160,
-        ),
+        Image.asset(assetPath, height: 160),
         const Padding(padding: EdgeInsets.all(16)),
         Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -350,10 +335,9 @@ class FeatureItemWidget extends StatelessWidget {
               subText,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.5),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
                 fontSize: 16,
               ),
             ),

@@ -93,10 +93,6 @@ Widget getOnEnteSection(BuildContext context) {
       fontSize: 21,
       color: textTheme.brandSmall.color,
     ),
-    tags: {
-      'branding': StyledTextTag(
-        style: textTheme.brandSmall,
-      ),
-    },
+    tags: {'branding': StyledTextTag(style: textTheme.brandSmall)},
   );
 }

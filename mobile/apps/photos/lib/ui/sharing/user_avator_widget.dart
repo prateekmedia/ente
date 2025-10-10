@@ -51,8 +51,9 @@ class _UserAvatarWidgetState extends State<UserAvatarWidget> {
   void initState() {
     super.initState();
     _reload();
-    _peopleChangedSubscription =
-        Bus.instance.on<PeopleChangedEvent>().listen((event) {
+    _peopleChangedSubscription = Bus.instance.on<PeopleChangedEvent>().listen((
+      event,
+    ) {
       if (event.type == PeopleEventType.saveOrEditPerson ||
           event.type == PeopleEventType.syncDone) {
         _reload();
@@ -72,7 +73,8 @@ class _UserAvatarWidgetState extends State<UserAvatarWidget> {
       if (!mounted) return;
       setState(() {
         final data = PersonService
-            .instance.emailToPartialPersonDataMapCache[widget.user.email];
+            .instance
+            .emailToPartialPersonDataMapCache[widget.user.email];
         if (data != null && data.containsKey(PersonService.kPersonIDKey)) {
           _canUsePersonFaceWidget = true;
           _personID = Future.value(data[PersonService.kPersonIDKey]);
@@ -185,17 +187,19 @@ class _FirstLetterCircularAvatarState
     final colorScheme = getEnteColorScheme(context);
     final displayChar =
         (widget.user.displayName == null || widget.user.displayName!.isEmpty)
-            ? ((widget.user.email.isEmpty)
-                ? " "
-                : widget.user.email.substring(0, 1))
-            : widget.user.displayName!.substring(0, 1);
+        ? ((widget.user.email.isEmpty)
+              ? " "
+              : widget.user.email.substring(0, 1))
+        : widget.user.displayName!.substring(0, 1);
     Color decorationColor;
     if ((widget.user.id != null && widget.user.id! < 0) ||
         widget.user.email == Configuration.instance.getEmail()) {
       decorationColor = Colors.black;
     } else {
-      decorationColor = colorScheme.avatarColors[(widget.user.email.length)
-          .remainder(colorScheme.avatarColors.length)];
+      decorationColor =
+          colorScheme.avatarColors[(widget.user.email.length).remainder(
+            colorScheme.avatarColors.length,
+          )];
     }
 
     final avatarStyle = getAvatarStyle(context, widget.type);
@@ -246,9 +250,7 @@ class _FirstLetterCircularAvatarState
   }
 }
 
-double getAvatarSize(
-  AvatarType type,
-) {
+double getAvatarSize(AvatarType type) {
   switch (type) {
     case AvatarType.small:
       return 32.0;
@@ -300,8 +302,10 @@ class _FirstLetterUserAvatarState extends State<FirstLetterUserAvatar> {
         user.email == currentUserEmail) {
       decorationColor = Colors.black;
     } else {
-      decorationColor = colorScheme.avatarColors[
-          (user.email.length).remainder(colorScheme.avatarColors.length)];
+      decorationColor =
+          colorScheme.avatarColors[(user.email.length).remainder(
+            colorScheme.avatarColors.length,
+          )];
     }
     return Container(
       color: decorationColor,

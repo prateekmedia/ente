@@ -22,10 +22,7 @@ import "package:photos/utils/person_contact_linking_util.dart";
 
 class LinkContactToPersonSelectionPage extends StatefulWidget {
   final String? emailToLink;
-  const LinkContactToPersonSelectionPage({
-    this.emailToLink,
-    super.key,
-  });
+  const LinkContactToPersonSelectionPage({this.emailToLink, super.key});
 
   @override
   State<LinkContactToPersonSelectionPage> createState() =>
@@ -64,9 +61,7 @@ class _LinkContactToPersonSelectionPageState
     const gridPadding = 16.0;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          context.l10n.selectPersonToLink,
-        ),
+        title: Text(context.l10n.selectPersonToLink),
         centerTitle: false,
       ),
       body: FutureBuilder<List<PersonEntity>>(
@@ -90,7 +85,8 @@ class _LinkContactToPersonSelectionPageState
             final screenWidth = MediaQuery.of(context).size.width;
             final crossAxisCount = (screenWidth / 100).floor();
 
-            final itemSize = (screenWidth -
+            final itemSize =
+                (screenWidth -
                     ((horizontalEdgePadding * 2) +
                         ((crossAxisCount - 1) * gridPadding))) /
                 crossAxisCount;
@@ -167,8 +163,10 @@ class _LinkContactToPersonSelectionPageState
           labelText: context.l10n.link,
           isInAlert: true,
           onTap: () async {
-            updatedPerson = await PersonService.instance
-                .updateAttributes(personEntity.remoteID, email: emailToLink);
+            updatedPerson = await PersonService.instance.updateAttributes(
+              personEntity.remoteID,
+              email: emailToLink,
+            );
             Bus.instance.fire(
               PeopleChangedEvent(
                 type: PeopleEventType.saveOrEditPerson,
@@ -188,8 +186,9 @@ class _LinkContactToPersonSelectionPageState
     );
 
     if (result?.exception != null) {
-      Logger("linkPersonToContact")
-          .severe("Failed to link person to contact", result!.exception);
+      Logger(
+        "linkPersonToContact",
+      ).severe("Failed to link person to contact", result!.exception);
       await showGenericErrorDialog(context: context, error: result.exception);
       return null;
     } else {
@@ -200,10 +199,7 @@ class _LinkContactToPersonSelectionPageState
 
 class ReassignMeSelectionPage extends StatefulWidget {
   final String currentMeId;
-  const ReassignMeSelectionPage({
-    required this.currentMeId,
-    super.key,
-  });
+  const ReassignMeSelectionPage({required this.currentMeId, super.key});
 
   @override
   State<ReassignMeSelectionPage> createState() =>
@@ -241,9 +237,7 @@ class _ReassignMeSelectionPageState extends State<ReassignMeSelectionPage> {
     const gridPadding = 16.0;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          context.l10n.selectYourFace,
-        ),
+        title: Text(context.l10n.selectYourFace),
         centerTitle: false,
       ),
       body: FutureBuilder<List<PersonEntity>>(
@@ -267,7 +261,8 @@ class _ReassignMeSelectionPageState extends State<ReassignMeSelectionPage> {
             final screenWidth = MediaQuery.of(context).size.width;
             final crossAxisCount = (screenWidth / 100).floor();
 
-            final itemSize = (screenWidth -
+            final itemSize =
+                (screenWidth -
                     ((horizontalEdgePadding * 2) +
                         ((crossAxisCount - 1) * gridPadding))) /
                 crossAxisCount;
@@ -302,8 +297,9 @@ class _ReassignMeSelectionPageState extends State<ReassignMeSelectionPage> {
                       );
                       showToast(
                         context,
-                        context.l10n
-                            .reassignedToName(name: results[index].data.name),
+                        context.l10n.reassignedToName(
+                          name: results[index].data.name,
+                        ),
                       );
                       await Future.delayed(const Duration(milliseconds: 1250));
                       unawaited(dialog.hide());
@@ -333,8 +329,10 @@ class _ReassignMeSelectionPageState extends State<ReassignMeSelectionPage> {
     try {
       final email = Configuration.instance.getEmail();
 
-      final updatedPerson1 = await PersonService.instance
-          .updateAttributes(currentPersonID, email: '');
+      final updatedPerson1 = await PersonService.instance.updateAttributes(
+        currentPersonID,
+        email: '',
+      );
       Bus.instance.fire(
         PeopleChangedEvent(
           type: PeopleEventType.saveOrEditPerson,
@@ -343,8 +341,10 @@ class _ReassignMeSelectionPageState extends State<ReassignMeSelectionPage> {
         ),
       );
 
-      final updatedPerson2 = await PersonService.instance
-          .updateAttributes(newPersonID, email: email);
+      final updatedPerson2 = await PersonService.instance.updateAttributes(
+        newPersonID,
+        email: email,
+      );
       Bus.instance.fire(
         PeopleChangedEvent(
           type: PeopleEventType.saveOrEditPerson,
@@ -408,9 +408,7 @@ class _RoundedPersonFaceWidget extends StatelessWidget {
                   child: ClipPath(
                     clipper: ShapeBorderClipper(
                       shape: ContinuousRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          borderRadius - 1,
-                        ),
+                        borderRadius: BorderRadius.circular(borderRadius - 1),
                       ),
                     ),
                     child: PersonFaceWidget(

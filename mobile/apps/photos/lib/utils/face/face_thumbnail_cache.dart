@@ -39,8 +39,9 @@ TaskQueue _queueThumbnailFaceGenerations = TaskQueue<String>(
 Uint8List? checkInMemoryCachedCropForPersonOrClusterID(
   String personOrClusterID,
 ) {
-  final String? faceID =
-      _personOrClusterIdToCachedFaceID.get(personOrClusterID);
+  final String? faceID = _personOrClusterIdToCachedFaceID.get(
+    personOrClusterID,
+  );
   if (faceID == null) return null;
   final Uint8List? cachedCover = _faceCropCache.get(faceID);
   return cachedCover;
@@ -54,8 +55,9 @@ Uint8List? _checkInMemoryCachedCropForFaceID(String faceID) {
 Future<String?> checkUsedFaceIDForPersonOrClusterId(
   String personOrClusterID,
 ) async {
-  final String? cachedFaceID =
-      _personOrClusterIdToCachedFaceID.get(personOrClusterID);
+  final String? cachedFaceID = _personOrClusterIdToCachedFaceID.get(
+    personOrClusterID,
+  );
   if (cachedFaceID != null) return cachedFaceID;
   final String? faceIDFromDB = await MLDataDB.instance
       .getFaceIdUsedForPersonOrCluster(personOrClusterID);
@@ -94,8 +96,9 @@ Future<void> checkRemoveCachedFaceIDForPersonOrClusterId(
       .getFaceIdUsedForPersonOrCluster(personOrClusterID);
   if (cachedFaceID != null) {
     _personOrClusterIdToCachedFaceID.remove(personOrClusterID);
-    await MLDataDB.instance
-        .removeFaceIdCachedForPersonOrCluster(personOrClusterID);
+    await MLDataDB.instance.removeFaceIdCachedForPersonOrCluster(
+      personOrClusterID,
+    );
   }
 }
 
@@ -112,8 +115,9 @@ Future<Map<String, Uint8List>?> getCachedFaceCrops(
     final faceIdToCrop = <String, Uint8List>{};
     final facesWithoutCrops = <String, FaceBox>{};
     for (final face in faces) {
-      final Uint8List? cachedFace =
-          _checkInMemoryCachedCropForFaceID(face.faceID);
+      final Uint8List? cachedFace = _checkInMemoryCachedCropForFaceID(
+        face.faceID,
+      );
       if (cachedFace != null) {
         faceIdToCrop[face.faceID] = cachedFace;
       } else {
@@ -155,8 +159,9 @@ Future<Map<String, Uint8List>?> getCachedFaceCrops(
     if (!useFullFile) {
       for (final face in faces) {
         if (facesWithoutCrops.containsKey(face.faceID)) {
-          final Uint8List? cachedFaceThumbnail =
-              _faceCropThumbnailCache.get(face.faceID);
+          final Uint8List? cachedFaceThumbnail = _faceCropThumbnailCache.get(
+            face.faceID,
+          );
           if (cachedFaceThumbnail != null) {
             faceIdToCrop[face.faceID] = cachedFaceThumbnail;
             facesWithoutCrops.remove(face.faceID);
@@ -275,11 +280,7 @@ Future<Uint8List?> precomputeClusterFaceCrop(
     w?.logAndReset('getCachedFaceCrops');
     return cropMap?[face.faceID];
   } catch (e, s) {
-    _logger.severe(
-      "Error getting cover face for cluster $clusterID",
-      e,
-      s,
-    );
+    _logger.severe("Error getting cover face for cluster $clusterID", e, s);
     return null;
   }
 }
@@ -352,12 +353,12 @@ Future<Map<String, Uint8List>?> _getFaceCrops(
     faceIds.add(e.key);
     faceBoxes.add(e.value);
   }
-  final List<Uint8List> faceCrop =
-      await FaceThumbnailGenerator.instance.generateFaceThumbnails(
-    // await generateJpgFaceThumbnails(
-    imagePath,
-    faceBoxes,
-  );
+  final List<Uint8List> faceCrop = await FaceThumbnailGenerator.instance
+      .generateFaceThumbnails(
+        // await generateJpgFaceThumbnails(
+        imagePath,
+        faceBoxes,
+      );
   final Map<String, Uint8List> result = {};
   for (int i = 0; i < faceCrop.length; i++) {
     result[faceIds[i]] = faceCrop[i];

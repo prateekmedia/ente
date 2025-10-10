@@ -45,10 +45,10 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
   final _logger = Logger((_UserCollectionsTabState).toString());
   late StreamSubscription<LocalPhotosUpdatedEvent> _localFilesSubscription;
   late StreamSubscription<CollectionUpdatedEvent>
-      _collectionUpdatesSubscription;
+  _collectionUpdatesSubscription;
   late StreamSubscription<UserLoggedOutEvent> _loggedOutEvent;
   late StreamSubscription<FavoritesServiceInitCompleteEvent>
-      _favoritesServiceInitCompleteEvent;
+  _favoritesServiceInitCompleteEvent;
   late StreamSubscription<AlbumSortOrderChangeEvent> _albumSortOrderChangeEvent;
 
   String _loadReason = "init";
@@ -63,40 +63,44 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
   @override
   void initState() {
     super.initState();
-    _localFilesSubscription =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
-      _debouncer.run(() async {
-        if (mounted) {
-          _loadReason = event.reason;
-          setState(() {});
-        }
-      });
-    });
-    _collectionUpdatesSubscription =
-        Bus.instance.on<CollectionUpdatedEvent>().listen((event) {
-      _debouncer.run(() async {
-        if (mounted) {
-          _loadReason = event.reason;
-          setState(() {});
-        }
-      });
-    });
+    _localFilesSubscription = Bus.instance.on<LocalPhotosUpdatedEvent>().listen(
+      (event) {
+        _debouncer.run(() async {
+          if (mounted) {
+            _loadReason = event.reason;
+            setState(() {});
+          }
+        });
+      },
+    );
+    _collectionUpdatesSubscription = Bus.instance
+        .on<CollectionUpdatedEvent>()
+        .listen((event) {
+          _debouncer.run(() async {
+            if (mounted) {
+              _loadReason = event.reason;
+              setState(() {});
+            }
+          });
+        });
     _loggedOutEvent = Bus.instance.on<UserLoggedOutEvent>().listen((event) {
       _loadReason = event.reason;
       setState(() {});
     });
-    _favoritesServiceInitCompleteEvent =
-        Bus.instance.on<FavoritesServiceInitCompleteEvent>().listen((event) {
-      _debouncer.run(() async {
-        _loadReason = event.reason;
-        setState(() {});
-      });
-    });
-    _albumSortOrderChangeEvent =
-        Bus.instance.on<AlbumSortOrderChangeEvent>().listen((event) {
-      _loadReason = event.reason;
-      setState(() {});
-    });
+    _favoritesServiceInitCompleteEvent = Bus.instance
+        .on<FavoritesServiceInitCompleteEvent>()
+        .listen((event) {
+          _debouncer.run(() async {
+            _loadReason = event.reason;
+            setState(() {});
+          });
+        });
+    _albumSortOrderChangeEvent = Bus.instance
+        .on<AlbumSortOrderChangeEvent>()
+        .listen((event) {
+          _loadReason = event.reason;
+          setState(() {});
+        });
   }
 
   @override
@@ -118,14 +122,14 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
   }
 
   Widget _getCollectionsGalleryWidget(List<Collection> collections) {
-    final TextStyle trashAndHiddenTextStyle =
-        Theme.of(context).textTheme.titleMedium!.copyWith(
-              color: Theme.of(context)
-                  .textTheme
-                  .titleMedium!
-                  .color!
-                  .withValues(alpha: 0.5),
-            );
+    final TextStyle trashAndHiddenTextStyle = Theme.of(context)
+        .textTheme
+        .titleMedium!
+        .copyWith(
+          color: Theme.of(
+            context,
+          ).textTheme.titleMedium!.color!.withValues(alpha: 0.5),
+        );
 
     return Stack(
       alignment: Alignment.bottomCenter,
@@ -199,9 +203,7 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
                   )
                 : const SliverToBoxAdapter(child: EmptyState()),
             SliverToBoxAdapter(
-              child: Divider(
-                color: getEnteColorScheme(context).strokeFaint,
-              ),
+              child: Divider(color: getEnteColorScheme(context).strokeFaint),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             SliverToBoxAdapter(
@@ -221,8 +223,9 @@ class _UserCollectionsTabState extends State<UserCollectionsTab>
               ),
             ),
             SliverToBoxAdapter(
-              child:
-                  SizedBox(height: 64 + MediaQuery.paddingOf(context).bottom),
+              child: SizedBox(
+                height: 64 + MediaQuery.paddingOf(context).bottom,
+              ),
             ),
           ],
         ),

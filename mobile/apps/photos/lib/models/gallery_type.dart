@@ -413,7 +413,9 @@ GalleryType getGalleryType(Collection c, int userID) {
   } else if (c.isHidden()) {
     return GalleryType.hiddenOwnedCollection;
   }
-  debugPrint("Unknown gallery type for collection ${c.id}, falling back to "
-      "default");
+  debugPrint(
+    "Unknown gallery type for collection ${c.id}, falling back to "
+    "default",
+  );
   return GalleryType.ownedCollection;
 }

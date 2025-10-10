@@ -3,10 +3,7 @@ import "package:photos/ente_theme_data.dart";
 import "package:video_editor/video_editor.dart";
 
 class VideoEditorPlayerControl extends StatelessWidget {
-  const VideoEditorPlayerControl({
-    super.key,
-    required this.controller,
-  });
+  const VideoEditorPlayerControl({super.key, required this.controller});
 
   final VideoEditorController controller;
 
@@ -15,14 +12,12 @@ class VideoEditorPlayerControl extends StatelessWidget {
     return Hero(
       tag: "video_editor_player_control",
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          controller,
-          controller.video,
-        ]),
+        animation: Listenable.merge([controller, controller.video]),
         builder: (_, __) {
           final duration = controller.trimmedDuration;
           final pos = Duration(
-            seconds: (controller.videoPosition.inSeconds -
+            seconds:
+                (controller.videoPosition.inSeconds -
                 controller.startTrim.inSeconds),
           );
           final isPlaying = controller.isPlaying;
@@ -38,10 +33,7 @@ class VideoEditorPlayerControl extends StatelessWidget {
             child: Container(
               height: 28,
               margin: const EdgeInsets.only(top: 24, bottom: 28),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.editorBackgroundColor,
                 borderRadius: BorderRadius.circular(56),
@@ -49,18 +41,12 @@ class VideoEditorPlayerControl extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    !isPlaying ? Icons.play_arrow : Icons.pause,
-                    size: 21,
-                  ),
+                  Icon(!isPlaying ? Icons.play_arrow : Icons.pause, size: 21),
                   const SizedBox(width: 4),
                   Text(
                     "${formatter(pos)} / ${formatter(duration)}",
                     // ignore: prefer_const_constructors
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -72,7 +58,7 @@ class VideoEditorPlayerControl extends StatelessWidget {
   }
 
   String formatter(Duration duration) => [
-        duration.inMinutes.remainder(60).toString().padLeft(2, '0'),
-        duration.inSeconds.remainder(60).toString().padLeft(2, '0'),
-      ].join(":");
+    duration.inMinutes.remainder(60).toString().padLeft(2, '0'),
+    duration.inSeconds.remainder(60).toString().padLeft(2, '0'),
+  ].join(":");
 }

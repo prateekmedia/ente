@@ -85,9 +85,7 @@ String getFormattedTime(BuildContext context, DateTime dateTime) {
   return DateFormat(
     'E, MMM d, y - HH:mm',
     Localizations.localeOf(context).languageCode,
-  ).format(
-    dateTime,
-  );
+  ).format(dateTime);
 }
 
 String formatDuration(Duration position) {
@@ -102,20 +100,20 @@ String formatDuration(Duration position) {
   final hoursString = hours >= 10
       ? '$hours'
       : hours == 0
-          ? '00'
-          : '0$hours';
+      ? '00'
+      : '0$hours';
 
   final minutesString = minutes >= 10
       ? '$minutes'
       : minutes == 0
-          ? '00'
-          : '0$minutes';
+      ? '00'
+      : '0$minutes';
 
   final secondsString = seconds >= 10
       ? '$seconds'
       : seconds == 0
-          ? '00'
-          : '0$seconds';
+      ? '00'
+      : '0$seconds';
 
   final formattedTime =
       '${hoursString == '00' ? '' : hoursString + ':'}$minutesString:$secondsString';
@@ -128,14 +126,17 @@ String secondsToHHMMSS(int value) {
   h = value ~/ 3600;
   m = ((value - h * 3600)) ~/ 60;
   s = value - (h * 3600) - (m * 60);
-  final String hourLeft =
-      h.toString().length < 2 ? "0" + h.toString() : h.toString();
+  final String hourLeft = h.toString().length < 2
+      ? "0" + h.toString()
+      : h.toString();
 
-  final String minuteLeft =
-      m.toString().length < 2 ? "0" + m.toString() : m.toString();
+  final String minuteLeft = m.toString().length < 2
+      ? "0" + m.toString()
+      : m.toString();
 
-  final String secondsLeft =
-      s.toString().length < 2 ? "0" + s.toString() : s.toString();
+  final String secondsLeft = s.toString().length < 2
+      ? "0" + s.toString()
+      : s.toString();
 
   final String result = "$hourLeft:$minuteLeft:$secondsLeft";
 

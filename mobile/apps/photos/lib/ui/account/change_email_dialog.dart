@@ -27,9 +27,7 @@ class _ChangeEmailDialogState extends State<ChangeEmailDialog> {
             TextFormField(
               decoration: InputDecoration(
                 hintText: l10n.email,
-                hintStyle: const TextStyle(
-                  color: Colors.white30,
-                ),
+                hintStyle: const TextStyle(color: Colors.white30),
                 contentPadding: const EdgeInsets.all(12),
               ),
               onChanged: (value) {
@@ -49,21 +47,14 @@ class _ChangeEmailDialogState extends State<ChangeEmailDialog> {
         TextButton(
           child: Text(
             l10n.cancel,
-            style: const TextStyle(
-              color: Colors.redAccent,
-            ),
+            style: const TextStyle(color: Colors.redAccent),
           ),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
         TextButton(
-          child: Text(
-            l10n.verify,
-            style: const TextStyle(
-              color: Colors.green,
-            ),
-          ),
+          child: Text(l10n.verify, style: const TextStyle(color: Colors.green)),
           onPressed: () {
             if (!isValidEmail(_email)) {
               showErrorDialog(

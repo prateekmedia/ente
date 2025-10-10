@@ -43,132 +43,124 @@ class CodeSuccessScreen extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check, color: colorScheme.primary500, size: 96)
+                          .animate()
+                          .scaleXY(
+                            begin: 0.5,
+                            end: 1,
+                            duration: 750.ms,
+                            curve: Curves.easeInOutCubic,
+                            delay: 250.ms,
+                          )
+                          .fadeIn(
+                            duration: 500.ms,
+                            curve: Curves.easeInOutCubic,
+                          ),
+                      Text(
+                        AppLocalizations.of(context).storageInGB(
+                          storageAmountInGB: referralView.planInfo.storageInGB,
+                        ),
+                        style: textStyle.h2Bold,
+                      ),
+                      Text(
+                        AppLocalizations.of(context).claimed,
+                        style: textStyle.bodyMuted,
+                      ),
+                      const SizedBox(height: 32),
+                      MenuItemWidget(
+                        captionedTextWidget: CaptionedTextWidget(
+                          title: AppLocalizations.of(context).details,
+                        ),
+                        menuItemColor: colorScheme.fillFaint,
+                        trailingWidget: Icon(
+                          Icons.chevron_right_outlined,
+                          color: colorScheme.strokeBase,
+                        ),
+                        singleBorderRadius: 8,
+                        alignCaptionedTextToLeft: true,
+                        onTap: () async {
+                          // ignore: unawaited_futures
+                          routeToPage(
+                            context,
+                            StorageDetailsScreen(referralView, userDetails),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      InkWell(
+                        onTap: () {
+                          shareText(
+                            AppLocalizations.of(context).shareTextReferralCode(
+                              referralCode: referralView.code,
+                              referralStorageInGB:
+                                  referralView.planInfo.storageInGB,
+                            ),
+                          );
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: colorScheme.strokeFaint,
+                              width: 1,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 12,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  AppLocalizations.of(context).claimMore,
+                                  style: textStyle.body,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  AppLocalizations.of(
+                                    context,
+                                  ).freeStorageOnReferralSuccess(
+                                    storageAmountInGB:
+                                        referralView.planInfo.storageInGB,
+                                  ),
+                                  style: textStyle.smallMuted,
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                ReferralCodeWidget(referralView.code),
+                                const SizedBox(height: 16),
+                                Text(
+                                  AppLocalizations.of(context).theyAlsoGetXGb(
+                                    storageAmountInGB:
+                                        referralView.planInfo.storageInGB,
+                                  ),
+                                  style: textStyle.smallMuted,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.check,
-                          color: colorScheme.primary500,
-                          size: 96,
-                        )
-                            .animate()
-                            .scaleXY(
-                              begin: 0.5,
-                              end: 1,
-                              duration: 750.ms,
-                              curve: Curves.easeInOutCubic,
-                              delay: 250.ms,
-                            )
-                            .fadeIn(
-                              duration: 500.ms,
-                              curve: Curves.easeInOutCubic,
-                            ),
-                        Text(
-                          AppLocalizations.of(context).storageInGB(
-                            storageAmountInGB:
-                                referralView.planInfo.storageInGB,
-                          ),
-                          style: textStyle.h2Bold,
-                        ),
-                        Text(
-                          AppLocalizations.of(context).claimed,
-                          style: textStyle.bodyMuted,
-                        ),
-                        const SizedBox(height: 32),
-                        MenuItemWidget(
-                          captionedTextWidget: CaptionedTextWidget(
-                            title: AppLocalizations.of(context).details,
-                          ),
-                          menuItemColor: colorScheme.fillFaint,
-                          trailingWidget: Icon(
-                            Icons.chevron_right_outlined,
-                            color: colorScheme.strokeBase,
-                          ),
-                          singleBorderRadius: 8,
-                          alignCaptionedTextToLeft: true,
-                          onTap: () async {
-                            // ignore: unawaited_futures
-                            routeToPage(
-                              context,
-                              StorageDetailsScreen(referralView, userDetails),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 32),
-                        InkWell(
-                          onTap: () {
-                            shareText(
-                              AppLocalizations.of(context)
-                                  .shareTextReferralCode(
-                                referralCode: referralView.code,
-                                referralStorageInGB:
-                                    referralView.planInfo.storageInGB,
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: colorScheme.strokeFaint,
-                                width: 1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 12,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    AppLocalizations.of(context).claimMore,
-                                    style: textStyle.body,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    AppLocalizations.of(context)
-                                        .freeStorageOnReferralSuccess(
-                                      storageAmountInGB:
-                                          referralView.planInfo.storageInGB,
-                                    ),
-                                    style: textStyle.smallMuted,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ReferralCodeWidget(referralView.code),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    AppLocalizations.of(context).theyAlsoGetXGb(
-                                      storageAmountInGB:
-                                          referralView.planInfo.storageInGB,
-                                    ),
-                                    style: textStyle.smallMuted,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),

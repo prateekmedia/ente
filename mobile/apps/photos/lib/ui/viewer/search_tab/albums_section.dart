@@ -38,10 +38,12 @@ class _AlbumsSectionState extends State<AlbumsSection> {
     for (Stream<Event> stream in streamsToListenTo) {
       streamSubscriptions.add(
         stream.listen((event) async {
-          _albumSearchResults = (await SectionType.album.getData(
-            context,
-            limit: kSearchSectionLimit,
-          )) as List<AlbumSearchResult>;
+          _albumSearchResults =
+              (await SectionType.album.getData(
+                    context,
+                    limit: kSearchSectionLimit,
+                  ))
+                  as List<AlbumSearchResult>;
           setState(() {});
         }),
       );
@@ -136,7 +138,8 @@ class AlbumRecommendation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heroTag = albumSearchResult.heroTag() +
+    final heroTag =
+        albumSearchResult.heroTag() +
         (albumSearchResult.previewThumbnail()?.tag ?? "");
     final enteTextTheme = getEnteTextTheme(context);
     return Padding(
@@ -169,9 +172,7 @@ class AlbumRecommendation extends StatelessWidget {
                           shouldShowSyncStatus: false,
                         ),
                       )
-                    : const NoThumbnailWidget(
-                        borderRadius: 8,
-                      ),
+                    : const NoThumbnailWidget(borderRadius: 8),
               ),
             ),
             const SizedBox(height: 6),
@@ -245,10 +246,7 @@ class AlbumCTA extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   color: enteColorScheme.strokeFaint,
                   child: Center(
-                    child: Icon(
-                      Icons.add,
-                      color: enteColorScheme.strokeFaint,
-                    ),
+                    child: Icon(Icons.add, color: enteColorScheme.strokeFaint),
                   ),
                 ),
               ),

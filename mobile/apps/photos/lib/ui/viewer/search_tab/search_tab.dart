@@ -87,8 +87,9 @@ class _AllSearchSectionsState extends State<AllSearchSections> {
       child: Stack(
         children: [
           FutureBuilder<List<List<SearchResult>>>(
-            future: InheritedAllSectionsExamples.of(context)
-                .allSectionsExamplesFuture,
+            future: InheritedAllSectionsExamples.of(
+              context,
+            ).allSectionsExamplesFuture,
             builder: (context, snapshot) {
               if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                 if (snapshot.data!.every((element) => element.isEmpty)) {
@@ -109,48 +110,47 @@ class _AllSearchSectionsState extends State<AllSearchSections> {
                   );
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 180),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: searchTypes.length,
-                  // ignore: body_might_complete_normally_nullable
-                  itemBuilder: (context, index) {
-                    switch (searchTypes[index]) {
-                      case SectionType.face:
-                        if (!flagService.hasGrantedMLConsent) {
-                          return const SizedBox.shrink();
+                      padding: const EdgeInsets.only(bottom: 180),
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: searchTypes.length,
+                      // ignore: body_might_complete_normally_nullable
+                      itemBuilder: (context, index) {
+                        switch (searchTypes[index]) {
+                          case SectionType.face:
+                            if (!flagService.hasGrantedMLConsent) {
+                              return const SizedBox.shrink();
+                            }
+                            return PeopleSection(
+                              examples:
+                                  snapshot.data!.elementAt(index)
+                                      as List<GenericSearchResult>,
+                            );
+                          case SectionType.album:
+                            return AlbumsSection(
+                              snapshot.data!.elementAt(index)
+                                  as List<AlbumSearchResult>,
+                            );
+                          case SectionType.location:
+                            return LocationsSection(
+                              snapshot.data!.elementAt(index)
+                                  as List<GenericSearchResult>,
+                            );
+                          case SectionType.contacts:
+                            return const SizedBox.shrink();
+                          case SectionType.fileTypesAndExtension:
+                            return FileTypeSection(
+                              snapshot.data!.elementAt(index)
+                                  as List<GenericSearchResult>,
+                            );
+                          case SectionType.magic:
+                            return MagicSection(
+                              snapshot.data!.elementAt(index)
+                                  as List<GenericSearchResult>,
+                            );
                         }
-                        return PeopleSection(
-                          examples: snapshot.data!.elementAt(index)
-                              as List<GenericSearchResult>,
-                        );
-                      case SectionType.album:
-                        return AlbumsSection(
-                          snapshot.data!.elementAt(index)
-                              as List<AlbumSearchResult>,
-                        );
-                      case SectionType.location:
-                        return LocationsSection(
-                          snapshot.data!.elementAt(index)
-                              as List<GenericSearchResult>,
-                        );
-                      case SectionType.contacts:
-                        return const SizedBox.shrink();
-                      case SectionType.fileTypesAndExtension:
-                        return FileTypeSection(
-                          snapshot.data!.elementAt(index)
-                              as List<GenericSearchResult>,
-                        );
-                      case SectionType.magic:
-                        return MagicSection(
-                          snapshot.data!.elementAt(index)
-                              as List<GenericSearchResult>,
-                        );
-                    }
-                  },
-                )
-                    .animate(
-                      delay: const Duration(milliseconds: 150),
+                      },
                     )
+                    .animate(delay: const Duration(milliseconds: 150))
                     .slide(
                       begin: const Offset(0, -0.015),
                       end: const Offset(0, 0),
@@ -191,13 +191,12 @@ class _AllSearchSectionsState extends State<AllSearchSections> {
             },
           ),
           ValueListenableBuilder(
-            valueListenable:
-                InheritedAllSectionsExamples.of(context).isDebouncingNotifier,
+            valueListenable: InheritedAllSectionsExamples.of(
+              context,
+            ).isDebouncingNotifier,
             builder: (context, value, _) {
               return value
-                  ? const EnteLoadingWidget(
-                      alignment: Alignment.topRight,
-                    )
+                  ? const EnteLoadingWidget(alignment: Alignment.topRight)
                   : const SizedBox.shrink();
             },
           ),

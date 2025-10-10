@@ -65,8 +65,9 @@ class _ClusterPageState extends State<ClusterPage> {
     super.initState();
     ClusterFeedbackService.setLastViewedClusterID(widget.clusterID);
     files = widget.searchResult;
-    _filesUpdatedEvent =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
+    _filesUpdatedEvent = Bus.instance.on<LocalPhotosUpdatedEvent>().listen((
+      event,
+    ) {
       if (event.type == EventType.deletedFromEverywhere ||
           event.type == EventType.deletedFromRemote ||
           event.type == EventType.hide) {
@@ -123,10 +124,7 @@ class _ClusterPageState extends State<ClusterPage> {
             )
             .toList();
         return Future.value(
-          FileLoadResult(
-            result,
-            result.length < files.length,
-          ),
+          FileLoadResult(result, result.length < files.length),
         );
       },
       reloadEvent: Bus.instance.on<LocalPhotosUpdatedEvent>(),
@@ -144,9 +142,7 @@ class _ClusterPageState extends State<ClusterPage> {
       header: widget.showNamingBanner && files.isNotEmpty
           ? PeopleBanner(
               type: PeopleBannerType.addName,
-              faceWidget: PersonFaceWidget(
-                clusterID: widget.clusterID,
-              ),
+              faceWidget: PersonFaceWidget(clusterID: widget.clusterID),
               actionIcon: Icons.add_outlined,
               text: AppLocalizations.of(context).savePerson,
               subText: AppLocalizations.of(context).findThemQuickly,
@@ -159,14 +155,12 @@ class _ClusterPageState extends State<ClusterPage> {
                   );
                   if (result != null) {
                     Navigator.pop(context);
-                    final person =
-                        result is (PersonEntity, EnteFile) ? result.$1 : result;
+                    final person = result is (PersonEntity, EnteFile)
+                        ? result.$1
+                        : result;
                     routeToPage(
                       context,
-                      PeoplePage(
-                        person: person,
-                        searchResult: null,
-                      ),
+                      PeoplePage(person: person, searchResult: null),
                     ).ignore();
                   }
                 } else {

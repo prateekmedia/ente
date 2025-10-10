@@ -41,9 +41,7 @@ class BackupSectionWidgetState extends State<BackupSectionWidget> {
         onTap: () async {
           await routeToPage(
             context,
-            const BackupFolderSelectionPage(
-              isFirstBackup: false,
-            ),
+            const BackupFolderSelectionPage(isFirstBackup: false),
           );
         },
       ),
@@ -56,10 +54,7 @@ class BackupSectionWidgetState extends State<BackupSectionWidget> {
         trailingIcon: Icons.chevron_right_outlined,
         trailingIconIsMuted: true,
         onTap: () async {
-          await routeToPage(
-            context,
-            const BackupStatusScreen(),
-          );
+          await routeToPage(context, const BackupStatusScreen());
         },
       ),
       sectionOptionSpacing,
@@ -71,37 +66,27 @@ class BackupSectionWidgetState extends State<BackupSectionWidget> {
         trailingIcon: Icons.chevron_right_outlined,
         trailingIconIsMuted: true,
         onTap: () async {
-          await routeToPage(
-            context,
-            const BackupSettingsScreen(),
-          );
+          await routeToPage(context, const BackupSettingsScreen());
         },
       ),
       sectionOptionSpacing,
     ];
 
-    sectionOptions.addAll(
-      [
-        MenuItemWidget(
-          captionedTextWidget: CaptionedTextWidget(
-            title: AppLocalizations.of(context).freeUpSpace,
-          ),
-          pressedColor: getEnteColorScheme(context).fillFaint,
-          trailingIcon: Icons.chevron_right_outlined,
-          trailingIconIsMuted: true,
-          showOnlyLoadingState: true,
-          onTap: () async {
-            await routeToPage(
-              context,
-              const FreeUpSpaceOptionsScreen(),
-            );
-          },
+    sectionOptions.addAll([
+      MenuItemWidget(
+        captionedTextWidget: CaptionedTextWidget(
+          title: AppLocalizations.of(context).freeUpSpace,
         ),
-        sectionOptionSpacing,
-      ],
-    );
-    return Column(
-      children: sectionOptions,
-    );
+        pressedColor: getEnteColorScheme(context).fillFaint,
+        trailingIcon: Icons.chevron_right_outlined,
+        trailingIconIsMuted: true,
+        showOnlyLoadingState: true,
+        onTap: () async {
+          await routeToPage(context, const FreeUpSpaceOptionsScreen());
+        },
+      ),
+      sectionOptionSpacing,
+    ]);
+    return Column(children: sectionOptions);
   }
 }

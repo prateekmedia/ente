@@ -16,6 +16,7 @@ import "package:photos/models/metadata/collection_magic.dart";
 import "package:photos/models/metadata/common_keys.dart";
 import 'package:photos/services/account/user_service.dart';
 import 'package:photos/services/collections_service.dart';
+import 'package:photos/services/collections_tree_service.dart';
 import 'package:photos/services/hidden_service.dart';
 import 'package:photos/theme/colors.dart';
 import 'package:photos/theme/ente_theme.dart';
@@ -25,6 +26,7 @@ import 'package:photos/ui/components/action_sheet_widget.dart';
 import 'package:photos/ui/components/buttons/button_widget.dart';
 import 'package:photos/ui/components/dialog_widget.dart';
 import 'package:photos/ui/components/models/button_type.dart';
+import 'package:photos/ui/components/subtree_share_dialog.dart';
 import 'package:photos/ui/notification/toast.dart';
 import 'package:photos/ui/payment/subscription.dart';
 import 'package:photos/utils/dialog_util.dart';
@@ -92,8 +94,9 @@ class CollectionActions {
       title: AppLocalizations.of(context).removePublicLink,
       body:
           //'This will remove the public link for accessing "${collection.name}".',
-          AppLocalizations.of(context)
-              .disableLinkMessage(albumName: collection.displayName),
+          AppLocalizations.of(
+        context,
+      ).disableLinkMessage(albumName: collection.displayName),
     );
     if (actionResult?.action != null) {
       if (actionResult!.action == ButtonAction.error) {
@@ -133,9 +136,7 @@ class CollectionActions {
         visibility: visibleVisibility,
         subType: subTypeSharedFilesCollection,
       );
-      final collection = await collectionsService.createAndCacheCollection(
-        req,
-      );
+      final collection = await collectionsService.createAndCacheCollection(req);
       newCollection = collection;
       logger.info("adding files to share to new album");
       await collectionsService.addOrCopyToCollection(collection.id, files);
@@ -169,6 +170,28 @@ class CollectionActions {
     Collection collection,
     User user,
   ) async {
+    // Check if collection has descendants and show subtree unshare dialog
+    final treeService = CollectionsTreeService.instance;
+    final descendants = treeService.getDescendants(collection.id);
+
+    if (descendants.isNotEmpty) {
+      final shouldCascade = await showSubtreeUnshareDialog(
+        context,
+        collection: collection,
+        email: user.email,
+      );
+
+      if (shouldCascade) {
+        // Job is queued, show toast
+        showShortToast(
+          context,
+          "Removing ${user.displayName ?? user.email} from album and sub-albums...",
+        );
+        return true;
+      }
+    }
+
+    // Show regular confirmation dialog for single album unshare
     final actionResult = await showActionSheet(
       context: context,
       buttons: [
@@ -180,8 +203,10 @@ class CollectionActions {
           shouldSurfaceExecutionStates: true,
           labelText: AppLocalizations.of(context).yesRemove,
           onTap: () async {
-            final newSharees = await CollectionsService.instance
-                .unshare(collection.id, user.email);
+            final newSharees = await CollectionsService.instance.unshare(
+              collection.id,
+              user.email,
+            );
             collection.updateSharees(newSharees);
           },
         ),
@@ -194,8 +219,9 @@ class CollectionActions {
         ),
       ],
       title: AppLocalizations.of(context).removeWithQuestionMark,
-      body: AppLocalizations.of(context)
-          .removeParticipantBody(userEmail: user.displayName ?? user.email),
+      body: AppLocalizations.of(
+        context,
+      ).removeParticipantBody(userEmail: user.displayName ?? user.email),
     );
     if (actionResult?.action != null) {
       if (actionResult!.action == ButtonAction.error) {
@@ -317,8 +343,38 @@ class CollectionActions {
       return false;
     } else {
       try {
-        final newSharees = await CollectionsService.instance
-            .share(collection.id, email, publicKey, role);
+        // Check if collection has descendants and show subtree share dialog
+        final treeService = CollectionsTreeService.instance;
+        final descendants = treeService.getDescendants(collection.id);
+
+        if (descendants.isNotEmpty && !showProgress) {
+          // Hide any existing progress dialog before showing subtree dialog
+          await dialog?.hide();
+
+          final shouldCascade = await showSubtreeShareDialog(
+            context,
+            collection: collection,
+            email: email,
+            publicKey: publicKey,
+            role: role,
+          );
+
+          if (shouldCascade) {
+            // Job is queued, show toast
+            showShortToast(
+              context,
+              "Sharing album and sub-albums with $email...",
+            );
+            return true;
+          }
+        }
+
+        final newSharees = await CollectionsService.instance.share(
+          collection.id,
+          email,
+          publicKey,
+          role,
+        );
         await dialog?.hide();
         collection.updateSharees(newSharees);
         return true;
@@ -393,8 +449,9 @@ class CollectionActions {
         ),
       ],
       bodyWidget: StyledText(
-        text: AppLocalizations.of(context)
-            .deleteMultipleAlbumDialog(count: collections.length),
+        text: AppLocalizations.of(
+          context,
+        ).deleteMultipleAlbumDialog(count: collections.length),
         style: textTheme.body.copyWith(color: textMutedDark),
         tags: {
           'bold': StyledTextTag(
@@ -431,8 +488,10 @@ class CollectionActions {
       throw AssertionError("Can not delete album owned by others");
     }
     if (collection.hasSharees) {
-      final bool confirmDelete =
-          await _confirmSharedAlbumDeletion(bContext, collection);
+      final bool confirmDelete = await _confirmSharedAlbumDeletion(
+        bContext,
+        collection,
+      );
       if (!confirmDelete) {
         return false;
       }
@@ -512,8 +571,9 @@ class CollectionActions {
     Collection collection,
     BuildContext bContext,
   ) async {
-    final List<EnteFile> files =
-        await FilesDB.instance.getAllFilesCollection(collection.id);
+    final List<EnteFile> files = await FilesDB.instance.getAllFilesCollection(
+      collection.id,
+    );
     await moveFilesFromCurrentCollection(
       bContext,
       collection,
@@ -529,8 +589,9 @@ class CollectionActions {
     BuildContext bContext,
   ) async {
     try {
-      final List<EnteFile> files =
-          await FilesDB.instance.getAllFilesCollection(collection.id);
+      final List<EnteFile> files = await FilesDB.instance.getAllFilesCollection(
+        collection.id,
+      );
       await moveFilesFromCurrentCollection(bContext, collection, files);
     } catch (e) {
       logger.severe("Failed to remove files from uncategorized", e);
@@ -645,8 +706,9 @@ class CollectionActions {
           if (!destCollectionToFilesMap.containsKey(targetCollection.id)) {
             destCollectionToFilesMap[targetCollection.id] = <EnteFile>[];
           }
-          destCollectionToFilesMap[targetCollection.id]!
-              .add(pendingAssignMap[file.uploadedFileID!]!);
+          destCollectionToFilesMap[targetCollection.id]!.add(
+            pendingAssignMap[file.uploadedFileID!]!,
+          );
           pendingAssignMap.remove(file.uploadedFileID);
         }
       }
@@ -668,8 +730,9 @@ class CollectionActions {
           if (!destCollectionToFilesMap.containsKey(toCollectionID)) {
             destCollectionToFilesMap[toCollectionID] = <EnteFile>[];
           }
-          destCollectionToFilesMap[toCollectionID]!
-              .add(pendingAssignMap[file.uploadedFileID!]!);
+          destCollectionToFilesMap[toCollectionID]!.add(
+            pendingAssignMap[file.uploadedFileID!]!,
+          );
         }
       }
     }
@@ -714,8 +777,9 @@ class CollectionActions {
     if (fromCollectionID == toCollectionID) {
       return false;
     }
-    final Collection? targetCollection =
-        collectionsService.getCollectionByID(toCollectionID);
+    final Collection? targetCollection = collectionsService.getCollectionByID(
+      toCollectionID,
+    );
     // ignore non-cached collections, uncategorized and favorite
     // collections and collections ignored by others
     if (targetCollection == null ||
@@ -730,9 +794,7 @@ class CollectionActions {
   Future<void> _showUnSupportedAlert(BuildContext context) async {
     final AlertDialog alert = AlertDialog(
       title: Text(AppLocalizations.of(context).sorry),
-      content: Text(
-        AppLocalizations.of(context).subscribeToEnableSharing,
-      ),
+      content: Text(AppLocalizations.of(context).subscribeToEnableSharing),
       actions: [
         ButtonWidget(
           buttonType: ButtonType.primary,

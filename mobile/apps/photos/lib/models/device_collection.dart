@@ -6,6 +6,7 @@ class DeviceCollection {
   final String name;
   final int count;
   final bool shouldBackup;
+  final bool useTreeMapping;
   UploadStrategy uploadStrategy;
   final String? coverId;
   int? collectionID;
@@ -24,5 +25,6 @@ class DeviceCollection {
     this.thumbnail,
     this.uploadStrategy = UploadStrategy.ifMissing,
     this.shouldBackup = false,
+    this.useTreeMapping = false,
   });
 }

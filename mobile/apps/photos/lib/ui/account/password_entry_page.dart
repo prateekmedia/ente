@@ -23,19 +23,12 @@ import 'package:photos/utils/dialog_util.dart';
 import 'package:photos/utils/navigation_util.dart';
 import "package:styled_text/styled_text.dart";
 
-enum PasswordEntryMode {
-  set,
-  update,
-  reset,
-}
+enum PasswordEntryMode { set, update, reset }
 
 class PasswordEntryPage extends StatefulWidget {
   final PasswordEntryMode mode;
 
-  const PasswordEntryPage({
-    required this.mode,
-    super.key,
-  });
+  const PasswordEntryPage({required this.mode, super.key});
 
   @override
   State<PasswordEntryPage> createState() => _PasswordEntryPageState();
@@ -159,8 +152,10 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
             child: ListView(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     buttonTextAndHeading,
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -171,13 +166,13 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                   child: Text(
                     widget.mode == PasswordEntryMode.set
                         ? AppLocalizations.of(context).enterPasswordToEncrypt
-                        : AppLocalizations.of(context)
-                            .enterNewPasswordToEncrypt,
+                        : AppLocalizations.of(
+                            context,
+                          ).enterNewPasswordToEncrypt,
                     textAlign: TextAlign.start,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium!
-                        .copyWith(fontSize: 14),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium!.copyWith(fontSize: 14),
                   ),
                 ),
                 const Padding(padding: EdgeInsets.all(8)),
@@ -185,17 +180,16 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: StyledText(
                     text: AppLocalizations.of(context).passwordWarning,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium!
-                        .copyWith(fontSize: 14),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium!.copyWith(fontSize: 14),
                     tags: {
                       'underline': StyledTextTag(
-                        style:
-                            Theme.of(context).textTheme.titleMedium!.copyWith(
-                                  fontSize: 14,
-                                  decoration: TextDecoration.underline,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium!
+                            .copyWith(
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                            ),
                       ),
                     },
                   ),
@@ -206,9 +200,7 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                   // password
                   visible: false,
                   child: TextFormField(
-                    autofillHints: const [
-                      AutofillHints.email,
-                    ],
+                    autofillHints: const [AutofillHints.email],
                     autocorrect: false,
                     keyboardType: TextInputType.emailAddress,
                     initialValue: email,
@@ -246,15 +238,15 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                               },
                             )
                           : _isPasswordValid
-                              ? Icon(
-                                  Icons.check,
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .focusedBorder!
-                                      .borderSide
-                                      .color,
-                                )
-                              : null,
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context)
+                                  .inputDecorationTheme
+                                  .focusedBorder!
+                                  .borderSide
+                                  .color,
+                            )
+                          : null,
                     ),
                     obscureText: !_password1Visible,
                     controller: _passwordController1,
@@ -267,7 +259,8 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                         _passwordStrength = estimatePasswordStrength(password);
                         _isPasswordValid =
                             _passwordStrength >= kMildPasswordStrengthThreshold;
-                        _passwordsMatch = _passwordInInputBox ==
+                        _passwordsMatch =
+                            _passwordInInputBox ==
                             _passwordInInputConfirmationBox;
                       });
                     },
@@ -310,15 +303,15 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                               },
                             )
                           : _passwordsMatch
-                              ? Icon(
-                                  Icons.check,
-                                  color: Theme.of(context)
-                                      .inputDecorationTheme
-                                      .focusedBorder!
-                                      .borderSide
-                                      .color,
-                                )
-                              : null,
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context)
+                                  .inputDecorationTheme
+                                  .focusedBorder!
+                                  .borderSide
+                                  .color,
+                            )
+                          : null,
                       border: UnderlineInputBorder(
                         borderSide: BorderSide.none,
                         borderRadius: BorderRadius.circular(6),
@@ -329,7 +322,8 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                       setState(() {
                         _passwordInInputConfirmationBox = cnfPassword;
                         if (_passwordInInputBox != '') {
-                          _passwordsMatch = _passwordInInputBox ==
+                          _passwordsMatch =
+                              _passwordInInputBox ==
                               _passwordInInputConfirmationBox;
                         }
                       });
@@ -337,18 +331,19 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                   ),
                 ),
                 Opacity(
-                  opacity:
-                      (_passwordInInputBox != '') && _password1InFocus ? 1 : 0,
+                  opacity: (_passwordInInputBox != '') && _password1InFocus
+                      ? 1
+                      : 0,
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: Text(
                       AppLocalizations.of(context).passwordStrength(
                         passwordStrengthValue: passwordStrengthText,
                       ),
-                      style: TextStyle(
-                        color: passwordStrengthColor,
-                      ),
+                      style: TextStyle(color: passwordStrengthColor),
                     ),
                   ),
                 ),
@@ -372,11 +367,11 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
                     child: RichText(
                       text: TextSpan(
                         text: AppLocalizations.of(context).howItWorks,
-                        style:
-                            Theme.of(context).textTheme.titleMedium!.copyWith(
-                                  fontSize: 14,
-                                  decoration: TextDecoration.underline,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium!
+                            .copyWith(
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                            ),
                       ),
                     ),
                   ),
@@ -398,8 +393,9 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
     );
     await dialog.show();
     try {
-      final result = await Configuration.instance
-          .getAttributesForNewPassword(_passwordController1.text);
+      final result = await Configuration.instance.getAttributesForNewPassword(
+        _passwordController1.text,
+      );
       await UserService.instance.updateKeyAttributes(
         result.item1,
         result.item2,
@@ -449,8 +445,9 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
     );
     await dialog.show();
     try {
-      final KeyGenResult result =
-          await Configuration.instance.generateKey(password);
+      final KeyGenResult result = await Configuration.instance.generateKey(
+        password,
+      );
       Configuration.instance.resetVolatilePassword();
       await dialog.hide();
       onDone() async {
@@ -500,8 +497,9 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
         showErrorDialog(
           context,
           AppLocalizations.of(context).insecureDevice,
-          AppLocalizations.of(context)
-              .sorryWeCouldNotGenerateSecureKeysOnThisDevicennplease,
+          AppLocalizations.of(
+            context,
+          ).sorryWeCouldNotGenerateSecureKeysOnThisDevicennplease,
         );
       } else {
         await showGenericErrorDialog(context: context, error: e);

@@ -19,7 +19,7 @@ class Memory {
   }
 
   Memory.fromFile(this.file, Map<int, int>? seenTimes)
-      : _seenTime = seenTimes?[file.generatedID] ?? -1;
+    : _seenTime = seenTimes?[file.generatedID] ?? -1;
 
   static List<Memory> fromFiles(
     List<EnteFile> files,

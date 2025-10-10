@@ -41,9 +41,7 @@ class _ImageEditorPaintBarState extends State<ImageEditorPaintBar>
       builder: (context, constraints) {
         return Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildFunctions(constraints),
-          ],
+          children: [_buildFunctions(constraints)],
         );
       },
     );

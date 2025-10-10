@@ -36,10 +36,7 @@ class _AllQuickLinksPageState extends State<AllQuickLinksPage> {
   Future<void> _navigateToCollectionPage(Collection c) async {
     final thumbnail = await CollectionsService.instance.getCover(c);
     final page = CollectionPage(
-      CollectionWithThumbnail(
-        c,
-        thumbnail,
-      ),
+      CollectionWithThumbnail(c, thumbnail),
       tagPrefix: heroTagPrefix,
     );
     // ignore: unawaited_futures
@@ -79,8 +76,9 @@ class _AllQuickLinksPageState extends State<AllQuickLinksPage> {
           labelText: AppLocalizations.of(context).yesRemove,
           onTap: () async {
             for (var selectedQuickLink in selectedQuickLinks) {
-              await CollectionActions(CollectionsService.instance)
-                  .trashCollectionKeepingPhotos(selectedQuickLink, context);
+              await CollectionActions(
+                CollectionsService.instance,
+              ).trashCollectionKeepingPhotos(selectedQuickLink, context);
               widget.quickLinks.remove(selectedQuickLink);
             }
             setState(() {
@@ -98,8 +96,9 @@ class _AllQuickLinksPageState extends State<AllQuickLinksPage> {
         ),
       ],
       title: AppLocalizations.of(context).removePublicLinks,
-      body: AppLocalizations.of(context)
-          .thisWillRemovePublicLinksOfAllSelectedQuickLinks,
+      body: AppLocalizations.of(
+        context,
+      ).thisWillRemovePublicLinksOfAllSelectedQuickLinks,
     );
     if (actionResult?.action != null) {
       if (actionResult!.action == ButtonAction.error) {
@@ -125,9 +124,7 @@ class _AllQuickLinksPageState extends State<AllQuickLinksPage> {
           onTap: () {
             Navigator.pop(context);
           },
-          child: const Icon(
-            Icons.arrow_back_outlined,
-          ),
+          child: const Icon(Icons.arrow_back_outlined),
         ),
         actions: [
           IconButton(
@@ -159,10 +156,7 @@ class _AllQuickLinksPageState extends State<AllQuickLinksPage> {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20,
-                horizontal: 16,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               child: ListView.separated(
                 itemBuilder: (context, index) {
                   return GestureDetector(

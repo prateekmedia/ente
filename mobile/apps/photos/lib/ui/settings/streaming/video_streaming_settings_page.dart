@@ -48,8 +48,9 @@ class _VideoStreamingSettingsPageState
       bottomNavigationBar: !hasEnabled
           ? SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16)
-                    .copyWith(bottom: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                ).copyWith(bottom: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -99,13 +100,15 @@ class _VideoStreamingSettingsPageState
                           TextSpan(
                             children: [
                               TextSpan(
-                                text: AppLocalizations.of(context)
-                                    .videoStreamingDescriptionLine1,
+                                text: AppLocalizations.of(
+                                  context,
+                                ).videoStreamingDescriptionLine1,
                               ),
                               const TextSpan(text: " "),
                               TextSpan(
-                                text: AppLocalizations.of(context)
-                                    .videoStreamingDescriptionLine2,
+                                text: AppLocalizations.of(
+                                  context,
+                                ).videoStreamingDescriptionLine2,
                               ),
                               const TextSpan(text: " "),
                               TextSpan(
@@ -119,8 +122,8 @@ class _VideoStreamingSettingsPageState
                             ],
                           ),
                           style: getEnteTextTheme(context).mini.copyWith(
-                                color: getEnteColorScheme(context).textMuted,
-                              ),
+                            color: getEnteColorScheme(context).textMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -151,13 +154,15 @@ class _VideoStreamingSettingsPageState
                         TextSpan(
                           children: [
                             TextSpan(
-                              text: AppLocalizations.of(context)
-                                  .videoStreamingDescriptionLine1,
+                              text: AppLocalizations.of(
+                                context,
+                              ).videoStreamingDescriptionLine1,
                             ),
                             const TextSpan(text: "\n"),
                             TextSpan(
-                              text: AppLocalizations.of(context)
-                                  .videoStreamingDescriptionLine2,
+                              text: AppLocalizations.of(
+                                context,
+                              ).videoStreamingDescriptionLine2,
                             ),
                             const TextSpan(text: "\n"),
                             TextSpan(
@@ -183,13 +188,15 @@ class _VideoStreamingSettingsPageState
   }
 
   Future<void> openHelp() async {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (BuildContext context) {
-          return WebPage(AppLocalizations.of(context).help, helpUrl);
-        },
-      ),
-    ).ignore();
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (BuildContext context) {
+              return WebPage(AppLocalizations.of(context).help, helpUrl);
+            },
+          ),
+        )
+        .ignore();
   }
 
   Future<void> toggleVideoStreaming() async {
@@ -244,8 +251,9 @@ class VideoStreamingStatusWidgetState
   void initState() {
     super.initState();
     init();
-    _subscription =
-        Bus.instance.on<VideoPreviewStateChangedEvent>().listen((event) {
+    _subscription = Bus.instance.on<VideoPreviewStateChangedEvent>().listen((
+      event,
+    ) {
       final status = event.status;
 
       // Handle different states
@@ -299,9 +307,9 @@ class VideoStreamingStatusWidgetState
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: Text(
                   AppLocalizations.of(context).videoStreamingNote,
-                  style: getEnteTextTheme(context).mini.copyWith(
-                        color: getEnteColorScheme(context).textMuted,
-                      ),
+                  style: getEnteTextTheme(
+                    context,
+                  ).mini.copyWith(color: getEnteColorScheme(context).textMuted),
                 ),
               ),
             ],

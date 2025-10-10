@@ -30,7 +30,8 @@ class CaptionedTextWidget extends StatelessWidget {
       Flexible(
         child: Text(
           capitalized,
-          style: textStyle ??
+          style:
+              textStyle ??
               (makeTextBold
                   ? enteTextTheme.bodyBold.copyWith(color: textColor)
                   : enteTextTheme.body.copyWith(color: textColor)),
@@ -60,9 +61,7 @@ class CaptionedTextWidget extends StatelessWidget {
     return Flexible(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 2),
-        child: Row(
-          children: children,
-        ),
+        child: Row(children: children),
       ),
     );
   }

@@ -28,9 +28,7 @@ import "package:photos/ui/sharing/user_avator_widget.dart";
 import "package:photos/utils/navigation_util.dart";
 
 class EmergencyPage extends StatefulWidget {
-  const EmergencyPage({
-    super.key,
-  });
+  const EmergencyPage({super.key});
 
   @override
   State<EmergencyPage> createState() => _EmergencyPageState();
@@ -47,12 +45,9 @@ class _EmergencyPageState extends State<EmergencyPage> {
     super.initState();
     currentUserID = Configuration.instance.getUserID()!;
     // set info to null after 5 second
-    Future.delayed(
-      const Duration(seconds: 0),
-      () async {
-        unawaited(_fetchData());
-      },
-    );
+    Future.delayed(const Duration(seconds: 0), () async {
+      unawaited(_fetchData());
+    });
   }
 
   Future<void> _fetchData() async {
@@ -67,10 +62,7 @@ class _EmergencyPageState extends State<EmergencyPage> {
         });
       }
     } catch (e) {
-      showShortToast(
-        context,
-        AppLocalizations.of(context).somethingWentWrong,
-      );
+      showShortToast(context, AppLocalizations.of(context).somethingWentWrong);
     }
   }
 
@@ -94,55 +86,46 @@ class _EmergencyPageState extends State<EmergencyPage> {
           if (info == null)
             const SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(
-                child: EnteLoadingWidget(),
-              ),
+              child: Center(child: EnteLoadingWidget()),
             ),
           if (info != null)
             if (info!.recoverSessions.isNotEmpty)
               SliverPadding(
-                padding: const EdgeInsets.only(
-                  top: 20,
-                  left: 16,
-                  right: 16,
-                ),
+                padding: const EdgeInsets.only(top: 20, left: 16, right: 16),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: NotificationWidget(
-                            startIcon: Icons.warning_amber_rounded,
-                            text: context.l10n.recoveryWarning,
-                            actionIcon: null,
-                            onTap: () {},
-                          ),
-                        );
-                      }
-                      final RecoverySessions recoverSession =
-                          info!.recoverSessions[index - 1];
-                      return MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: recoverSession.emergencyContact.email,
-                          makeTextBold: recoverSession.status.isNotEmpty,
-                          textColor: colorScheme.warning500,
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: NotificationWidget(
+                          startIcon: Icons.warning_amber_rounded,
+                          text: context.l10n.recoveryWarning,
+                          actionIcon: null,
+                          onTap: () {},
                         ),
-                        leadingIconWidget: UserAvatarWidget(
-                          recoverSession.emergencyContact,
-                          currentUserID: currentUserID,
-                        ),
-                        leadingIconSize: 24,
-                        menuItemColor: colorScheme.fillFaint,
-                        singleBorderRadius: 8,
-                        trailingIcon: Icons.chevron_right,
-                        onTap: () async {
-                          await showRejectRecoveryDialog(recoverSession);
-                        },
                       );
-                    },
-                    childCount: 1 + info!.recoverSessions.length,
-                  ),
+                    }
+                    final RecoverySessions recoverSession =
+                        info!.recoverSessions[index - 1];
+                    return MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: recoverSession.emergencyContact.email,
+                        makeTextBold: recoverSession.status.isNotEmpty,
+                        textColor: colorScheme.warning500,
+                      ),
+                      leadingIconWidget: UserAvatarWidget(
+                        recoverSession.emergencyContact,
+                        currentUserID: currentUserID,
+                      ),
+                      leadingIconSize: 24,
+                      menuItemColor: colorScheme.fillFaint,
+                      singleBorderRadius: 8,
+                      trailingIcon: Icons.chevron_right,
+                      onTap: () async {
+                        await showRejectRecoveryDialog(recoverSession);
+                      },
+                    );
+                  }, childCount: 1 + info!.recoverSessions.length),
                 ),
               ),
           if (info != null)
@@ -154,212 +137,201 @@ class _EmergencyPageState extends State<EmergencyPage> {
                 bottom: 8,
               ),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index == 0 && trustedContacts.isNotEmpty) {
-                      return MenuSectionTitle(
-                        title: AppLocalizations.of(context).trustedContacts,
-                      );
-                    } else if (index > 0 && index <= trustedContacts.length) {
-                      final listIndex = index - 1;
-                      final contact = trustedContacts[listIndex];
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index == 0 && trustedContacts.isNotEmpty) {
+                    return MenuSectionTitle(
+                      title: AppLocalizations.of(context).trustedContacts,
+                    );
+                  } else if (index > 0 && index <= trustedContacts.length) {
+                    final listIndex = index - 1;
+                    final contact = trustedContacts[listIndex];
+                    return Column(
+                      children: [
+                        MenuItemWidget(
+                          captionedTextWidget: CaptionedTextWidget(
+                            title: contact.emergencyContact.email,
+                            subTitle: contact.isPendingInvite() ? "⚠" : null,
+                            makeTextBold: contact.isPendingInvite(),
+                          ),
+                          leadingIconSize: 24.0,
+                          surfaceExecutionStates: false,
+                          alwaysShowSuccessState: false,
+                          leadingIconWidget: UserAvatarWidget(
+                            contact.emergencyContact,
+                            type: AvatarType.mini,
+                            currentUserID: currentUserID,
+                          ),
+                          menuItemColor: getEnteColorScheme(context).fillFaint,
+                          trailingIcon: Icons.chevron_right,
+                          trailingIconIsMuted: true,
+                          onTap: () async {
+                            await showRevokeOrRemoveDialog(context, contact);
+                          },
+                          isTopBorderRadiusRemoved: listIndex > 0,
+                          isBottomBorderRadiusRemoved: true,
+                          singleBorderRadius: 8,
+                        ),
+                        DividerWidget(
+                          dividerType: DividerType.menu,
+                          bgColor: getEnteColorScheme(context).fillFaint,
+                        ),
+                      ],
+                    );
+                  } else if (index == (1 + trustedContacts.length)) {
+                    if (trustedContacts.isEmpty) {
                       return Column(
                         children: [
-                          MenuItemWidget(
-                            captionedTextWidget: CaptionedTextWidget(
-                              title: contact.emergencyContact.email,
-                              subTitle: contact.isPendingInvite() ? "⚠" : null,
-                              makeTextBold: contact.isPendingInvite(),
-                            ),
-                            leadingIconSize: 24.0,
-                            surfaceExecutionStates: false,
-                            alwaysShowSuccessState: false,
-                            leadingIconWidget: UserAvatarWidget(
-                              contact.emergencyContact,
-                              type: AvatarType.mini,
-                              currentUserID: currentUserID,
-                            ),
-                            menuItemColor:
-                                getEnteColorScheme(context).fillFaint,
-                            trailingIcon: Icons.chevron_right,
-                            trailingIconIsMuted: true,
-                            onTap: () async {
-                              await showRevokeOrRemoveDialog(context, contact);
-                            },
-                            isTopBorderRadiusRemoved: listIndex > 0,
-                            isBottomBorderRadiusRemoved: true,
-                            singleBorderRadius: 8,
+                          const SizedBox(height: 20),
+                          Text(
+                            context.l10n.legacyPageDesc,
+                            style: getEnteTextTheme(context).body,
                           ),
-                          DividerWidget(
-                            dividerType: DividerType.menu,
-                            bgColor: getEnteColorScheme(context).fillFaint,
+                          SizedBox(
+                            height: 200,
+                            width: 200,
+                            child: SvgPicture.asset(
+                              getEnteColorScheme(context).backdropBase ==
+                                      backgroundBaseDark
+                                  ? "assets/icons/legacy-light.svg"
+                                  : "assets/icons/legacy-dark.svg",
+                              width: 156,
+                              height: 152,
+                            ),
+                          ),
+                          Text(
+                            context.l10n.legacyPageDesc2,
+                            style: getEnteTextTheme(context).smallMuted,
+                          ),
+                          const SizedBox(height: 16),
+                          ButtonWidget(
+                            buttonType: ButtonType.primary,
+                            labelText: AppLocalizations.of(
+                              context,
+                            ).addTrustedContact,
+                            shouldSurfaceExecutionStates: false,
+                            onTap: () async {
+                              await routeToPage(
+                                context,
+                                AddContactPage(info!),
+                                forceCustomPageRoute: true,
+                              );
+                              unawaited(_fetchData());
+                            },
                           ),
                         ],
                       );
-                    } else if (index == (1 + trustedContacts.length)) {
-                      if (trustedContacts.isEmpty) {
-                        return Column(
-                          children: [
-                            const SizedBox(height: 20),
-                            Text(
-                              context.l10n.legacyPageDesc,
-                              style: getEnteTextTheme(context).body,
-                            ),
-                            SizedBox(
-                              height: 200,
-                              width: 200,
-                              child: SvgPicture.asset(
-                                getEnteColorScheme(context).backdropBase ==
-                                        backgroundBaseDark
-                                    ? "assets/icons/legacy-light.svg"
-                                    : "assets/icons/legacy-dark.svg",
-                                width: 156,
-                                height: 152,
-                              ),
-                            ),
-                            Text(
-                              context.l10n.legacyPageDesc2,
-                              style: getEnteTextTheme(context).smallMuted,
-                            ),
-                            const SizedBox(height: 16),
-                            ButtonWidget(
-                              buttonType: ButtonType.primary,
-                              labelText: AppLocalizations.of(context)
-                                  .addTrustedContact,
-                              shouldSurfaceExecutionStates: false,
-                              onTap: () async {
-                                await routeToPage(
-                                  context,
-                                  AddContactPage(info!),
-                                  forceCustomPageRoute: true,
-                                );
-                                unawaited(_fetchData());
-                              },
-                            ),
-                          ],
-                        );
-                      }
-                      return MenuItemWidget(
-                        captionedTextWidget: CaptionedTextWidget(
-                          title: trustedContacts.isNotEmpty
-                              ? AppLocalizations.of(context).addMore
-                              : AppLocalizations.of(context).addTrustedContact,
-                          makeTextBold: true,
-                        ),
-                        leadingIcon: Icons.add_outlined,
-                        surfaceExecutionStates: false,
-                        menuItemColor: getEnteColorScheme(context).fillFaint,
-                        onTap: () async {
-                          await routeToPage(
-                            context,
-                            AddContactPage(info!),
-                            forceCustomPageRoute: true,
-                          );
-                          unawaited(_fetchData());
-                        },
-                        isTopBorderRadiusRemoved: trustedContacts.isNotEmpty,
-                        singleBorderRadius: 8,
-                      );
                     }
-                    return const SizedBox.shrink();
-                  },
-                  childCount: 1 + trustedContacts.length + 1,
-                ),
+                    return MenuItemWidget(
+                      captionedTextWidget: CaptionedTextWidget(
+                        title: trustedContacts.isNotEmpty
+                            ? AppLocalizations.of(context).addMore
+                            : AppLocalizations.of(context).addTrustedContact,
+                        makeTextBold: true,
+                      ),
+                      leadingIcon: Icons.add_outlined,
+                      surfaceExecutionStates: false,
+                      menuItemColor: getEnteColorScheme(context).fillFaint,
+                      onTap: () async {
+                        await routeToPage(
+                          context,
+                          AddContactPage(info!),
+                          forceCustomPageRoute: true,
+                        );
+                        unawaited(_fetchData());
+                      },
+                      isTopBorderRadiusRemoved: trustedContacts.isNotEmpty,
+                      singleBorderRadius: 8,
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }, childCount: 1 + trustedContacts.length + 1),
               ),
             ),
           if (info != null && info!.othersEmergencyContact.isNotEmpty)
             SliverPadding(
               padding: const EdgeInsets.only(top: 0, left: 16, right: 16),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index == 0 && (othersTrustedContacts.isNotEmpty)) {
-                      return Column(
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
-                            child: DividerWidget(
-                              dividerType: DividerType.solid,
-                            ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index == 0 && (othersTrustedContacts.isNotEmpty)) {
+                    return Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: DividerWidget(dividerType: DividerType.solid),
+                        ),
+                        MenuSectionTitle(title: context.l10n.legacyAccounts),
+                      ],
+                    );
+                  } else if (index > 0 &&
+                      index <= othersTrustedContacts.length) {
+                    final listIndex = index - 1;
+                    final currentUser = othersTrustedContacts[listIndex];
+                    final isLastItem = index == othersTrustedContacts.length;
+                    return Column(
+                      children: [
+                        MenuItemWidget(
+                          captionedTextWidget: CaptionedTextWidget(
+                            title: currentUser.user.email,
+                            makeTextBold: currentUser.isPendingInvite(),
+                            subTitle: currentUser.isPendingInvite()
+                                ? "⚠"
+                                : null,
                           ),
-                          MenuSectionTitle(
-                            title: context.l10n.legacyAccounts,
+                          leadingIconSize: 24.0,
+                          leadingIconWidget: UserAvatarWidget(
+                            currentUser.user,
+                            type: AvatarType.mini,
+                            currentUserID: currentUserID,
                           ),
-                        ],
-                      );
-                    } else if (index > 0 &&
-                        index <= othersTrustedContacts.length) {
-                      final listIndex = index - 1;
-                      final currentUser = othersTrustedContacts[listIndex];
-                      final isLastItem = index == othersTrustedContacts.length;
-                      return Column(
-                        children: [
-                          MenuItemWidget(
-                            captionedTextWidget: CaptionedTextWidget(
-                              title: currentUser.user.email,
-                              makeTextBold: currentUser.isPendingInvite(),
-                              subTitle:
-                                  currentUser.isPendingInvite() ? "⚠" : null,
-                            ),
-                            leadingIconSize: 24.0,
-                            leadingIconWidget: UserAvatarWidget(
-                              currentUser.user,
-                              type: AvatarType.mini,
-                              currentUserID: currentUserID,
-                            ),
-                            menuItemColor:
-                                getEnteColorScheme(context).fillFaint,
-                            trailingIcon: Icons.chevron_right,
-                            trailingIconIsMuted: true,
-                            onTap: () async {
-                              if (currentUser.isPendingInvite()) {
-                                await showAcceptOrDeclineDialog(
-                                  context,
-                                  currentUser,
-                                );
-                              } else {
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) {
-                                      return OtherContactPage(
-                                        contact: currentUser,
-                                        emergencyInfo: info!,
-                                      );
-                                    },
-                                  ),
-                                );
-
-                                // await routeToPage(
-                                //   context,
-                                //   OtherContactPage(
-                                //     contact: currentUser,
-                                //     emergencyInfo: info!,
-                                //   ),
-                                // );
-                                if (mounted) {
-                                  unawaited(_fetchData());
-                                }
-                              }
-                            },
-                            isTopBorderRadiusRemoved: listIndex > 0,
-                            isBottomBorderRadiusRemoved: !isLastItem,
-                            singleBorderRadius: 8,
-                            surfaceExecutionStates: false,
-                          ),
-                          isLastItem
-                              ? const SizedBox.shrink()
-                              : DividerWidget(
-                                  dividerType: DividerType.menu,
-                                  bgColor:
-                                      getEnteColorScheme(context).fillFaint,
+                          menuItemColor: getEnteColorScheme(context).fillFaint,
+                          trailingIcon: Icons.chevron_right,
+                          trailingIconIsMuted: true,
+                          onTap: () async {
+                            if (currentUser.isPendingInvite()) {
+                              await showAcceptOrDeclineDialog(
+                                context,
+                                currentUser,
+                              );
+                            } else {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (BuildContext context) {
+                                    return OtherContactPage(
+                                      contact: currentUser,
+                                      emergencyInfo: info!,
+                                    );
+                                  },
                                 ),
-                        ],
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                  childCount: 1 + othersTrustedContacts.length + 1,
-                ),
+                              );
+
+                              // await routeToPage(
+                              //   context,
+                              //   OtherContactPage(
+                              //     contact: currentUser,
+                              //     emergencyInfo: info!,
+                              //   ),
+                              // );
+                              if (mounted) {
+                                unawaited(_fetchData());
+                              }
+                            }
+                          },
+                          isTopBorderRadiusRemoved: listIndex > 0,
+                          isBottomBorderRadiusRemoved: !isLastItem,
+                          singleBorderRadius: 8,
+                          surfaceExecutionStates: false,
+                        ),
+                        isLastItem
+                            ? const SizedBox.shrink()
+                            : DividerWidget(
+                                dividerType: DividerType.menu,
+                                bgColor: getEnteColorScheme(context).fillFaint,
+                              ),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }, childCount: 1 + othersTrustedContacts.length + 1),
               ),
             ),
         ],
@@ -387,8 +359,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
             shouldSurfaceExecutionStates: true,
             shouldShowSuccessConfirmation: false,
             onTap: () async {
-              await EmergencyContactService.instance
-                  .updateContact(contact, ContactState.userRevokedContact);
+              await EmergencyContactService.instance.updateContact(
+                contact,
+                ContactState.userRevokedContact,
+              );
               info?.contacts.remove(contact);
               if (mounted) {
                 setState(() {});
@@ -423,8 +397,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
             shouldSurfaceExecutionStates: true,
             shouldShowSuccessConfirmation: false,
             onTap: () async {
-              await EmergencyContactService.instance
-                  .updateContact(contact, ContactState.userRevokedContact);
+              await EmergencyContactService.instance.updateContact(
+                contact,
+                ContactState.userRevokedContact,
+              );
               info?.contacts.remove(contact);
               if (mounted) {
                 setState(() {});
@@ -460,10 +436,13 @@ class _EmergencyPageState extends State<EmergencyPage> {
           shouldStickToDarkTheme: true,
           buttonAction: ButtonAction.first,
           onTap: () async {
-            await EmergencyContactService.instance
-                .updateContact(contact, ContactState.contactAccepted);
-            final updatedContact =
-                contact.copyWith(state: ContactState.contactAccepted);
+            await EmergencyContactService.instance.updateContact(
+              contact,
+              ContactState.contactAccepted,
+            );
+            final updatedContact = contact.copyWith(
+              state: ContactState.contactAccepted,
+            );
             info?.othersEmergencyContact.remove(contact);
             info?.othersEmergencyContact.add(updatedContact);
             if (mounted) {
@@ -479,8 +458,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
           buttonAction: ButtonAction.second,
           shouldStickToDarkTheme: true,
           onTap: () async {
-            await EmergencyContactService.instance
-                .updateContact(contact, ContactState.contactDenied);
+            await EmergencyContactService.instance.updateContact(
+              contact,
+              ContactState.contactDenied,
+            );
             info?.othersEmergencyContact.remove(contact);
             if (mounted) {
               setState(() {});
@@ -497,8 +478,9 @@ class _EmergencyPageState extends State<EmergencyPage> {
           isInAlert: true,
         ),
       ],
-      body:
-          AppLocalizations.of(context).legacyInvite(email: contact.user.email),
+      body: AppLocalizations.of(
+        context,
+      ).legacyInvite(email: contact.user.email),
       actionSheetType: ActionSheetType.defaultActionSheet,
     );
     return;
@@ -517,8 +499,9 @@ class _EmergencyPageState extends State<EmergencyPage> {
           buttonAction: ButtonAction.first,
           onTap: () async {
             await EmergencyContactService.instance.rejectRecovery(session);
-            info?.recoverSessions
-                .removeWhere((element) => element.id == session.id);
+            info?.recoverSessions.removeWhere(
+              (element) => element.id == session.id,
+            );
             if (mounted) {
               setState(() {});
             }

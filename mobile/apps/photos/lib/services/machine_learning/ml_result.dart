@@ -32,14 +32,14 @@ class MLResult {
   }) : fileId = fileID;
 
   Map<String, dynamic> _toJson() => {
-        'fileId': fileId,
-        'faces': faces?.map((face) => face.toJson()).toList(),
-        'clip': clip?.toJson(),
-        'decodedImageSize': {
-          'width': decodedImageSize.width,
-          'height': decodedImageSize.height,
-        },
-      };
+    'fileId': fileId,
+    'faces': faces?.map((face) => face.toJson()).toList(),
+    'clip': clip?.toJson(),
+    'decodedImageSize': {
+      'width': decodedImageSize.width,
+      'height': decodedImageSize.height,
+    },
+  };
 
   String toJsonString() => jsonEncode(_toJson());
 
@@ -48,8 +48,10 @@ class MLResult {
       fileId: json['fileId'],
       faces: json['faces'] != null
           ? (json['faces'] as List)
-              .map((item) => FaceResult.fromJson(item as Map<String, dynamic>))
-              .toList()
+                .map(
+                  (item) => FaceResult.fromJson(item as Map<String, dynamic>),
+                )
+                .toList()
           : null,
       clip: json['clip'] != null
           ? ClipResult.fromJson(json['clip'] as Map<String, dynamic>)
@@ -60,13 +62,13 @@ class MLResult {
               height: json['decodedImageSize']['height'],
             )
           : json['faceDetectionImageSize'] == null
-              ? const Dimensions(width: -1, height: -1)
-              : Dimensions(
-                  width: (json['faceDetectionImageSize']['width'] as double)
-                      .truncate(),
-                  height: (json['faceDetectionImageSize']['height'] as double)
-                      .truncate(),
-                ),
+          ? const Dimensions(width: -1, height: -1)
+          : Dimensions(
+              width: (json['faceDetectionImageSize']['width'] as double)
+                  .truncate(),
+              height: (json['faceDetectionImageSize']['height'] as double)
+                  .truncate(),
+            ),
     );
   }
 
@@ -79,15 +81,9 @@ class ClipResult {
   final int fileID;
   final Embedding embedding;
 
-  ClipResult({
-    required this.fileID,
-    required this.embedding,
-  });
+  ClipResult({required this.fileID, required this.embedding});
 
-  Map<String, dynamic> toJson() => {
-        'fileID': fileID,
-        'embedding': embedding,
-      };
+  Map<String, dynamic> toJson() => {'fileID': fileID, 'embedding': embedding};
 
   static ClipResult fromJson(Map<String, dynamic> json) {
     return ClipResult(
@@ -126,13 +122,13 @@ class FaceResult {
   }
 
   Map<String, dynamic> toJson() => {
-        'detection': detection.toJson(),
-        'blurValue': blurValue,
-        'alignment': alignment.toJson(),
-        'embedding': embedding,
-        'fileId': fileId,
-        'faceId': faceId,
-      };
+    'detection': detection.toJson(),
+    'blurValue': blurValue,
+    'alignment': alignment.toJson(),
+    'embedding': embedding,
+    'fileId': fileId,
+    'faceId': faceId,
+  };
 
   static FaceResult fromJson(Map<String, dynamic> json) {
     return FaceResult(
@@ -156,10 +152,7 @@ T getFileIdFromFaceId<T extends Object>(String faceId) {
       return faceIdSplit as T;
     }
   } catch (e) {
-    Logger("FaceID").severe(
-      "Error parsing faceId: $faceId with type $T",
-      e,
-    );
+    Logger("FaceID").severe("Error parsing faceId: $faceId with type $T", e);
   }
   throw ArgumentError("Unsupported type: $T");
 }
@@ -168,11 +161,7 @@ int? tryGetFileIdFromFaceId(String faceId) {
   try {
     return int.tryParse(faceId.substring(0, faceId.indexOf('_')));
   } catch (e, s) {
-    Logger("FaceID").severe(
-      "Error parsing faceId: $faceId",
-      e,
-      s,
-    );
+    Logger("FaceID").severe("Error parsing faceId: $faceId", e, s);
     return null;
   }
 }

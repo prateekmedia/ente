@@ -29,10 +29,7 @@ class UnSyncedIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _BottomLeftOverlayIcon(
-      Icons.cloud_off_outlined,
-      baseSize: 18,
-    );
+    return const _BottomLeftOverlayIcon(Icons.cloud_off_outlined, baseSize: 18);
   }
 }
 
@@ -67,10 +64,7 @@ class FavoriteOverlayIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _BottomLeftOverlayIcon(
-      Icons.favorite_rounded,
-      baseSize: 22,
-    );
+    return const _BottomLeftOverlayIcon(Icons.favorite_rounded, baseSize: 22);
   }
 }
 
@@ -104,10 +98,7 @@ class LivePhotoOverlayIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _BottomRightOverlayIcon(
-      Icons.album_outlined,
-      baseSize: 18,
-    );
+    return const _BottomRightOverlayIcon(Icons.album_outlined, baseSize: 18);
   }
 }
 
@@ -160,9 +151,9 @@ class VideoOverlayDuration extends StatelessWidget {
             child: Text(
               formattedDuration,
               style: getEnteTextTheme(context).small.copyWith(
-                    color: Colors.white,
-                    fontSize: size, // Default font size is 14
-                  ),
+                color: Colors.white,
+                fontSize: size, // Default font size is 14
+              ),
             ),
           );
         }
@@ -187,8 +178,9 @@ class VideoOverlayDuration extends StatelessWidget {
   }
 
   String _getFormattedDuration(int duration) {
-    final String formattedDuration =
-        Duration(seconds: duration).toString().split('.').first;
+    final String formattedDuration = Duration(
+      seconds: duration,
+    ).toString().split('.').first;
     final List<String> separated = formattedDuration.split(':');
     final String hour = (separated[0] == '0') ? '' : separated[0] + ':';
     final String minute = int.parse(separated[1]).toString() + ':';
@@ -263,10 +255,9 @@ class FileOverlayText extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 5),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .titleSmall!
-            .copyWith(color: Colors.white), //same for both themes
+        style: Theme.of(context).textTheme.titleSmall!.copyWith(
+          color: Colors.white,
+        ), //same for both themes
       ),
     );
   }
@@ -329,11 +320,7 @@ class _BottomLeftOverlayIcon extends StatelessWidget {
             alignment: Alignment.bottomLeft,
             child: Padding(
               padding: EdgeInsets.only(left: inset, bottom: inset),
-              child: Icon(
-                icon,
-                size: size,
-                color: color,
-              ),
+              child: Icon(icon, size: size, color: color),
             ),
           ),
         );
@@ -402,18 +389,10 @@ class _BottomRightOverlayIcon extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.only(bottom: inset, right: inset),
               child: rotationAngle == null
-                  ? Icon(
-                      icon,
-                      size: size,
-                      color: color,
-                    )
+                  ? Icon(icon, size: size, color: color)
                   : Transform.rotate(
                       angle: rotationAngle!, // rotate by 45 degrees
-                      child: Icon(
-                        icon,
-                        size: size,
-                        color: color,
-                      ),
+                      child: Icon(icon, size: size, color: color),
                     ),
             ),
           ),

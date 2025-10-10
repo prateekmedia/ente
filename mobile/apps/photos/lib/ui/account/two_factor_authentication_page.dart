@@ -72,12 +72,10 @@ class _TwoFactorAuthenticationPageState
       mainAxisSize: MainAxisSize.max,
       children: [
         Text(
-          AppLocalizations.of(context)
-              .enterThe6digitCodeFromnyourAuthenticatorApp,
-          style: const TextStyle(
-            height: 1.4,
-            fontSize: 16,
-          ),
+          AppLocalizations.of(
+            context,
+          ).enterThe6digitCodeFromnyourAuthenticatorApp,
+          style: const TextStyle(height: 1.4, fontSize: 16),
           textAlign: TextAlign.center,
         ),
         const Padding(padding: EdgeInsets.all(32)),

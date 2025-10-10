@@ -7,19 +7,10 @@ import "package:photos/ui/tools/collage/collage_item_widget.dart";
 import "package:photos/ui/tools/collage/collage_save_button.dart";
 import "package:widgets_to_image/widgets_to_image.dart";
 
-enum Variant {
-  first,
-  second,
-  third,
-}
+enum Variant { first, second, third }
 
 class CollageWithThreeItems extends StatefulWidget {
-  const CollageWithThreeItems(
-    this.first,
-    this.second,
-    this.third, {
-    super.key,
-  });
+  const CollageWithThreeItems(this.first, this.second, this.third, {super.key});
 
   final EnteFile first, second, third;
 
@@ -53,9 +44,7 @@ class _CollageWithThreeItemsState extends State<CollageWithThreeItems> {
     return Row(
       children: [
         CollageLayoutIconButton(
-          child: FirstVariantIcon(
-            isActive: _variant == Variant.first,
-          ),
+          child: FirstVariantIcon(isActive: _variant == Variant.first),
           onTap: () {
             setState(() {
               _variant = Variant.first;
@@ -63,9 +52,7 @@ class _CollageWithThreeItemsState extends State<CollageWithThreeItems> {
           },
         ),
         CollageLayoutIconButton(
-          child: SecondVariantIcon(
-            isActive: _variant == Variant.second,
-          ),
+          child: SecondVariantIcon(isActive: _variant == Variant.second),
           onTap: () {
             setState(() {
               _variant = Variant.second;
@@ -76,9 +63,7 @@ class _CollageWithThreeItemsState extends State<CollageWithThreeItems> {
           behavior: HitTestBehavior.opaque,
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: ThirdVariantIcon(
-              isActive: _variant == Variant.third,
-            ),
+            child: ThirdVariantIcon(isActive: _variant == Variant.third),
           ),
           onTap: () {
             setState(() {
@@ -265,10 +250,7 @@ class ThirdVariant extends StatelessWidget {
 }
 
 class FirstVariantIcon extends StatelessWidget {
-  const FirstVariantIcon({
-    super.key,
-    this.isActive = false,
-  });
+  const FirstVariantIcon({super.key, this.isActive = false});
 
   final bool isActive;
 
@@ -289,10 +271,7 @@ class FirstVariantIcon extends StatelessWidget {
 }
 
 class SecondVariantIcon extends StatelessWidget {
-  const SecondVariantIcon({
-    super.key,
-    this.isActive = false,
-  });
+  const SecondVariantIcon({super.key, this.isActive = false});
   final bool isActive;
 
   @override
@@ -312,10 +291,7 @@ class SecondVariantIcon extends StatelessWidget {
 }
 
 class ThirdVariantIcon extends StatelessWidget {
-  const ThirdVariantIcon({
-    super.key,
-    this.isActive = false,
-  });
+  const ThirdVariantIcon({super.key, this.isActive = false});
   final bool isActive;
 
   @override

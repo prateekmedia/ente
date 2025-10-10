@@ -41,14 +41,15 @@ class _AlbumsWidgetSettingsState extends State<AlbumsWidgetSettings> {
   }
 
   Future<void> selectExisting() async {
-    final selectedAlbums =
-        AlbumHomeWidgetService.instance.getSelectedAlbumIds();
+    final selectedAlbums = AlbumHomeWidgetService.instance
+        .getSelectedAlbumIds();
     final albums = <Collection>{};
 
     if (selectedAlbums != null) {
       for (final collectionID in selectedAlbums) {
-        final collection =
-            CollectionsService.instance.getCollectionByID(collectionID);
+        final collection = CollectionsService.instance.getCollectionByID(
+          collectionID,
+        );
 
         if (collection != null) {
           albums.add(collection);
@@ -57,8 +58,8 @@ class _AlbumsWidgetSettingsState extends State<AlbumsWidgetSettings> {
     }
 
     if (albums.isEmpty) {
-      final favorites =
-          await FavoritesService.instance.getFavoritesCollection();
+      final favorites = await FavoritesService.instance
+          .getFavoritesCollection();
 
       if (favorites == null) {
         return;

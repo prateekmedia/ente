@@ -60,9 +60,9 @@ class AccountSectionWidget extends StatelessWidget {
           onTap: () async {
             final hasAuthenticated = await LocalAuthenticationService.instance
                 .requestLocalAuthentication(
-              context,
-              AppLocalizations.of(context).authToChangeYourEmail,
-            );
+                  context,
+                  AppLocalizations.of(context).authToChangeYourEmail,
+                );
             if (hasAuthenticated) {
               // ignore: unawaited_futures
               showDialog(
@@ -89,9 +89,9 @@ class AccountSectionWidget extends StatelessWidget {
           onTap: () async {
             final hasAuthenticated = await LocalAuthenticationService.instance
                 .requestLocalAuthentication(
-              context,
-              AppLocalizations.of(context).authToChangeYourPassword,
-            );
+                  context,
+                  AppLocalizations.of(context).authToChangeYourPassword,
+                );
             if (hasAuthenticated) {
               // ignore: unawaited_futures
               Navigator.of(context).push(
@@ -118,9 +118,9 @@ class AccountSectionWidget extends StatelessWidget {
           onTap: () async {
             final hasAuthenticated = await LocalAuthenticationService.instance
                 .requestLocalAuthentication(
-              context,
-              AppLocalizations.of(context).authToViewYourRecoveryKey,
-            );
+                  context,
+                  AppLocalizations.of(context).authToViewYourRecoveryKey,
+                );
             if (hasAuthenticated) {
               String recoveryKey;
               try {
@@ -153,20 +153,23 @@ class AccountSectionWidget extends StatelessWidget {
           trailingIconIsMuted: true,
           showOnlyLoadingState: true,
           onTap: () async {
-            final hasAuthenticated = kDebugMode ||
+            final hasAuthenticated =
+                kDebugMode ||
                 await LocalAuthenticationService.instance
                     .requestLocalAuthentication(
-                  context,
-                  AppLocalizations.of(context).authToManageLegacy,
-                );
+                      context,
+                      AppLocalizations.of(context).authToManageLegacy,
+                    );
             if (hasAuthenticated) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (BuildContext context) {
-                    return const EmergencyPage();
-                  },
-                ),
-              ).ignore();
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      builder: (BuildContext context) {
+                        return const EmergencyPage();
+                      },
+                    ),
+                  )
+                  .ignore();
             }
           },
         ),
@@ -206,9 +209,9 @@ class AccountSectionWidget extends StatelessWidget {
           onTap: () async {
             final hasAuthenticated = await LocalAuthenticationService.instance
                 .requestLocalAuthentication(
-              context,
-              AppLocalizations.of(context).authToInitiateAccountDeletion,
-            );
+                  context,
+                  AppLocalizations.of(context).authToInitiateAccountDeletion,
+                );
             if (hasAuthenticated) {
               unawaited(
                 Navigator.of(context).push(

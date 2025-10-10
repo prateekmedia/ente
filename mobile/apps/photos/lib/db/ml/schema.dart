@@ -19,7 +19,8 @@ const personOrClusterIdColumn = 'person_or_cluster_id';
 const textQueryColumn = 'text_query';
 const createdAtColumn = 'created_at';
 
-const createFacesTable = '''CREATE TABLE IF NOT EXISTS $facesTable (
+const createFacesTable =
+    '''CREATE TABLE IF NOT EXISTS $facesTable (
   $fileIDColumn	INTEGER NOT NULL,
   $faceIDColumn  TEXT NOT NULL UNIQUE,
 	$faceDetectionColumn	TEXT NOT NULL,
@@ -41,7 +42,8 @@ const deleteFacesTable = 'DELETE FROM $facesTable';
 const faceClustersTable = 'face_clusters';
 
 // fcClusterId & fcFaceId are the primary keys and fcClusterId is a foreign key to faces table
-const createFaceClustersTable = '''
+const createFaceClustersTable =
+    '''
 CREATE TABLE IF NOT EXISTS $faceClustersTable (
   $faceIDColumn	TEXT NOT NULL,
   $clusterIDColumn TEXT NOT NULL,
@@ -57,7 +59,8 @@ const deleteFaceClustersTable = 'DELETE FROM $faceClustersTable';
 // Clusters Table Fields & Schema Queries
 const clusterPersonTable = 'cluster_person';
 
-const createClusterPersonTable = '''
+const createClusterPersonTable =
+    '''
 CREATE TABLE IF NOT EXISTS $clusterPersonTable (
   $personIdColumn	TEXT NOT NULL,
   $clusterIDColumn	TEXT NOT NULL,
@@ -71,7 +74,8 @@ const deleteClusterPersonTable = 'DELETE FROM $clusterPersonTable';
 const clusterSummaryTable = 'cluster_summary';
 const avgColumn = 'avg';
 const countColumn = 'count';
-const createClusterSummaryTable = '''
+const createClusterSummaryTable =
+    '''
 CREATE TABLE IF NOT EXISTS $clusterSummaryTable (
   $clusterIDColumn	TEXT NOT NULL,
   $avgColumn BLOB NOT NULL,
@@ -87,7 +91,8 @@ const deleteClusterSummaryTable = 'DELETE FROM $clusterSummaryTable';
 /// notPersonFeedback Table Fields & Schema Queries
 const notPersonFeedback = 'not_person_feedback';
 
-const createNotPersonFeedbackTable = '''
+const createNotPersonFeedbackTable =
+    '''
 CREATE TABLE IF NOT EXISTS $notPersonFeedback (
   $personIdColumn	TEXT NOT NULL,
   $clusterIDColumn TEXT NOT NULL,
@@ -100,7 +105,8 @@ const deleteNotPersonFeedbackTable = 'DELETE FROM $notPersonFeedback';
 // ## CLIP EMBEDDINGS TABLE
 const clipTable = 'clip';
 
-const createClipEmbeddingsTable = '''
+const createClipEmbeddingsTable =
+    '''
 CREATE TABLE IF NOT EXISTS $clipTable ( 
   $fileIDColumn INTEGER NOT NULL,
   $embeddingColumn BLOB NOT NULL,
@@ -112,7 +118,8 @@ CREATE TABLE IF NOT EXISTS $clipTable (
 const deleteClipEmbeddingsTable = 'DELETE FROM $clipTable';
 
 const fileDataTable = 'filedata';
-const createFileDataTable = '''
+const createFileDataTable =
+    '''
 CREATE TABLE IF NOT EXISTS $fileDataTable ( 
   $fileIDColumn INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
@@ -130,7 +137,8 @@ const deleteFileDataTable = 'DELETE FROM $fileDataTable';
 // ## FACE CACHE TABLE
 const faceCacheTable = 'face_cache';
 
-const createFaceCacheTable = '''
+const createFaceCacheTable =
+    '''
 CREATE TABLE IF NOT EXISTS $faceCacheTable (
   $personOrClusterIdColumn TEXT NOT NULL UNIQUE,
   $faceIDColumn TEXT NOT NULL UNIQUE,
@@ -143,7 +151,8 @@ const deleteFaceCacheTable = 'DELETE FROM $faceCacheTable';
 // ## TEXT EMBEDDINGS CACHE TABLE
 const textEmbeddingsCacheTable = 'text_embeddings_cache';
 
-const createTextEmbeddingsCacheTable = '''
+const createTextEmbeddingsCacheTable =
+    '''
 CREATE TABLE IF NOT EXISTS $textEmbeddingsCacheTable (
   $textQueryColumn TEXT NOT NULL,
   $embeddingColumn BLOB NOT NULL,

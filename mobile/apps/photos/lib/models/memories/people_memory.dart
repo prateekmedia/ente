@@ -40,7 +40,7 @@ enum PeopleActivity {
   posing,
   background,
   sports,
-  roadtrip
+  roadtrip,
 }
 
 String activityQuery(PeopleActivity activity) {
@@ -120,13 +120,13 @@ class PeopleMemory extends SmartMemory {
     this.isBirthday,
     this.newAge,
   }) : super(
-          memories,
-          MemoryType.people,
-          title ?? '',
-          firstDateToShow,
-          lastDateToShow,
-          id: id,
-        );
+         memories,
+         MemoryType.people,
+         title ?? '',
+         firstDateToShow,
+         lastDateToShow,
+         id: id,
+       );
 
   PeopleMemory copyWith({
     int? firstDateToShow,

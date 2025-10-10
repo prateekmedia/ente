@@ -59,8 +59,8 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
     final double topPadding = widget.showAppBar!
         ? 40
         : widget.showProgressBar
-            ? 32
-            : 120;
+        ? 32
+        : 120;
 
     return Scaffold(
       appBar: widget.showProgressBar
@@ -74,19 +74,20 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
                   currentStep: 3,
                   selectedColor: Theme.of(context).colorScheme.greenAlternative,
                   roundedEdges: const Radius.circular(10),
-                  unselectedColor:
-                      Theme.of(context).colorScheme.stepProgressUnselectedColor,
+                  unselectedColor: Theme.of(
+                    context,
+                  ).colorScheme.stepProgressUnselectedColor,
                 ),
               ),
             )
           : widget.showAppBar!
-              ? AppBar(
-                  elevation: 0,
-                  title: Text(
-                    widget.title ?? AppLocalizations.of(context).recoveryKey,
-                  ),
-                )
-              : null,
+          ? AppBar(
+              elevation: 0,
+              title: Text(
+                widget.title ?? AppLocalizations.of(context).recoveryKey,
+              ),
+            )
+          : null,
       body: Padding(
         padding: EdgeInsets.fromLTRB(20, topPadding, 20, 20),
         child: LayoutBuilder(
@@ -114,8 +115,9 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
                       ),
                       Text(
                         widget.text ??
-                            AppLocalizations.of(context)
-                                .recoveryKeyOnForgotPassword,
+                            AppLocalizations.of(
+                              context,
+                            ).recoveryKeyOnForgotPassword,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const Padding(padding: EdgeInsets.only(top: 24)),
@@ -142,8 +144,9 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
                                   );
                                   showShortToast(
                                     context,
-                                    AppLocalizations.of(context)
-                                        .recoveryKeyCopiedToClipboard,
+                                    AppLocalizations.of(
+                                      context,
+                                    ).recoveryKeyCopiedToClipboard,
                                   );
                                   setState(() {
                                     _hasTriedToSave = true;
@@ -162,16 +165,17 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
                                     borderRadius: const BorderRadius.all(
                                       Radius.circular(2),
                                     ),
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .recoveryKeyBoxColor,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.recoveryKeyBoxColor,
                                   ),
                                   padding: const EdgeInsets.all(20),
                                   width: double.infinity,
                                   child: Text(
                                     recoveryKey,
-                                    style:
-                                        Theme.of(context).textTheme.bodyLarge,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge,
                                   ),
                                 ),
                               ),
@@ -183,8 +187,9 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Text(
                           widget.subText ??
-                              AppLocalizations.of(context)
-                                  .recoveryKeySaveDescription,
+                              AppLocalizations.of(
+                                context,
+                              ).recoveryKeySaveDescription,
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ),
@@ -256,9 +261,7 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
     _recoveryKeyFile.writeAsStringSync(recoveryKey);
 
     await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(_recoveryKeyFile.path)],
-      ),
+      ShareParams(files: [XFile(_recoveryKeyFile.path)]),
     );
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {

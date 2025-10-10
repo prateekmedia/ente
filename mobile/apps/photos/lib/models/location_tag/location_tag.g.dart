@@ -12,8 +12,9 @@ _$LocationTagImpl _$$LocationTagImplFromJson(Map<String, dynamic> json) =>
       radius: (json['radius'] as num).toDouble(),
       aSquare: (json['aSquare'] as num).toDouble(),
       bSquare: (json['bSquare'] as num).toDouble(),
-      centerPoint:
-          Location.fromJson(json['centerPoint'] as Map<String, dynamic>),
+      centerPoint: Location.fromJson(
+        json['centerPoint'] as Map<String, dynamic>,
+      ),
     );
 
 Map<String, dynamic> _$$LocationTagImplToJson(_$LocationTagImpl instance) =>

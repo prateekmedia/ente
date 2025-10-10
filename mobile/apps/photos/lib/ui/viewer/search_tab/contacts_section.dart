@@ -31,9 +31,7 @@ class ContactsSection extends StatefulWidget {
 class _ContactsSectionState extends State<ContactsSection> {
   late List<GenericSearchResult> _contactSearchResults;
   final streamSubscriptions = <StreamSubscription>[];
-  final _debouncer = Debouncer(
-    const Duration(milliseconds: 1500),
-  );
+  final _debouncer = Debouncer(const Duration(milliseconds: 1500));
 
   @override
   void initState() {
@@ -45,10 +43,12 @@ class _ContactsSectionState extends State<ContactsSection> {
       streamSubscriptions.add(
         stream.listen((event) async {
           _debouncer.run(() async {
-            _contactSearchResults = (await SectionType.contacts.getData(
-              context,
-              limit: kSearchSectionLimit,
-            )) as List<GenericSearchResult>;
+            _contactSearchResults =
+                (await SectionType.contacts.getData(
+                      context,
+                      limit: kSearchSectionLimit,
+                    ))
+                    as List<GenericSearchResult>;
             setState(() {});
           });
         }),
@@ -108,9 +108,7 @@ class _ContactsSectionState extends State<ContactsSection> {
         ..._contactSearchResults.map(
           (contactSearchResult) => ContactRecommendation(
             contactSearchResult,
-            key: ValueKey(
-              contactSearchResult.name(),
-            ),
+            key: ValueKey(contactSearchResult.name()),
           ),
         ),
         const ContactCTA(),
@@ -175,10 +173,7 @@ class _ContactRecommendationState extends State<ContactRecommendation> {
           if (widget.contactSearchResult.onResultTap != null) {
             widget.contactSearchResult.onResultTap!(context);
           } else {
-            routeToPage(
-              context,
-              ContactResultPage(widget.contactSearchResult),
-            );
+            routeToPage(context, ContactResultPage(widget.contactSearchResult));
           }
         },
         child: ConstrainedBox(
@@ -189,8 +184,10 @@ class _ContactRecommendationState extends State<ContactRecommendation> {
             minWidth: 100,
           ),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 4.25, vertical: 10.5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4.25,
+              vertical: 10.5,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -215,7 +212,8 @@ class _ContactRecommendationState extends State<ContactRecommendation> {
                         : FirstLetterUserAvatar(
                             User(
                               email: widget
-                                  .contactSearchResult.params[kContactEmail],
+                                  .contactSearchResult
+                                  .params[kContactEmail],
                             ),
                           ),
                   ),
@@ -264,8 +262,10 @@ class ContactCTA extends StatelessWidget {
             minWidth: 100,
           ),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 4.25, vertical: 10.5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4.25,
+              vertical: 10.5,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [

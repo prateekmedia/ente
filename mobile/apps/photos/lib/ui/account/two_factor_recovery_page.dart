@@ -32,9 +32,7 @@ class _TwoFactorRecoveryPageState extends State<TwoFactorRecoveryPage> {
       appBar: AppBar(
         title: Text(
           AppLocalizations.of(context).recoverAccount,
-          style: const TextStyle(
-            fontSize: 18,
-          ),
+          style: const TextStyle(fontSize: 18),
         ),
       ),
       body: Column(
@@ -90,8 +88,9 @@ class _TwoFactorRecoveryPageState extends State<TwoFactorRecoveryPage> {
               showErrorDialog(
                 context,
                 AppLocalizations.of(context).contactSupport,
-                AppLocalizations.of(context)
-                    .dropSupportEmail(supportEmail: "support@ente.io"),
+                AppLocalizations.of(
+                  context,
+                ).dropSupportEmail(supportEmail: "support@ente.io"),
               );
             },
             child: Container(
@@ -102,9 +101,9 @@ class _TwoFactorRecoveryPageState extends State<TwoFactorRecoveryPage> {
                   style: TextStyle(
                     decoration: TextDecoration.underline,
                     fontSize: 12,
-                    color: getEnteColorScheme(context)
-                        .textBase
-                        .withValues(alpha: 0.9),
+                    color: getEnteColorScheme(
+                      context,
+                    ).textBase.withValues(alpha: 0.9),
                   ),
                 ),
               ),

@@ -84,8 +84,10 @@ class _CustomScrollBarState extends State<CustomScrollBar> {
     }
 
     if (_showScrollbarDivisions) {
-      getIntrinsicSizeOfWidget(const ScrollBarDivider(title: "Temp"), context)
-          .then((size) {
+      getIntrinsicSizeOfWidget(
+        const ScrollBarDivider(title: "Temp"),
+        context,
+      ).then((size) {
         if (mounted) {
           setState(() {
             heightOfScrollbarDivider = size.height;
@@ -114,7 +116,8 @@ class _CustomScrollBarState extends State<CustomScrollBar> {
 
     for (final scrollbarDivision in widget.galleryGroups.scrollbarDivisions) {
       final scrollOffsetOfGroup = widget
-          .galleryGroups.groupIdToScrollOffsetMap[scrollbarDivision.groupID]!;
+          .galleryGroups
+          .groupIdToScrollOffsetMap[scrollbarDivision.groupID]!;
 
       final groupScrollOffsetToUse = scrollOffsetOfGroup - heightOfScrollTrack!;
       if (groupScrollOffsetToUse < 0) {
@@ -142,23 +145,22 @@ class _CustomScrollBarState extends State<CustomScrollBar> {
         final value = (_kScrollbarMinLength - heightOfScrollbarDivider!) / 2;
 
         if (fractionOfGroupScrollOffsetWrtMaxExtent < 0.5) {
-          positionCorrection = value * fractionOfGroupScrollOffsetWrtMaxExtent -
+          positionCorrection =
+              value * fractionOfGroupScrollOffsetWrtMaxExtent -
               (heightOfScrollbarDivider! *
                   fractionOfGroupScrollOffsetWrtMaxExtent);
         } else {
           positionCorrection =
               -value * fractionOfGroupScrollOffsetWrtMaxExtent -
-                  (heightOfScrollbarDivider! *
-                      fractionOfGroupScrollOffsetWrtMaxExtent);
+              (heightOfScrollbarDivider! *
+                  fractionOfGroupScrollOffsetWrtMaxExtent);
         }
 
         final adaptedPosition =
             heightOfScrollTrack! * fractionOfGroupScrollOffsetWrtMaxExtent +
-                positionCorrection;
+            positionCorrection;
 
-        result.add(
-          (position: adaptedPosition, title: scrollbarDivision.title),
-        );
+        result.add((position: adaptedPosition, title: scrollbarDivision.title));
       }
     }
     final filteredResult = <({double position, String title})>[];
@@ -271,10 +273,7 @@ class ScrollBarDivider extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.backgroundElevated2,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: colorScheme.strokeFaint,
-          width: 0.5,
-        ),
+        border: Border.all(color: colorScheme.strokeFaint, width: 0.5),
         // TODO: Remove shadow if scrolling perf
         // is affected.
         boxShadow: [
@@ -285,16 +284,9 @@ class ScrollBarDivider extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Center(
-        child: Text(
-          title,
-          style: textTheme.miniMuted,
-          maxLines: 1,
-        ),
+        child: Text(title, style: textTheme.miniMuted, maxLines: 1),
       ),
     );
   }

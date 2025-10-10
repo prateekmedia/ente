@@ -35,19 +35,15 @@ class SearchThumbnailWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
           child: file != null
               ? (searchResult != null &&
-                      searchResult!.type() == ResultType.faces)
-                  ? PersonFaceWidget(
-                      personId: (searchResult as GenericSearchResult)
-                          .params[kPersonParamID],
-                      clusterID: (searchResult as GenericSearchResult)
-                          .params[kClusterParamId],
-                    )
-                  : ThumbnailWidget(
-                      file!,
-                    )
-              : const NoThumbnailWidget(
-                  addBorder: false,
-                ),
+                        searchResult!.type() == ResultType.faces)
+                    ? PersonFaceWidget(
+                        personId: (searchResult as GenericSearchResult)
+                            .params[kPersonParamID],
+                        clusterID: (searchResult as GenericSearchResult)
+                            .params[kClusterParamId],
+                      )
+                    : ThumbnailWidget(file!)
+              : const NoThumbnailWidget(addBorder: false),
         ),
       ),
     );
@@ -104,9 +100,7 @@ class _ContactSearchThumbnailWidgetState
                   }
                 },
               )
-            : NoFaceForContactWidget(
-                user: User(email: _email),
-              ),
+            : NoFaceForContactWidget(user: User(email: _email)),
       ),
     );
   }
@@ -126,14 +120,9 @@ class NoFaceForContactWidget extends StatelessWidget {
     final enteColorScheme = getEnteColorScheme(context);
     return Container(
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.horizontal(
-          left: Radius.circular(4),
-        ),
+        borderRadius: const BorderRadius.horizontal(left: Radius.circular(4)),
         border: addBorder
-            ? Border.all(
-                color: enteColorScheme.strokeFaint,
-                width: 1,
-              )
+            ? Border.all(color: enteColorScheme.strokeFaint, width: 1)
             : null,
         color: enteColorScheme.fillFaint,
       ),

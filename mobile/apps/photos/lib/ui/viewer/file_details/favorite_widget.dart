@@ -15,10 +15,7 @@ import "package:photos/ui/notification/toast.dart";
 class FavoriteWidget extends StatefulWidget {
   final EnteFile file;
 
-  const FavoriteWidget(
-    this.file, {
-    super.key,
-  });
+  const FavoriteWidget(this.file, {super.key});
 
   @override
   State<StatefulWidget> createState() => _FavoriteWidgetState();
@@ -46,10 +43,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
       builder: (context, snapshot) {
         final bool isLiked = snapshot.data ?? false;
         return _isLoading
-            ? const EnteLoadingWidget(
-                size: 14,
-                padding: 2,
-              ) // Add this line
+            ? const EnteLoadingWidget(size: 14, padding: 2) // Add this line
             : LikeButton(
                 bubblesColor: BubblesColor(
                   dotPrimaryColor: colorScheme.primary700,
@@ -82,21 +76,25 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
                       hasError = true;
                       showToast(
                         context,
-                        AppLocalizations.of(context)
-                            .sorryCouldNotAddToFavorites,
+                        AppLocalizations.of(
+                          context,
+                        ).sorryCouldNotAddToFavorites,
                       );
                     }
                   } else {
                     try {
-                      await FavoritesService.instance
-                          .removeFromFavorites(context, widget.file.copyWith());
+                      await FavoritesService.instance.removeFromFavorites(
+                        context,
+                        widget.file.copyWith(),
+                      );
                     } catch (e, s) {
                       _logger.severe(e, s);
                       hasError = true;
                       showToast(
                         context,
-                        AppLocalizations.of(context)
-                            .sorryCouldNotRemoveFromFavorites,
+                        AppLocalizations.of(
+                          context,
+                        ).sorryCouldNotRemoveFromFavorites,
                       );
                     }
                   }

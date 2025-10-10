@@ -5,21 +5,11 @@ import 'package:photos/ui/viewer/gallery/component/group/type.dart';
 import "package:photos/utils/ram_check_util.dart";
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AlbumSortKey {
-  albumName,
-  newestPhoto,
-  lastUpdated,
-}
+enum AlbumSortKey { albumName, newestPhoto, lastUpdated }
 
-enum AlbumSortDirection {
-  ascending,
-  descending,
-}
+enum AlbumSortDirection { ascending, descending }
 
-enum AlbumViewType {
-  grid,
-  list,
-}
+enum AlbumViewType { grid, list }
 
 class LocalSettings {
   static const kCollectionSortPref = "collection_sort_pref";
@@ -76,8 +66,8 @@ class LocalSettings {
   }
 
   AlbumSortDirection albumSortDirection() {
-    return AlbumSortDirection
-        .values[_prefs.getInt(kCollectionSortDirection) ?? 1];
+    return AlbumSortDirection.values[_prefs.getInt(kCollectionSortDirection) ??
+        1];
   }
 
   Future<bool> setAlbumSortDirection(AlbumSortDirection direction) {

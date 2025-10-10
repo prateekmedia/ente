@@ -55,8 +55,9 @@ class _HierarchicalSearchGalleryState extends State<HierarchicalSearchGallery> {
         if (_filesUpdatedEvent != null) {
           _filesUpdatedEvent!.cancel();
         }
-        _filesUpdatedEvent =
-            Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
+        _filesUpdatedEvent = Bus.instance.on<LocalPhotosUpdatedEvent>().listen((
+          event,
+        ) {
           if (event.type == EventType.deletedFromDevice ||
               event.type == EventType.deletedFromEverywhere ||
               event.type == EventType.deletedFromRemote ||
@@ -69,14 +70,19 @@ class _HierarchicalSearchGalleryState extends State<HierarchicalSearchGallery> {
           }
         });
 
-        _searchFilterDataProvider =
-            InheritedSearchFilterData.of(context).searchFilterDataProvider;
+        _searchFilterDataProvider = InheritedSearchFilterData.of(
+          context,
+        ).searchFilterDataProvider;
         assert(_searchFilterDataProvider != null);
 
-        _searchFilterDataProvider!
-            .removeListener(fromApplied: true, listener: _onFiltersUpdated);
-        _searchFilterDataProvider!
-            .addListener(toApplied: true, listener: _onFiltersUpdated);
+        _searchFilterDataProvider!.removeListener(
+          fromApplied: true,
+          listener: _onFiltersUpdated,
+        );
+        _searchFilterDataProvider!.addListener(
+          toApplied: true,
+          listener: _onFiltersUpdated,
+        );
 
         _onFiltersUpdated();
       } catch (e) {
@@ -125,8 +131,10 @@ class _HierarchicalSearchGalleryState extends State<HierarchicalSearchGallery> {
     _filesUpdatedEvent?.cancel();
     _isLoading.dispose();
     if (_searchFilterDataProvider != null) {
-      _searchFilterDataProvider!
-          .removeListener(fromApplied: true, listener: _onFiltersUpdated);
+      _searchFilterDataProvider!.removeListener(
+        fromApplied: true,
+        listener: _onFiltersUpdated,
+      );
     }
     super.dispose();
   }
@@ -144,21 +152,17 @@ class _HierarchicalSearchGalleryState extends State<HierarchicalSearchGallery> {
               ? const EnteLoadingWidget()
               : Gallery(
                   key: ValueKey(_filteredFilesVersion),
-                  asyncLoader: (
-                    creationStartTime,
-                    creationEndTime, {
-                    limit,
-                    asc,
-                  }) async {
-                    final files = _filterdFiles
-                        .where(
-                          (file) =>
-                              file.creationTime! >= creationStartTime &&
-                              file.creationTime! <= creationEndTime,
-                        )
-                        .toList();
-                    return FileLoadResult(files, false);
-                  },
+                  asyncLoader:
+                      (creationStartTime, creationEndTime, {limit, asc}) async {
+                        final files = _filterdFiles
+                            .where(
+                              (file) =>
+                                  file.creationTime! >= creationStartTime &&
+                                  file.creationTime! <= creationEndTime,
+                            )
+                            .toList();
+                        return FileLoadResult(files, false);
+                      },
                   tagPrefix: widget.tagPrefix,
                   reloadEvent: Bus.instance.on<LocalPhotosUpdatedEvent>(),
                   removalEventTypes: const {
@@ -191,10 +195,7 @@ class _HierarchicalSearchGalleryState extends State<HierarchicalSearchGallery> {
                               // ignore: unawaited_futures
                               routeToPage(
                                 context,
-                                PeoplePage(
-                                  person: person,
-                                  searchResult: null,
-                                ),
+                                PeoplePage(person: person, searchResult: null),
                               );
                             }
                           },

@@ -101,8 +101,9 @@ Future<DirectoryStat> getDirectoryStat(
         size += fileSize;
         fileNameToSize[entity.uri.pathSegments.last] = fileSize;
       } else if (entity is Directory) {
-        final DirectoryStat subDirStat =
-            await getDirectoryStat(Directory(entity.path));
+        final DirectoryStat subDirStat = await getDirectoryStat(
+          Directory(entity.path),
+        );
         subDirectories.add(subDirStat);
         size += subDirStat.size;
       }

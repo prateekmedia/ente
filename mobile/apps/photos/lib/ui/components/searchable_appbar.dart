@@ -66,10 +66,7 @@ class _SearchableAppBarState extends State<SearchableAppBar> {
         switchInCurve: Curves.easeOut,
         switchOutCurve: Curves.easeIn,
         transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         child: _isSearchActive
             ? _buildSearchField()
@@ -118,20 +115,13 @@ class _SearchableAppBarState extends State<SearchableAppBar> {
             color: colorScheme.strokeMuted,
           ),
           suffixIcon: IconButton(
-            icon: Icon(
-              Icons.cancel_rounded,
-              color: colorScheme.strokeMuted,
-            ),
+            icon: Icon(Icons.cancel_rounded, color: colorScheme.strokeMuted),
             onPressed: _deactivateSearch,
           ),
-          border: const UnderlineInputBorder(
-            borderSide: BorderSide.none,
-          ),
+          border: const UnderlineInputBorder(borderSide: BorderSide.none),
           contentPadding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
           focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(
-              color: colorScheme.strokeFaint,
-            ),
+            borderSide: BorderSide(color: colorScheme.strokeFaint),
             borderRadius: BorderRadius.circular(8),
           ),
         ),

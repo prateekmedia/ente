@@ -64,8 +64,9 @@ class _PasskeyPageState extends State<PasskeyPage> {
   Future<void> checkStatus() async {
     late dynamic response;
     try {
-      response = await UserService.instance
-          .getTokenForPasskeySession(widget.sessionID);
+      response = await UserService.instance.getTokenForPasskeySession(
+        widget.sessionID,
+      );
     } on PassKeySessionNotVerifiedError {
       showToast(context, context.l10n.passKeyPendingVerification);
       return;
@@ -145,11 +146,7 @@ class _PasskeyPageState extends State<PasskeyPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          l10n.passkeyAuthTitle,
-        ),
-      ),
+      appBar: AppBar(title: Text(l10n.passkeyAuthTitle)),
       body: _getBody(),
     );
   }
@@ -163,10 +160,7 @@ class _PasskeyPageState extends State<PasskeyPage> {
           children: [
             Text(
               context.l10n.waitingForVerification,
-              style: const TextStyle(
-                height: 1.4,
-                fontSize: 16,
-              ),
+              style: const TextStyle(height: 1.4, fontSize: 16),
             ),
             const SizedBox(height: 16),
             ButtonWidget(
@@ -195,9 +189,7 @@ class _PasskeyPageState extends State<PasskeyPage> {
                 onTap: () {
                   routeToPage(
                     context,
-                    TwoFactorAuthenticationPage(
-                      widget.totp2FASessionID,
-                    ),
+                    TwoFactorAuthenticationPage(widget.totp2FASessionID),
                   );
                 },
                 child: Container(

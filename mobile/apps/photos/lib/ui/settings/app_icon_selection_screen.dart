@@ -45,18 +45,17 @@ class _AppIconSelectionScreenState extends State<AppIconSelectionScreen> {
       AppIcon.values.map((e) => e.id).toList(),
       AppIcon.iconGreen.id,
     );
-    _iconSwitcher.getCurrentIcon().then(
-      (icon) {
-        _logger.info("Current icon is " + icon);
-        setState(() {
-          _currentIcon = icon;
+    _iconSwitcher
+        .getCurrentIcon()
+        .then((icon) {
+          _logger.info("Current icon is " + icon);
+          setState(() {
+            _currentIcon = icon;
+          });
+        })
+        .onError((error, stackTrace) {
+          _logger.severe("Error getting current icon", error, stackTrace);
         });
-      },
-    ).onError(
-      (error, stackTrace) {
-        _logger.severe("Error getting current icon", error, stackTrace);
-      },
-    );
   }
 
   @override
@@ -88,22 +87,18 @@ class _AppIconSelectionScreenState extends State<AppIconSelectionScreen> {
               ? SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (delegateBuildContext, index) {
-                        final icon = AppIcon.values[index];
-                        final isCurrentIcon = icon.id == _currentIcon;
-                        return _AppIconTile(
-                          icon,
-                          isCurrentIcon,
-                          () {
-                            if (!isCurrentIcon) {
-                              _changeIcon(icon.id);
-                            }
-                          },
-                        );
-                      },
-                      childCount: AppIcon.values.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((
+                      delegateBuildContext,
+                      index,
+                    ) {
+                      final icon = AppIcon.values[index];
+                      final isCurrentIcon = icon.id == _currentIcon;
+                      return _AppIconTile(icon, isCurrentIcon, () {
+                        if (!isCurrentIcon) {
+                          _changeIcon(icon.id);
+                        }
+                      });
+                    }, childCount: AppIcon.values.length),
                   ),
                 )
               : SliverToBoxAdapter(
@@ -147,9 +142,7 @@ class _AppIconTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: getEnteColorScheme(context).fillFaint,
-            borderRadius: const BorderRadius.all(
-              Radius.circular(8),
-            ),
+            borderRadius: const BorderRadius.all(Radius.circular(8)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
@@ -183,9 +176,7 @@ class _AppIconTile extends StatelessWidget {
                       child: Image(
                         width: 60,
                         height: 60,
-                        image: AssetImage(
-                          appIcon.path,
-                        ),
+                        image: AssetImage(appIcon.path),
                       ),
                     ),
                     const SizedBox(width: 12),

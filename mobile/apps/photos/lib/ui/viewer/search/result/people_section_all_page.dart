@@ -28,9 +28,7 @@ import "package:photos/ui/viewer/search_tab/people_section.dart";
 import "package:photos/utils/navigation_util.dart";
 
 class PeopleSectionAllPage extends StatefulWidget {
-  const PeopleSectionAllPage({
-    super.key,
-  });
+  const PeopleSectionAllPage({super.key});
 
   @override
   State<PeopleSectionAllPage> createState() => _PeopleSectionAllPageState();
@@ -85,9 +83,7 @@ class _PeopleSectionAllSelectionWrapperState
     extends State<PeopleSectionAllSelectionWrapper> {
   @override
   Widget build(BuildContext context) {
-    return PeopleSectionAllWidget(
-      selectedPeople: widget.selectedPeople,
-    );
+    return PeopleSectionAllWidget(selectedPeople: widget.selectedPeople);
   }
 }
 
@@ -121,8 +117,9 @@ class SelectablePersonSearchExample extends StatelessWidget {
     final personId = searchResult.params[kPersonParamID] as String?;
     final clusterId = searchResult.params[kClusterParamId] as String?;
 
-    final idToUse =
-        (personId != null && personId.isNotEmpty) ? personId : clusterId;
+    final idToUse = (personId != null && personId.isNotEmpty)
+        ? personId
+        : clusterId;
 
     if (idToUse != null && idToUse.isNotEmpty) {
       selectedPeople.toggleSelection(idToUse);
@@ -134,17 +131,15 @@ class SelectablePersonSearchExample extends StatelessWidget {
     if (searchResult.onResultTap != null) {
       searchResult.onResultTap!(context);
     } else {
-      routeToPage(
-        context,
-        SearchResultPage(searchResult),
-      );
+      routeToPage(context, SearchResultPage(searchResult));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = 82 * (size / 102);
-    final bool isCluster = (searchResult.type() == ResultType.faces &&
+    final bool isCluster =
+        (searchResult.type() == ResultType.faces &&
         int.tryParse(searchResult.name()) != null);
 
     return ListenableBuilder(
@@ -152,8 +147,9 @@ class SelectablePersonSearchExample extends StatelessWidget {
       builder: (context, _) {
         final personId = searchResult.params[kPersonParamID] as String?;
         final clusterId = searchResult.params[kClusterParamId] as String?;
-        final idToCheck =
-            (personId != null && personId.isNotEmpty) ? personId : clusterId;
+        final idToCheck = (personId != null && personId.isNotEmpty)
+            ? personId
+            : clusterId;
         final bool isSelected = idToCheck != null
             ? selectedPeople.isPersonSelected(idToCheck)
             : false;
@@ -199,9 +195,7 @@ class SelectablePersonSearchExample extends StatelessWidget {
                                 isDefaultFace: isDefaultFace,
                               );
                       } else {
-                        child = const NoThumbnailWidget(
-                          addBorder: false,
-                        );
+                        child = const NoThumbnailWidget(addBorder: false);
                       }
                       return SizedBox(
                         width: size - 2,
@@ -211,8 +205,8 @@ class SelectablePersonSearchExample extends StatelessWidget {
                             shape: ContinuousRectangleBorder(
                               borderRadius:
                                   searchResult.previewThumbnail() != null
-                                      ? BorderRadius.circular(borderRadius - 1)
-                                      : BorderRadius.circular(81),
+                                  ? BorderRadius.circular(borderRadius - 1)
+                                  : BorderRadius.circular(81),
                             ),
                           ),
                           child: ColorFiltered(
@@ -259,19 +253,13 @@ class SelectablePersonSearchExample extends StatelessWidget {
                           // ignore: unawaited_futures
                           routeToPage(
                             context,
-                            PeoplePage(
-                              person: result.$1,
-                              searchResult: null,
-                            ),
+                            PeoplePage(person: result.$1, searchResult: null),
                           );
                         } else if (result != null && result is PersonEntity) {
                           // ignore: unawaited_futures
                           routeToPage(
                             context,
-                            PeoplePage(
-                              person: result,
-                              searchResult: null,
-                            ),
+                            PeoplePage(person: result, searchResult: null),
                           );
                         }
                       },
@@ -387,8 +375,10 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
   }
 
   Future<List<GenericSearchResult>> getResults({bool init = false}) async {
-    final allFaces = await SearchService.instance
-        .getAllFace(null, minClusterSize: kMinimumClusterSizeAllFaces);
+    final allFaces = await SearchService.instance.getAllFace(
+      null,
+      minClusterSize: kMinimumClusterSizeAllFaces,
+    );
     normalFaces.clear();
     extraFaces.clear();
     for (final face in allFaces) {
@@ -403,22 +393,25 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
       normalFaces = extraFaces;
       extraFaces = [];
     }
-    final results =
-        _showingAllFaces ? [...normalFaces, ...extraFaces] : normalFaces;
+    final results = _showingAllFaces
+        ? [...normalFaces, ...extraFaces]
+        : normalFaces;
 
     if (widget.namedOnly) {
-      results.removeWhere(
-        (element) => element.params[kPersonParamID] == null,
-      );
+      results.removeWhere((element) => element.params[kPersonParamID] == null);
 
       if (init) {
         // sort widget.selectedPeople first
         results.sort((a, b) {
-          final aIndex = widget.selectedPeople?.personIds
-                  .contains(a.params[kPersonParamID]) ??
+          final aIndex =
+              widget.selectedPeople?.personIds.contains(
+                a.params[kPersonParamID],
+              ) ??
               false;
-          final bIndex = widget.selectedPeople?.personIds
-                  .contains(b.params[kPersonParamID]) ??
+          final bIndex =
+              widget.selectedPeople?.personIds.contains(
+                b.params[kPersonParamID],
+              ) ??
               false;
           if (aIndex && !bIndex) return -1;
           if (!aIndex && bIndex) return 1;
@@ -463,7 +456,8 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
           final screenWidth = MediaQuery.of(context).size.width;
           final crossAxisCount = (screenWidth / 100).floor();
 
-          final itemSize = (screenWidth -
+          final itemSize =
+              (screenWidth -
                   ((horizontalEdgePadding * 2) +
                       ((crossAxisCount - 1) * gridPadding))) /
               crossAxisCount;
@@ -527,9 +521,7 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
               ),
               if (_showMoreLessOption)
                 SliverToBoxAdapter(child: _buildShowMoreOrLessButton(context)),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 16),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (_showingAllFaces)
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
@@ -566,9 +558,7 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
                   ),
                 ),
               if (_showingAllFaces)
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: 16),
-                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
           );
         }
@@ -598,10 +588,9 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
               side: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outline
-                    .withValues(alpha: 0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -613,9 +602,9 @@ class _PeopleSectionAllWidgetState extends State<PeopleSectionAllWidget> {
                 _showingAllFaces
                     ? AppLocalizations.of(context).showLessFaces
                     : AppLocalizations.of(context).showMoreFaces,
-                style: getEnteTextTheme(context).small.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                style: getEnteTextTheme(
+                  context,
+                ).small.copyWith(color: Theme.of(context).colorScheme.primary),
               ),
               const SizedBox(width: 8),
               Icon(

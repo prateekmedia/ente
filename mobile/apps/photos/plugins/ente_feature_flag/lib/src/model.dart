@@ -12,6 +12,7 @@ class RemoteFlags {
   final bool internalUser;
   final bool betaUser;
   final bool enableMobMultiPart;
+  final bool enableNestedAlbums;
   final String castUrl;
   final String customDomain;
   final String customDomainCNAME;
@@ -25,6 +26,7 @@ class RemoteFlags {
     required this.internalUser,
     required this.betaUser,
     required this.enableMobMultiPart,
+    required this.enableNestedAlbums,
     required this.castUrl,
     required this.customDomain,
     required this.customDomainCNAME,
@@ -40,6 +42,7 @@ class RemoteFlags {
     bool? internalUser,
     bool? betaUser,
     bool? enableMobMultiPart,
+    bool? enableNestedAlbums,
     String? castUrl,
     String? customDomain,
     String? customDomainCNAME,
@@ -53,6 +56,7 @@ class RemoteFlags {
       internalUser: internalUser ?? this.internalUser,
       betaUser: betaUser ?? this.betaUser,
       enableMobMultiPart: enableMobMultiPart ?? this.enableMobMultiPart,
+      enableNestedAlbums: enableNestedAlbums ?? this.enableNestedAlbums,
       castUrl: castUrl ?? this.castUrl,
       customDomain: customDomain ?? this.customDomain,
       customDomainCNAME: customDomainCNAME ?? this.customDomainCNAME,
@@ -68,6 +72,7 @@ class RemoteFlags {
     internalUser: kDebugMode,
     betaUser: kDebugMode,
     enableMobMultiPart: false,
+    enableNestedAlbums: false,
     castUrl: "https://cast.ente.io",
     customDomain: "",
     customDomainCNAME: "my.ente.io",
@@ -84,6 +89,7 @@ class RemoteFlags {
       'internalUser': internalUser,
       'betaUser': betaUser,
       'enableMobMultiPart': enableMobMultiPart,
+      'enableNestedAlbums': enableNestedAlbums,
       'castUrl': castUrl,
     };
   }
@@ -101,6 +107,8 @@ class RemoteFlags {
       betaUser: map['betaUser'] ?? defaultValue.betaUser,
       enableMobMultiPart:
           map['enableMobMultiPart'] ?? defaultValue.enableMobMultiPart,
+      enableNestedAlbums:
+          map['enableNestedAlbums'] ?? defaultValue.enableNestedAlbums,
       castUrl: map['castUrl'] ?? defaultValue.castUrl,
       customDomain: map['customDomain'] ?? defaultValue.customDomain,
       customDomainCNAME:

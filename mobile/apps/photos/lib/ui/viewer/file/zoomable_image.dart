@@ -65,7 +65,7 @@ class _ZoomableImageState extends State<ZoomableImage> {
   PhotoViewController _photoViewController = PhotoViewController();
   final _scaleStateController = PhotoViewScaleStateController();
   late final StreamSubscription<FileCaptionUpdatedEvent>
-      _captionUpdatedSubscription;
+  _captionUpdatedSubscription;
   late final StreamSubscription<ResetZoomOfPhotoView> _resetZoomSubscription;
 
   // This is to prevent the app from crashing when loading 200MP images
@@ -87,17 +87,19 @@ class _ZoomableImageState extends State<ZoomableImage> {
       // _logger.info('is reakky zooming $_isZooming with state $value');
     };
 
-    _captionUpdatedSubscription =
-        Bus.instance.on<FileCaptionUpdatedEvent>().listen((event) {
-      if (event.fileGeneratedID == _photo.generatedID) {
-        if (mounted) {
-          setState(() {});
-        }
-      }
-    });
+    _captionUpdatedSubscription = Bus.instance
+        .on<FileCaptionUpdatedEvent>()
+        .listen((event) {
+          if (event.fileGeneratedID == _photo.generatedID) {
+            if (mounted) {
+              setState(() {});
+            }
+          }
+        });
 
-    _resetZoomSubscription =
-        Bus.instance.on<ResetZoomOfPhotoView>().listen((event) {
+    _resetZoomSubscription = Bus.instance.on<ResetZoomOfPhotoView>().listen((
+      event,
+    ) {
       if (event.isSamePhoto(
         uploadedFileID: widget.photo.uploadedFileID,
         localID: widget.photo.localID,
@@ -172,9 +174,7 @@ class _ZoomableImageState extends State<ZoomableImage> {
                 height: screenRelativeImageHeight,
                 child: Hero(
                   tag: widget.tagPrefix! + _photo.tag,
-                  child: const EnteLoadingWidget(
-                    color: Colors.white,
-                  ),
+                  child: const EnteLoadingWidget(color: Colors.white),
                 ),
               ),
             );
@@ -182,27 +182,23 @@ class _ZoomableImageState extends State<ZoomableImage> {
         ),
       );
     } else {
-      content = const EnteLoadingWidget(
-        color: Colors.white,
-      );
+      content = const EnteLoadingWidget(color: Colors.white);
     }
 
     final GestureDragUpdateCallback? verticalDragCallback =
         _isZooming || widget.isGuestView
-            ? null
-            : (d) => {
-                  if (!_isZooming)
-                    {
-                      if (d.delta.dy > dragSensitivity)
-                        {
-                          {Navigator.of(context).pop()},
-                        }
-                      else if (d.delta.dy < (dragSensitivity * -1))
-                        {
-                          showDetailsSheet(context, widget.photo),
-                        },
-                    },
-                };
+        ? null
+        : (d) => {
+            if (!_isZooming)
+              {
+                if (d.delta.dy > dragSensitivity)
+                  {
+                    {Navigator.of(context).pop()},
+                  }
+                else if (d.delta.dy < (dragSensitivity * -1))
+                  {showDetailsSheet(context, widget.photo)},
+              },
+          };
     return GestureDetector(
       onVerticalDragUpdate: verticalDragCallback,
       child: widget.photo.caption?.isNotEmpty ?? false
@@ -215,8 +211,10 @@ class _ZoomableImageState extends State<ZoomableImage> {
                   left: 0,
                   right: 0,
                   child: ValueListenableBuilder<bool>(
-                    valueListenable: InheritedDetailPageState.maybeOf(context)
-                            ?.enableFullScreenNotifier ??
+                    valueListenable:
+                        InheritedDetailPageState.maybeOf(
+                          context,
+                        )?.enableFullScreenNotifier ??
                         ValueNotifier(false),
                     builder: (context, doNotShowCaption, _) {
                       return AnimatedOpacity(
@@ -247,11 +245,9 @@ class _ZoomableImageState extends State<ZoomableImage> {
                                           widget.photo.caption!,
                                           maxLines: 3,
                                           overflow: TextOverflow.ellipsis,
-                                          style: getEnteTextTheme(context)
-                                              .mini
-                                              .copyWith(
-                                                color: textBaseDark,
-                                              ),
+                                          style: getEnteTextTheme(
+                                            context,
+                                          ).mini.copyWith(color: textBaseDark),
                                         ),
                                       ),
                                     ),
@@ -281,17 +277,19 @@ class _ZoomableImageState extends State<ZoomableImage> {
         getThumbnailFromServer(_photo).then((file) {
           final imageProvider = Image.memory(file).image;
           if (mounted) {
-            precacheImage(imageProvider, context).then((value) {
-              if (mounted) {
-                setState(() {
-                  _imageProvider = imageProvider;
+            precacheImage(imageProvider, context)
+                .then((value) {
+                  if (mounted) {
+                    setState(() {
+                      _imageProvider = imageProvider;
+                      _loadedSmallThumbnail = true;
+                    });
+                  }
+                })
+                .catchError((e) {
+                  _logger.severe("Could not load image " + _photo.toString());
                   _loadedSmallThumbnail = true;
                 });
-              }
-            }).catchError((e) {
-              _logger.severe("Could not load image " + _photo.toString());
-              _loadedSmallThumbnail = true;
-            });
           }
         });
       }
@@ -300,9 +298,7 @@ class _ZoomableImageState extends State<ZoomableImage> {
       _loadingFinalImage = true;
       getFileFromServer(_photo).then((file) {
         if (file != null) {
-          _onFileLoaded(
-            file,
-          );
+          _onFileLoaded(file);
         } else {
           _loadingFinalImage = false;
         }
@@ -314,8 +310,10 @@ class _ZoomableImageState extends State<ZoomableImage> {
     if (!_loadedSmallThumbnail &&
         !_loadedLargeThumbnail &&
         !_loadedFinalImage) {
-      final cachedThumbnail =
-          ThumbnailInMemoryLruCache.get(_photo, thumbnailSmallSize);
+      final cachedThumbnail = ThumbnailInMemoryLruCache.get(
+        _photo,
+        thumbnailSmallSize,
+      );
       if (cachedThumbnail != null) {
         _imageProvider = Image.memory(cachedThumbnail).image;
         _loadedSmallThumbnail = true;
@@ -326,8 +324,11 @@ class _ZoomableImageState extends State<ZoomableImage> {
         !_loadedLargeThumbnail &&
         !_loadedFinalImage) {
       _loadingLargeThumbnail = true;
-      getThumbnailFromLocal(_photo, size: thumbnailLargeSize, quality: 100)
-          .then((cachedThumbnail) {
+      getThumbnailFromLocal(
+        _photo,
+        size: thumbnailLargeSize,
+        quality: 100,
+      ).then((cachedThumbnail) {
         if (cachedThumbnail != null) {
           _onLargeThumbnailLoaded(Image.memory(cachedThumbnail).image, context);
         }
@@ -338,13 +339,12 @@ class _ZoomableImageState extends State<ZoomableImage> {
       _loadingFinalImage = true;
       getFile(
         _photo,
-        isOrigin: Platform.isIOS &&
+        isOrigin:
+            Platform.isIOS &&
             _isGIF(), // since on iOS GIFs playback only when origin-files are loaded
       ).then((file) {
         if (file != null && file.existsSync()) {
-          _onFileLoaded(
-            file,
-          );
+          _onFileLoaded(file);
         } else {
           _logger.info("File was deleted " + _photo.toString());
           if (_photo.uploadedFileID != null) {
@@ -400,10 +400,7 @@ class _ZoomableImageState extends State<ZoomableImage> {
         cacheHeight: targetHeight.round(),
       ).image;
     } else {
-      imageProvider = Image.file(
-        file,
-        gaplessPlayback: true,
-      ).image;
+      imageProvider = Image.file(file, gaplessPlayback: true).image;
     }
 
     if (mounted) {
@@ -412,11 +409,9 @@ class _ZoomableImageState extends State<ZoomableImage> {
         context,
         onError: (exception, s) async {
           if (exception.toString().contains(
-                    "Codec failed to produce an image, possibly due to invalid image data",
-                  ) ||
-              exception.toString().contains(
-                    "Could not decompress image.",
-                  )) {
+                "Codec failed to produce an image, possibly due to invalid image data",
+              ) ||
+              exception.toString().contains("Could not decompress image.")) {
             unawaited(_loadInSupportedFormat(file, e));
           } else {
             _logger.warning(
@@ -449,14 +444,16 @@ class _ZoomableImageState extends State<ZoomableImage> {
     required ImageProvider? previewImageProvider,
     required ImageProvider finalImageProvider,
   }) async {
-    final bool shouldFixPosition = previewImageProvider != null &&
+    final bool shouldFixPosition =
+        previewImageProvider != null &&
         _isZooming &&
         _photoViewController.scale != null;
     ImageInfo? finalImageInfo;
     if (shouldFixPosition) {
       final prevImageInfo = await getImageInfo(previewImageProvider);
       finalImageInfo = await getImageInfo(finalImageProvider);
-      final scale = _photoViewController.scale! /
+      final scale =
+          _photoViewController.scale! /
           (finalImageInfo.image.width / prevImageInfo.image.width);
       final currentPosition = _photoViewController.value.position;
       _photoViewController = PhotoViewController(
@@ -476,10 +473,7 @@ class _ZoomableImageState extends State<ZoomableImage> {
 
   bool _isGIF() => _photo.displayName.toLowerCase().endsWith(".gif");
 
-  Future<void> _loadInSupportedFormat(
-    File file,
-    Object unsupportedErr,
-  ) async {
+  Future<void> _loadInSupportedFormat(File file, Object unsupportedErr) async {
     _logger.info(
       "Compressing ${_photo.displayName} to viewable format due to $unsupportedErr",
     );

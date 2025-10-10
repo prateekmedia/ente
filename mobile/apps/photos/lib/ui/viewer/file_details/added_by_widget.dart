@@ -20,8 +20,10 @@ class AddedByWidget extends StatelessWidget {
     if (file.isOwner && file.isCollect) {
       addedBy = file.uploaderName;
     } else {
-      final fileOwner = CollectionsService.instance
-          .getFileOwner(file.ownerID!, file.collectionID);
+      final fileOwner = CollectionsService.instance.getFileOwner(
+        file.ownerID!,
+        file.collectionID,
+      );
       addedBy = fileOwner.displayName ?? fileOwner.email;
     }
     if (addedBy == null || addedBy.isEmpty) {

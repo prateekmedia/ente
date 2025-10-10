@@ -117,17 +117,13 @@ LocationService get locationService {
 
 MagicCacheService? _magicCacheService;
 MagicCacheService get magicCacheService {
-  _magicCacheService ??= MagicCacheService(
-    ServiceLocator.instance.prefs,
-  );
+  _magicCacheService ??= MagicCacheService(ServiceLocator.instance.prefs);
   return _magicCacheService!;
 }
 
 MemoriesCacheService? _memoriesCacheService;
 MemoriesCacheService get memoriesCacheService {
-  _memoriesCacheService ??= MemoriesCacheService(
-    ServiceLocator.instance.prefs,
-  );
+  _memoriesCacheService ??= MemoriesCacheService(ServiceLocator.instance.prefs);
   return _memoriesCacheService!;
 }
 
@@ -145,9 +141,7 @@ TextEmbeddingsCacheService get textEmbeddingsCacheService {
 
 BillingService? _billingService;
 BillingService get billingService {
-  _billingService ??= BillingService(
-    ServiceLocator.instance.enteDio,
-  );
+  _billingService ??= BillingService(ServiceLocator.instance.enteDio);
   return _billingService!;
 }
 
@@ -180,9 +174,7 @@ FileDataService get fileDataService {
 
 DownloadManager? _downloadManager;
 DownloadManager get downloadManager {
-  _downloadManager ??= DownloadManager(
-    ServiceLocator.instance.nonEnteDio,
-  );
+  _downloadManager ??= DownloadManager(ServiceLocator.instance.nonEnteDio);
   return _downloadManager!;
 }
 

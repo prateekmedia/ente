@@ -63,8 +63,9 @@ class _MagicResultScreenState extends State<MagicResultScreen> {
     files = widget.files;
     _enableGrouping = widget.enableGrouping;
     fileIDToRelevantPos = getFileIDToRelevantPos();
-    _filesUpdatedEvent =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
+    _filesUpdatedEvent = Bus.instance.on<LocalPhotosUpdatedEvent>().listen((
+      event,
+    ) {
       if (event.type == EventType.deletedFromDevice ||
           event.type == EventType.deletedFromEverywhere ||
           event.type == EventType.deletedFromRemote ||
@@ -76,8 +77,9 @@ class _MagicResultScreenState extends State<MagicResultScreen> {
       }
     });
 
-    _magicSortChangeEvent =
-        Bus.instance.on<MagicSortChangeEvent>().listen((event) {
+    _magicSortChangeEvent = Bus.instance.on<MagicSortChangeEvent>().listen((
+      event,
+    ) {
       if (event.sortType == MagicSortType.mostRelevant) {
         if (_enableGrouping) {
           if (fileIDToRelevantPos.isNotEmpty) {
@@ -123,9 +125,7 @@ class _MagicResultScreenState extends State<MagicResultScreen> {
       }
       return map;
     } else {
-      _logger.warning(
-        "fileIdToPosMap is empty, cannot sort by most relevant.",
-      );
+      _logger.warning("fileIdToPosMap is empty, cannot sort by most relevant.");
       return <int, int>{};
     }
   }
@@ -150,10 +150,7 @@ class _MagicResultScreenState extends State<MagicResultScreen> {
             )
             .toList();
         return Future.value(
-          FileLoadResult(
-            result,
-            result.length < files.length,
-          ),
+          FileLoadResult(result, result.length < files.length),
         );
       },
       reloadEvent: Bus.instance.on<LocalPhotosUpdatedEvent>(),
@@ -187,9 +184,9 @@ class _MagicResultScreenState extends State<MagicResultScreen> {
                 Builder(
                   builder: (context) {
                     return ValueListenableBuilder(
-                      valueListenable: InheritedSearchFilterData.of(context)
-                          .searchFilterDataProvider!
-                          .isSearchingNotifier,
+                      valueListenable: InheritedSearchFilterData.of(
+                        context,
+                      ).searchFilterDataProvider!.isSearchingNotifier,
                       builder: (context, value, _) {
                         return value
                             ? HierarchicalSearchGallery(

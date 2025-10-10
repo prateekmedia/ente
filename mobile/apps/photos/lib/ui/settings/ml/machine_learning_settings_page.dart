@@ -96,15 +96,17 @@ class _MachineLearningSettingsPageState
                   _titleTapCount++;
                   if (_titleTapCount >= 7) {
                     _titleTapCount = 0;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (BuildContext context) {
-                          return MLUserDeveloperOptions(
-                            mlIsEnabled: hasEnabled,
-                          );
-                        },
-                      ),
-                    ).ignore();
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (BuildContext context) {
+                              return MLUserDeveloperOptions(
+                                mlIsEnabled: hasEnabled,
+                              );
+                            },
+                          ),
+                        )
+                        .ignore();
                   }
                 });
               },
@@ -140,8 +142,8 @@ class _MachineLearningSettingsPageState
                       AppLocalizations.of(context).mlIndexingDescription,
                       textAlign: TextAlign.left,
                       style: getEnteTextTheme(context).mini.copyWith(
-                            color: getEnteColorScheme(context).textMuted,
-                          ),
+                        color: getEnteColorScheme(context).textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -150,65 +152,64 @@ class _MachineLearningSettingsPageState
             ),
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 20),
-                    child: _getMlSettings(context),
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: _getMlSettings(context),
+                ),
+              );
+            }, childCount: 1),
           ),
           if (!hasEnabled)
             SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (delegateBuildContext, index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        ButtonWidget(
-                          buttonType: ButtonType.primary,
-                          labelText: context.l10n.enable,
-                          onTap: () async {
-                            await toggleMlConsent();
-                          },
+              delegate: SliverChildBuilderDelegate((
+                delegateBuildContext,
+                index,
+              ) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      ButtonWidget(
+                        buttonType: ButtonType.primary,
+                        labelText: context.l10n.enable,
+                        onTap: () async {
+                          await toggleMlConsent();
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      ButtonWidget(
+                        buttonType: ButtonType.secondary,
+                        labelText: context.l10n.moreDetails,
+                        onTap: () async {
+                          Navigator.of(context)
+                              .push(
+                                MaterialPageRoute(
+                                  builder: (BuildContext context) {
+                                    return WebPage(
+                                      AppLocalizations.of(context).help,
+                                      "https://help.ente.io/photos/features/machine-learning",
+                                    );
+                                  },
+                                ),
+                              )
+                              .ignore();
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        AppLocalizations.of(context).magicSearchHint,
+                        textAlign: TextAlign.left,
+                        style: getEnteTextTheme(context).mini.copyWith(
+                          color: getEnteColorScheme(context).textMuted,
                         ),
-                        const SizedBox(height: 12),
-                        ButtonWidget(
-                          buttonType: ButtonType.secondary,
-                          labelText: context.l10n.moreDetails,
-                          onTap: () async {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (BuildContext context) {
-                                  return WebPage(
-                                    AppLocalizations.of(context).help,
-                                    "https://help.ente.io/photos/features/machine-learning",
-                                  );
-                                },
-                              ),
-                            ).ignore();
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          AppLocalizations.of(context).magicSearchHint,
-                          textAlign: TextAlign.left,
-                          style: getEnteTextTheme(context).mini.copyWith(
-                                color: getEnteColorScheme(context).textMuted,
-                              ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                childCount: 1,
-              ),
+                      ),
+                    ],
+                  ),
+                );
+              }, childCount: 1),
             ),
         ],
       ),
@@ -235,9 +236,7 @@ class _MachineLearningSettingsPageState
     await flagService.setMLConsent(mlConsent);
     if (!mlConsent) {
       MLService.instance.pauseIndexingAndClustering();
-      unawaited(
-        MLIndexingIsolate.instance.cleanupLocalIndexingModels(),
-      );
+      unawaited(MLIndexingIsolate.instance.cleanupLocalIndexingModels());
     } else {
       await MLService.instance.init();
       await SemanticSearchService.instance.init();
@@ -281,8 +280,8 @@ class _MachineLearningSettingsPageState
                 trailingWidget: ToggleSwitchWidget(
                   value: () => localSettings.isMLLocalIndexingEnabled,
                   onChanged: () async {
-                    final localIndexing =
-                        await localSettings.toggleLocalMLIndexing();
+                    final localIndexing = await localSettings
+                        .toggleLocalMLIndexing();
                     if (localIndexing) {
                       unawaited(MLService.instance.runAllML(force: true));
                     } else {
@@ -304,9 +303,7 @@ class _MachineLearningSettingsPageState
           ),
           leadingIcon: Icons.settings_outlined,
         ),
-        const SizedBox(
-          height: 12,
-        ),
+        const SizedBox(height: 12),
         MLIndexingIsolate.instance.areModelsDownloaded ||
                 !localSettings.isMLLocalIndexingEnabled
             ? const MLStatusWidget()
@@ -317,9 +314,7 @@ class _MachineLearningSettingsPageState
 }
 
 class ModelLoadingState extends StatefulWidget {
-  const ModelLoadingState({
-    super.key,
-  });
+  const ModelLoadingState({super.key});
 
   @override
   State<ModelLoadingState> createState() => _ModelLoadingStateState();
@@ -332,8 +327,9 @@ class _ModelLoadingStateState extends State<ModelLoadingState> {
 
   @override
   void initState() {
-    _progressStream =
-        RemoteAssetsService.instance.progressStream.listen((event) {
+    _progressStream = RemoteAssetsService.instance.progressStream.listen((
+      event,
+    ) {
       final String url = event.$1;
       String title = "";
       if (url.contains(ClipImageEncoder.kRemoteBucketModelPath)) {
@@ -401,9 +397,7 @@ class _ModelLoadingStateState extends State<ModelLoadingState> {
         ..._progressMap.entries.map((entry) {
           return MenuItemWidget(
             key: ValueKey(entry.value),
-            captionedTextWidget: CaptionedTextWidget(
-              title: entry.key,
-            ),
+            captionedTextWidget: CaptionedTextWidget(title: entry.key),
             trailingWidget: Text(
               '${(entry.value.$1 * 100) ~/ entry.value.$2}%',
               style: Theme.of(context).textTheme.bodySmall,
@@ -419,9 +413,7 @@ class _ModelLoadingStateState extends State<ModelLoadingState> {
 }
 
 class MLStatusWidget extends StatefulWidget {
-  const MLStatusWidget({
-    super.key,
-  });
+  const MLStatusWidget({super.key});
 
   @override
   State<MLStatusWidget> createState() => MLStatusWidgetState();
@@ -472,8 +464,9 @@ class MLStatusWidgetState extends State<MLStatusWidget> {
 
               if (!_isDeviceHealthy && pendingFiles > 0) {
                 return MenuSectionDescriptionWidget(
-                  content: AppLocalizations.of(context)
-                      .indexingPausedStatusDescription,
+                  content: AppLocalizations.of(
+                    context,
+                  ).indexingPausedStatusDescription,
                 );
               }
 
@@ -487,8 +480,8 @@ class MLStatusWidgetState extends State<MLStatusWidget> {
                       total < 1
                           ? 'NA'
                           : pendingFiles == 0
-                              ? '100%'
-                              : '${(indexedFiles * 100.0 / total * 1.0).toStringAsFixed(2)}%',
+                          ? '100%'
+                          : '${(indexedFiles * 100.0 / total * 1.0).toStringAsFixed(2)}%',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     singleBorderRadius: 8,
@@ -499,8 +492,9 @@ class MLStatusWidgetState extends State<MLStatusWidget> {
                   MLService.instance.showClusteringIsHappening
                       ? MenuItemWidget(
                           captionedTextWidget: CaptionedTextWidget(
-                            title:
-                                AppLocalizations.of(context).clusteringProgress,
+                            title: AppLocalizations.of(
+                              context,
+                            ).clusteringProgress,
                           ),
                           trailingWidget: Text(
                             AppLocalizations.of(context).currentlyRunning,
@@ -511,16 +505,15 @@ class MLStatusWidgetState extends State<MLStatusWidget> {
                           isGestureDetectorDisabled: true,
                         )
                       : (!hasWifi && pendingFiles > 0)
-                          ? MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title:
-                                    AppLocalizations.of(context).waitingForWifi,
-                              ),
-                              singleBorderRadius: 8,
-                              alignCaptionedTextToLeft: true,
-                              isGestureDetectorDisabled: true,
-                            )
-                          : const SizedBox.shrink(),
+                      ? MenuItemWidget(
+                          captionedTextWidget: CaptionedTextWidget(
+                            title: AppLocalizations.of(context).waitingForWifi,
+                          ),
+                          singleBorderRadius: 8,
+                          alignCaptionedTextToLeft: true,
+                          isGestureDetectorDisabled: true,
+                        )
+                      : const SizedBox.shrink(),
                 ],
               );
             }

@@ -284,8 +284,10 @@ class _FacesItemWidgetState extends State<FacesItemWidget> {
                 child: GestureDetector(
                   onTap: _toggleEditMode,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: getEnteColorScheme(context).primary500,
@@ -296,8 +298,8 @@ class _FacesItemWidgetState extends State<FacesItemWidget> {
                     child: Text(
                       AppLocalizations.of(context).done,
                       style: getEnteTextTheme(context).small.copyWith(
-                            color: getEnteColorScheme(context).primary500,
-                          ),
+                        color: getEnteColorScheme(context).primary500,
+                      ),
                     ),
                   ),
                 ),
@@ -321,8 +323,9 @@ class _FacesItemWidgetState extends State<FacesItemWidget> {
     }
 
     final mlDataDB = MLDataDB.instance;
-    final faces =
-        await mlDataDB.getFacesForGivenFileID(widget.file.uploadedFileID!);
+    final faces = await mlDataDB.getFacesForGivenFileID(
+      widget.file.uploadedFileID!,
+    );
 
     if (faces == null) {
       return _FaceDataResult(
@@ -338,8 +341,11 @@ class _FacesItemWidgetState extends State<FacesItemWidget> {
     );
     final persons = await PersonService.instance.getPersonsMap();
     final clusterIDToPerson = await mlDataDB.getClusterIDToPersonID();
-    final faceCrops =
-        await getCachedFaceCrops(widget.file, faces, useTempCache: true);
+    final faceCrops = await getCachedFaceCrops(
+      widget.file,
+      faces,
+      useTempCache: true,
+    );
     final defaultFaces = <Face>[];
     final remainingFaces = <Face>[];
 

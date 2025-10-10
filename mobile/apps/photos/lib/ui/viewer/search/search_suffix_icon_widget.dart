@@ -37,10 +37,7 @@ class _SearchSuffixIconState extends State<SearchSuffixIcon> {
               onPressed: () {
                 Bus.instance.fire(ClearAndUnfocusSearchBar());
               },
-              icon: Icon(
-                Icons.close,
-                color: colorScheme.strokeMuted,
-              ),
+              icon: Icon(Icons.close, color: colorScheme.strokeMuted),
             ),
     );
   }

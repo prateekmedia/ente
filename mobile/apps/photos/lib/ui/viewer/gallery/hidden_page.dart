@@ -42,26 +42,27 @@ class _HiddenPageState extends State<HiddenPage> {
   int? _defaultHiddenCollectionId;
   final _hiddenCollectionsExcludingDefault = <Collection>[];
   late StreamSubscription<CollectionUpdatedEvent>
-      _collectionUpdatesSubscription;
+  _collectionUpdatesSubscription;
 
   @override
   void initState() {
     super.initState();
-    _collectionUpdatesSubscription =
-        Bus.instance.on<CollectionUpdatedEvent>().listen((event) {
-      setState(() {
-        getHiddenCollections();
-      });
-    });
+    _collectionUpdatesSubscription = Bus.instance
+        .on<CollectionUpdatedEvent>()
+        .listen((event) {
+          setState(() {
+            getHiddenCollections();
+          });
+        });
     getHiddenCollections();
   }
 
   getHiddenCollections() {
-    final hiddenCollections =
-        CollectionsService.instance.getHiddenCollections();
-    CollectionsService.instance
-        .getDefaultHiddenCollection()
-        .then((defaultHiddenCollection) {
+    final hiddenCollections = CollectionsService.instance
+        .getHiddenCollections();
+    CollectionsService.instance.getDefaultHiddenCollection().then((
+      defaultHiddenCollection,
+    ) {
       setState(() {
         _hiddenCollectionsExcludingDefault.clear();
         _defaultHiddenCollectionId = defaultHiddenCollection.id;
@@ -99,12 +100,12 @@ class _HiddenPageState extends State<HiddenPage> {
         );
       },
       reloadEvent: Bus.instance.on<FilesUpdatedEvent>().where(
-            (event) =>
-                event.updatedFiles.firstWhereOrNull(
-                  (element) => element.uploadedFileID != null,
-                ) !=
-                null,
-          ),
+        (event) =>
+            event.updatedFiles.firstWhereOrNull(
+              (element) => element.uploadedFileID != null,
+            ) !=
+            null,
+      ),
       removalEventTypes: const {
         EventType.unhide,
         EventType.deletedFromEverywhere,
@@ -112,12 +113,12 @@ class _HiddenPageState extends State<HiddenPage> {
       },
       forceReloadEvents: [
         Bus.instance.on<FilesUpdatedEvent>().where(
-              (event) =>
-                  event.updatedFiles.firstWhereOrNull(
-                    (element) => element.uploadedFileID != null,
-                  ) !=
-                  null,
-            ),
+          (event) =>
+              event.updatedFiles.firstWhereOrNull(
+                (element) => element.uploadedFileID != null,
+              ) !=
+              null,
+        ),
       ],
       tagPrefix: widget.tagPrefix,
       selectedFiles: _selectedFiles,
@@ -125,12 +126,9 @@ class _HiddenPageState extends State<HiddenPage> {
       emptyState: _hiddenCollectionsExcludingDefault.isEmpty
           ? const EmptyHiddenWidget()
           : const SizedBox.shrink(),
-      header: AlbumHorizontalList(
-        () async {
-          return _hiddenCollectionsExcludingDefault;
-        },
-        hasVerifiedLock: true,
-      ),
+      header: AlbumHorizontalList(() async {
+        return _hiddenCollectionsExcludingDefault;
+      }, hasVerifiedLock: true),
     );
     return GalleryFilesState(
       child: Scaffold(
@@ -148,10 +146,7 @@ class _HiddenPageState extends State<HiddenPage> {
             alignment: Alignment.bottomCenter,
             children: [
               gallery,
-              FileSelectionOverlayBar(
-                widget.overlayType,
-                _selectedFiles,
-              ),
+              FileSelectionOverlayBar(widget.overlayType, _selectedFiles),
             ],
           ),
         ),

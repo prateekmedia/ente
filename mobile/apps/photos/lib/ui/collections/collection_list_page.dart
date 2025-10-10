@@ -18,11 +18,7 @@ import "package:photos/ui/components/searchable_appbar.dart";
 import "package:photos/ui/viewer/actions/album_selection_overlay_bar.dart";
 import "package:photos/utils/local_settings.dart";
 
-enum UISectionType {
-  incomingCollections,
-  outgoingCollections,
-  homeCollections,
-}
+enum UISectionType { incomingCollections, outgoingCollections, homeCollections }
 
 class CollectionListPage extends StatefulWidget {
   final List<Collection>? collections;
@@ -46,7 +42,7 @@ class CollectionListPage extends StatefulWidget {
 
 class _CollectionListPageState extends State<CollectionListPage> {
   late StreamSubscription<CollectionUpdatedEvent>
-      _collectionUpdatesSubscription;
+  _collectionUpdatesSubscription;
   List<Collection>? collections;
   AlbumSortKey? sortKey;
   AlbumViewType? albumViewType;
@@ -59,10 +55,11 @@ class _CollectionListPageState extends State<CollectionListPage> {
   void initState() {
     super.initState();
     collections = widget.collections;
-    _collectionUpdatesSubscription =
-        Bus.instance.on<CollectionUpdatedEvent>().listen((event) async {
-      unawaited(refreshCollections());
-    });
+    _collectionUpdatesSubscription = Bus.instance
+        .on<CollectionUpdatedEvent>()
+        .listen((event) async {
+          unawaited(refreshCollections());
+        });
     sortKey = localSettings.albumSortKey();
     albumViewType = localSettings.albumViewType();
     albumSortDirection = localSettings.albumSortDirection();
@@ -80,12 +77,13 @@ class _CollectionListPageState extends State<CollectionListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final displayLimitCount = (collections?.length ?? 0) +
+    final displayLimitCount =
+        (collections?.length ?? 0) +
         (widget.tag.isEmpty && _searchQuery.isEmpty ? 1 : 0);
     final bool enableSelectionMode =
         widget.sectionType == UISectionType.homeCollections ||
-            widget.sectionType == UISectionType.outgoingCollections ||
-            widget.sectionType == UISectionType.incomingCollections;
+        widget.sectionType == UISectionType.outgoingCollections ||
+        widget.sectionType == UISectionType.incomingCollections;
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -113,9 +111,7 @@ class _CollectionListPageState extends State<CollectionListPage> {
                       });
                       refreshCollections();
                     },
-                    actions: [
-                      _sortMenu(collections!),
-                    ],
+                    actions: [_sortMenu(collections!)],
                   ),
                   CollectionsFlexiGridViewWidget(
                     collections,
@@ -158,14 +154,12 @@ class _CollectionListPageState extends State<CollectionListPage> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            text,
-          ),
+          Text(text),
           Icon(
             sortKey == key
                 ? (albumSortDirection == AlbumSortDirection.ascending
-                    ? Icons.arrow_upward
-                    : Icons.arrow_downward)
+                      ? Icons.arrow_upward
+                      : Icons.arrow_downward)
                 : null,
             size: 18,
           ),
@@ -231,8 +225,8 @@ class _CollectionListPageState extends State<CollectionListPage> {
                 await localSettings.setAlbumSortKey(sortKey!);
                 albumSortDirection =
                     albumSortDirection == AlbumSortDirection.ascending
-                        ? AlbumSortDirection.descending
-                        : AlbumSortDirection.ascending;
+                    ? AlbumSortDirection.descending
+                    : AlbumSortDirection.ascending;
                 await localSettings.setAlbumSortDirection(albumSortDirection!);
                 await refreshCollections();
                 Bus.instance.fire(AlbumSortOrderChangeEvent());
@@ -252,8 +246,9 @@ class _CollectionListPageState extends State<CollectionListPage> {
   Future<void> refreshCollections() async {
     if (widget.sectionType == UISectionType.incomingCollections ||
         widget.sectionType == UISectionType.outgoingCollections) {
-      final SharedCollections sharedCollections =
-          await CollectionsService.instance.getSharedCollections();
+      final SharedCollections sharedCollections = await CollectionsService
+          .instance
+          .getSharedCollections();
       if (widget.sectionType == UISectionType.incomingCollections) {
         collections = sharedCollections.incoming;
       } else {
@@ -262,21 +257,21 @@ class _CollectionListPageState extends State<CollectionListPage> {
       if (_searchQuery.isNotEmpty) {
         collections = widget.collections
             ?.where(
-              (c) => c.displayName
-                  .toLowerCase()
-                  .contains(_searchQuery.toLowerCase()),
+              (c) => c.displayName.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ),
             )
             .toList();
       }
     } else if (widget.sectionType == UISectionType.homeCollections) {
-      collections =
-          await CollectionsService.instance.getCollectionForOnEnteSection();
+      collections = await CollectionsService.instance
+          .getCollectionForOnEnteSection();
       if (_searchQuery.isNotEmpty) {
         collections = widget.collections
             ?.where(
-              (c) => c.displayName
-                  .toLowerCase()
-                  .contains(_searchQuery.toLowerCase()),
+              (c) => c.displayName.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ),
             )
             .toList();
       }

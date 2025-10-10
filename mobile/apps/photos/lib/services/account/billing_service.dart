@@ -85,7 +85,8 @@ class BillingService {
       final response = await _enteDio.post(
         "/billing/verify-subscription",
         data: {
-          "paymentProvider": paymentProvider ??
+          "paymentProvider":
+              paymentProvider ??
               (Platform.isAndroid ? "playstore" : "appstore"),
           "productID": productID,
           "verificationData": verificationData,
@@ -117,8 +118,9 @@ class BillingService {
 
   Future<Subscription> cancelStripeSubscription() async {
     try {
-      final response =
-          await _enteDio.post("/billing/stripe/cancel-subscription");
+      final response = await _enteDio.post(
+        "/billing/stripe/cancel-subscription",
+      );
       final subscription = Subscription.fromMap(response.data["subscription"]);
       return subscription;
     } on DioException catch (e, s) {
@@ -129,8 +131,9 @@ class BillingService {
 
   Future<Subscription> activateStripeSubscription() async {
     try {
-      final response =
-          await _enteDio.post("/billing/stripe/activate-subscription");
+      final response = await _enteDio.post(
+        "/billing/stripe/activate-subscription",
+      );
       final subscription = Subscription.fromMap(response.data["subscription"]);
       return subscription;
     } on DioException catch (e, s) {
@@ -145,9 +148,7 @@ class BillingService {
     try {
       final response = await _enteDio.get(
         "/billing/stripe/customer-portal",
-        queryParameters: {
-          "redirectURL": kWebPaymentRedirectUrl,
-        },
+        queryParameters: {"redirectURL": kWebPaymentRedirectUrl},
       );
       return response.data["url"];
     } on DioException catch (e, s) {
@@ -181,8 +182,9 @@ class BillingService {
     await dialog.show();
     try {
       final bool familyExist = userDetails.isPartOfFamily();
-      final String url =
-          await UserService.instance.getFamilyPortalUrl(familyExist);
+      final String url = await UserService.instance.getFamilyPortalUrl(
+        familyExist,
+      );
 
       await dialog.hide();
       await Navigator.of(context).push(

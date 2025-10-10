@@ -70,8 +70,9 @@ Future<FFProbeProps?> getVideoPropsAsync(File originalFile) async {
   try {
     final stopwatch = Stopwatch()..start();
 
-    final mediaInfo =
-        await IsolatedFfmpegService.instance.getVideoInfo(originalFile.path);
+    final mediaInfo = await IsolatedFfmpegService.instance.getVideoInfo(
+      originalFile.path,
+    );
     if (mediaInfo.isEmpty) {
       return null;
     }
@@ -121,8 +122,8 @@ Future<ParsedExifDateTime?> tryParseExifDateTime(
     final exifTime = exif.containsKey(kDateTimeOriginal)
         ? exif[kDateTimeOriginal]!.printable
         : exif.containsKey(kImageDateTime)
-            ? exif[kImageDateTime]!.printable
-            : null;
+        ? exif[kImageDateTime]!.printable
+        : null;
     if (exifTime == null || exifTime == kEmptyExifDateTime) {
       return null;
     }
@@ -145,8 +146,9 @@ ParsedExifDateTime getDateTimeInDeviceTimezone(
   String? offsetString,
 ) {
   final hasOffset = (offsetString ?? '') != '';
-  final DateTime result =
-      DateFormat(kExifDateTimePattern).parse(exifTime, hasOffset);
+  final DateTime result = DateFormat(
+    kExifDateTimePattern,
+  ).parse(exifTime, hasOffset);
   if (hasOffset && offsetString!.toUpperCase() != "Z") {
     try {
       final List<String> splitHHMM = offsetString.split(":");
@@ -154,8 +156,9 @@ ParsedExifDateTime getDateTimeInDeviceTimezone(
       final int offsetMinutes =
           int.parse(splitHHMM[1]) * (offsetHours.isNegative ? -1 : 1);
       // Adjust the date for the offset to get the photo's correct UTC time
-      final photoUtcDate =
-          result.add(Duration(hours: -offsetHours, minutes: -offsetMinutes));
+      final photoUtcDate = result.add(
+        Duration(hours: -offsetHours, minutes: -offsetMinutes),
+      );
       // Convert the UTC time to the device's local time
       final deviceLocalTime = photoUtcDate.toLocal();
       return ParsedExifDateTime(
@@ -203,15 +206,13 @@ GPSData gpsDataFromExif(Map<String, IfdTag> exif) {
     "longRef": null,
   };
   if (exif["GPS GPSLatitude"] != null) {
-    exifLocationData["lat"] = exif["GPS GPSLatitude"]!
-        .values
+    exifLocationData["lat"] = exif["GPS GPSLatitude"]!.values
         .toList()
         .map((e) => ((e as Ratio).numerator / e.denominator))
         .toList();
   }
   if (exif["GPS GPSLongitude"] != null) {
-    exifLocationData["long"] = exif["GPS GPSLongitude"]!
-        .values
+    exifLocationData["long"] = exif["GPS GPSLongitude"]!.values
         .toList()
         .map((e) => ((e as Ratio).numerator / e.denominator))
         .toList();

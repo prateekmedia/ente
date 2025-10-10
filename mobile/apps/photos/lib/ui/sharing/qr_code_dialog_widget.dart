@@ -17,10 +17,7 @@ import 'package:share_plus/share_plus.dart';
 class QrCodeDialogWidget extends StatefulWidget {
   final Collection collection;
 
-  const QrCodeDialogWidget({
-    super.key,
-    required this.collection,
-  });
+  const QrCodeDialogWidget({super.key, required this.collection});
 
   @override
   State<QrCodeDialogWidget> createState() => _QrCodeDialogWidgetState();
@@ -34,8 +31,9 @@ class _QrCodeDialogWidgetState extends State<QrCodeDialogWidget> {
       final RenderRepaintBoundary boundary =
           _qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       if (byteData != null) {
         final Uint8List pngBytes = byteData.buffer.asUint8List();
 
@@ -71,8 +69,9 @@ class _QrCodeDialogWidgetState extends State<QrCodeDialogWidget> {
     final enteColorScheme = getEnteColorScheme(context);
 
     // Get the public URL for the collection
-    final String publicUrl =
-        CollectionsService.instance.getPublicUrl(widget.collection);
+    final String publicUrl = CollectionsService.instance.getPublicUrl(
+      widget.collection,
+    );
 
     // Get album name, truncate if too long
     final String albumName = widget.collection.displayName.length > 30
@@ -80,9 +79,7 @@ class _QrCodeDialogWidgetState extends State<QrCodeDialogWidget> {
         : widget.collection.displayName;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -96,10 +93,7 @@ class _QrCodeDialogWidgetState extends State<QrCodeDialogWidget> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "QR Code",
-                  style: enteTextTheme.largeBold,
-                ),
+                Text("QR Code", style: enteTextTheme.largeBold),
                 IconButton(
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.of(context).pop(),
@@ -117,10 +111,7 @@ class _QrCodeDialogWidgetState extends State<QrCodeDialogWidget> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey.shade200,
-                    width: 1,
-                  ),
+                  border: Border.all(color: Colors.grey.shade200, width: 1),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.04),

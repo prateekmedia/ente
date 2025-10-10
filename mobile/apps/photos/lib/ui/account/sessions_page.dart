@@ -53,16 +53,13 @@ class _SessionsPageState extends State<SessionsPage> {
     for (final session in _sessions!.sessions) {
       rows.add(_getSessionWidget(session));
     }
-    return SingleChildScrollView(
-      child: Column(
-        children: rows,
-      ),
-    );
+    return SingleChildScrollView(child: Column(children: rows));
   }
 
   Widget _getSessionWidget(Session session) {
-    final lastUsedTime =
-        DateTime.fromMicrosecondsSinceEpoch(session.lastUsedTime);
+    final lastUsedTime = DateTime.fromMicrosecondsSinceEpoch(
+      session.lastUsedTime,
+    );
     return Column(
       children: [
         InkWell(
@@ -83,10 +80,9 @@ class _SessionsPageState extends State<SessionsPage> {
                       child: Text(
                         session.ip,
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.8),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.8),
                           fontSize: 14,
                         ),
                       ),
@@ -96,10 +92,9 @@ class _SessionsPageState extends State<SessionsPage> {
                       child: Text(
                         getFormattedTime(context, lastUsedTime),
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.8),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.8),
                           fontSize: 12,
                         ),
                       ),
@@ -110,16 +105,16 @@ class _SessionsPageState extends State<SessionsPage> {
             ),
           ),
         ),
-        Divider(
-          color: getEnteColorScheme(context).strokeFaint,
-        ),
+        Divider(color: getEnteColorScheme(context).strokeFaint),
       ],
     );
   }
 
   Future<void> _terminateSession(Session session) async {
-    final dialog =
-        createProgressDialog(context, AppLocalizations.of(context).pleaseWait);
+    final dialog = createProgressDialog(
+      context,
+      AppLocalizations.of(context).pleaseWait,
+    );
     await dialog.show();
     try {
       await UserService.instance.terminateSession(session.token);
@@ -157,22 +152,18 @@ class _SessionsPageState extends State<SessionsPage> {
         session.token == Configuration.instance.getToken();
     Widget text;
     if (isLoggingOutFromThisDevice) {
-      text = Text(
-        AppLocalizations.of(context).thisWillLogYouOutOfThisDevice,
-      );
+      text = Text(AppLocalizations.of(context).thisWillLogYouOutOfThisDevice);
     } else {
       text = SingleChildScrollView(
         child: Column(
           children: [
             Text(
-              AppLocalizations.of(context)
-                  .thisWillLogYouOutOfTheFollowingDevice,
+              AppLocalizations.of(
+                context,
+              ).thisWillLogYouOutOfTheFollowingDevice,
             ),
             const Padding(padding: EdgeInsets.all(8)),
-            Text(
-              session.ua,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(session.ua, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       );
@@ -184,9 +175,7 @@ class _SessionsPageState extends State<SessionsPage> {
         TextButton(
           child: Text(
             AppLocalizations.of(context).terminate,
-            style: const TextStyle(
-              color: Colors.red,
-            ),
+            style: const TextStyle(color: Colors.red),
           ),
           onPressed: () async {
             Navigator.of(context).pop('dialog');

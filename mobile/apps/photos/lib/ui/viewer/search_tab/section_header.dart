@@ -14,12 +14,7 @@ class SectionHeader extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (hasMore) {
-          routeToPage(
-            context,
-            SearchSectionAllPage(
-              sectionType: sectionType,
-            ),
-          );
+          routeToPage(context, SearchSectionAllPage(sectionType: sectionType));
         }
       },
       child: Row(

@@ -39,9 +39,7 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
         primary: false,
         slivers: <Widget>[
           const TitleBarWidget(
-            flexibleSpaceTitle: TitleBarTitleWidget(
-              title: "ML debug options",
-            ),
+            flexibleSpaceTitle: TitleBarTitleWidget(title: "ML debug options"),
           ),
           SliverList(
             delegate: SliverChildBuilderDelegate(
@@ -53,8 +51,8 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
                       "Only use if you know what you're doing",
                       textAlign: TextAlign.left,
                       style: getEnteTextTheme(context).body.copyWith(
-                            color: getEnteColorScheme(context).textMuted,
-                          ),
+                        color: getEnteColorScheme(context).textMuted,
+                      ),
                     ),
                     const SizedBox(height: 48),
                     widget.mlIsEnabled
@@ -125,8 +123,9 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
                       labelText: "Load face detection model",
                       onTap: () async {
                         try {
-                          await MLIndexingIsolate.instance
-                              .debugLoadSingleModel(MLModels.faceDetection);
+                          await MLIndexingIsolate.instance.debugLoadSingleModel(
+                            MLModels.faceDetection,
+                          );
                         } catch (e, s) {
                           _logger.severe(
                             "Could not load face detection model",
@@ -146,8 +145,9 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
                       labelText: "Load face recognition model",
                       onTap: () async {
                         try {
-                          await MLIndexingIsolate.instance
-                              .debugLoadSingleModel(MLModels.faceEmbedding);
+                          await MLIndexingIsolate.instance.debugLoadSingleModel(
+                            MLModels.faceEmbedding,
+                          );
                         } catch (e, s) {
                           _logger.severe(
                             "Could not load face detection model",
@@ -167,8 +167,9 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
                       labelText: "Load clip image model",
                       onTap: () async {
                         try {
-                          await MLIndexingIsolate.instance
-                              .debugLoadSingleModel(MLModels.clipImageEncoder);
+                          await MLIndexingIsolate.instance.debugLoadSingleModel(
+                            MLModels.clipImageEncoder,
+                          );
                         } catch (e, s) {
                           _logger.severe(
                             "Could not load face detection model",
@@ -188,8 +189,9 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
                       labelText: "Load clip text model",
                       onTap: () async {
                         try {
-                          await MLIndexingIsolate.instance
-                              .debugLoadSingleModel(MLModels.clipTextEncoder);
+                          await MLIndexingIsolate.instance.debugLoadSingleModel(
+                            MLModels.clipTextEncoder,
+                          );
                         } catch (e, s) {
                           _logger.severe(
                             "Could not load face detection model",
@@ -203,11 +205,7 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
                         }
                       },
                     ),
-                    const SafeArea(
-                      child: SizedBox(
-                        height: 12,
-                      ),
-                    ),
+                    const SafeArea(child: SizedBox(height: 12)),
                   ],
                 ),
               ),
@@ -227,10 +225,7 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
       showShortToast(context, "Deleted ${emptyFileIDs.length} entries");
     } catch (e) {
       // ignore: unawaited_futures
-      showGenericErrorDialog(
-        context: context,
-        error: e,
-      );
+      showGenericErrorDialog(context: context, error: e);
     }
   }
 
@@ -242,10 +237,7 @@ class _MLUserDeveloperOptionsState extends State<MLUserDeveloperOptions> {
       showShortToast(context, "All local ML cleared");
     } catch (e) {
       // ignore: unawaited_futures
-      showGenericErrorDialog(
-        context: context,
-        error: e,
-      );
+      showGenericErrorDialog(context: context, error: e);
     }
   }
 }

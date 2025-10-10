@@ -147,8 +147,9 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
   final _showTitle = ValueNotifier<bool>(true);
   AnimationController? _progressAnimationController;
   AnimationController? _zoomAnimationController;
-  final ValueNotifier<Duration> durationNotifier =
-      ValueNotifier(const Duration(seconds: 5));
+  final ValueNotifier<Duration> durationNotifier = ValueNotifier(
+    const Duration(seconds: 5),
+  );
 
   /// Used to check if any pointer is on the screen.
   final hasPointerOnScreenNotifier = ValueNotifier<bool>(false);
@@ -156,7 +157,7 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
   bool isAtFirstOrLastFile = false;
 
   late final StreamSubscription<DetailsSheetEvent>
-      _detailSheetEventSubscription;
+  _detailSheetEventSubscription;
 
   @override
   void initState() {
@@ -164,24 +165,23 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) _showTitle.value = false;
     });
-    hasPointerOnScreenNotifier.addListener(
-      _hasPointerListener,
+    hasPointerOnScreenNotifier.addListener(_hasPointerListener);
+
+    _detailSheetEventSubscription = Bus.instance.on<DetailsSheetEvent>().listen(
+      (event) {
+        final inheritedData = FullScreenMemoryData.of(context);
+        if (inheritedData == null) return;
+        final index = inheritedData.indexNotifier.value;
+        final currentFile = inheritedData.memories[index].file;
+
+        if (event.isSameFile(
+          uploadedFileID: currentFile.uploadedFileID,
+          localID: currentFile.localID,
+        )) {
+          _toggleAnimation(pause: event.opened);
+        }
+      },
     );
-
-    _detailSheetEventSubscription =
-        Bus.instance.on<DetailsSheetEvent>().listen((event) {
-      final inheritedData = FullScreenMemoryData.of(context);
-      if (inheritedData == null) return;
-      final index = inheritedData.indexNotifier.value;
-      final currentFile = inheritedData.memories[index].file;
-
-      if (event.isSameFile(
-        uploadedFileID: currentFile.uploadedFileID,
-        localID: currentFile.localID,
-      )) {
-        _toggleAnimation(pause: event.opened);
-      }
-    });
   }
 
   @override
@@ -301,17 +301,12 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
     final showStepProgressIndicator = inheritedData.memories.length < 60;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 4.0,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: SafeArea(
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: strokeFainterDark,
-              width: 1,
-            ),
+            border: Border.all(color: strokeFainterDark, width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
@@ -344,8 +339,9 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
                                     totalSteps: inheritedData.memories.length,
                                     currentIndex: value,
                                     selectedColor: Colors.white,
-                                    unselectedColor:
-                                        Colors.white.withValues(alpha: 0.4),
+                                    unselectedColor: Colors.white.withValues(
+                                      alpha: 0.4,
+                                    ),
                                     duration: duration,
                                     animationController: (controller) {
                                       _progressAnimationController = controller;
@@ -364,16 +360,13 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
                             Text(
                               SmartMemoriesService.getDateFormatted(
                                 creationTime: inheritedData
-                                    .memories[value].file.creationTime!,
+                                    .memories[value]
+                                    .file
+                                    .creationTime!,
                                 context: context,
                               ),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium!
-                                  .copyWith(
-                                    fontSize: 14,
-                                    color: Colors.white,
-                                  ),
+                              style: Theme.of(context).textTheme.titleMedium!
+                                  .copyWith(fontSize: 14, color: Colors.white),
                             ),
                           ],
                         ),
@@ -441,8 +434,9 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
                             currentFile,
                             autoPlay: false,
                             tagPrefix: "memories",
-                            backgroundDecoration:
-                                const BoxDecoration(color: Colors.transparent),
+                            backgroundDecoration: const BoxDecoration(
+                              color: Colors.transparent,
+                            ),
                             isFromMemories: true,
                             playbackCallback: (isPlaying) {
                               _toggleAnimation(pause: !isPlaying);
@@ -489,8 +483,8 @@ class _FullScreenMemoryState extends State<FullScreenMemory> {
                                     ),
                                   )
                                 : showStepProgressIndicator
-                                    ? const SizedBox.shrink()
-                                    : const MemoryCounter(),
+                                ? const SizedBox.shrink()
+                                : const MemoryCounter(),
                           );
                         },
                       ),
@@ -513,8 +507,8 @@ class BottomIcons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inheritedData = FullScreenMemoryData.of(context)!;
-    final fullScreenState =
-        context.findAncestorStateOfType<_FullScreenMemoryState>();
+    final fullScreenState = context
+        .findAncestorStateOfType<_FullScreenMemoryState>();
 
     return ValueListenableBuilder(
       valueListenable: inheritedData.indexNotifier,
@@ -549,22 +543,18 @@ class BottomIcons extends StatelessWidget {
                 await showSingleFileDeleteSheet(
                   context,
                   inheritedData
-                      .memories[inheritedData.indexNotifier.value].file,
+                      .memories[inheritedData.indexNotifier.value]
+                      .file,
                   onFileRemoved: (file) => {
                     inheritedData.removeCurrentMemory.call(),
                     if (inheritedData.memories.isEmpty)
-                      {
-                        Navigator.of(context).pop(),
-                      },
+                      {Navigator.of(context).pop()},
                   },
                 );
                 fullScreenState?._toggleAnimation(pause: false);
               },
             ),
-            SizedBox(
-              height: 32,
-              child: FavoriteWidget(currentFile),
-            ),
+            SizedBox(height: 32, child: FavoriteWidget(currentFile)),
           ]);
         }
         rowChildren.add(
@@ -665,10 +655,7 @@ class _MemoryBlur extends StatelessWidget {
           switchOutCurve: Curves.easeInExpo,
           child: ImageFiltered(
             key: ValueKey(inheritedData.indexNotifier.value),
-            imageFilter: ImageFilter.blur(
-              sigmaX: 100,
-              sigmaY: 100,
-            ),
+            imageFilter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
             child: ThumbnailWidget(
               currentFile,
               shouldShowSyncStatus: false,
@@ -716,9 +703,7 @@ class _MemoriesZoomWidgetState extends State<MemoriesZoomWidget>
   void _initAnimation() {
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(
-        seconds: 5,
-      ),
+      duration: const Duration(seconds: 5),
       animationBehavior: AnimationBehavior.preserve,
     );
 
@@ -733,22 +718,12 @@ class _MemoriesZoomWidgetState extends State<MemoriesZoomWidget>
     _scaleAnimation = Tween<double>(
       begin: startScale,
       end: endScale,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _panAnimation = Tween<Offset>(
       begin: Offset(startX, startY),
       end: Offset(endX, endY),
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     if (widget.scaleController != null) {
       widget.scaleController!(_controller);

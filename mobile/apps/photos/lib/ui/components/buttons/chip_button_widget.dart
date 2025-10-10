@@ -8,7 +8,7 @@ class ChipButtonWidget extends StatelessWidget {
   final double iconSize;
   final VoidCallback? onTap;
   final bool noChips;
-  
+
   const ChipButtonWidget(
     this.label, {
     this.leadingIcon,
@@ -35,10 +35,7 @@ class ChipButtonWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               leadingIcon != null
-                  ? Icon(
-                      leadingIcon,
-                      size: iconSize,
-                    )
+                  ? Icon(leadingIcon, size: iconSize)
                   : const SizedBox.shrink(),
               if (label != null && leadingIcon != null)
                 const SizedBox(width: 4),

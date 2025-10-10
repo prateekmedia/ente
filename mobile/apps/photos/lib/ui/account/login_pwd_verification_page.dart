@@ -129,8 +129,9 @@ class _LoginPasswordVerificationPageState
           await _showContactSupportDialog(
             context,
             AppLocalizations.of(context).noInternetConnection,
-            AppLocalizations.of(context)
-                .pleaseCheckYourInternetConnectionAndTryAgain,
+            AppLocalizations.of(
+              context,
+            ).pleaseCheckYourInternetConnectionAndTryAgain,
           );
         } else {
           await _showContactSupportDialog(
@@ -231,9 +232,7 @@ class _LoginPasswordVerificationPageState
                   // password
                   visible: false,
                   child: TextFormField(
-                    autofillHints: const [
-                      AutofillHints.email,
-                    ],
+                    autofillHints: const [AutofillHints.email],
                     autocorrect: false,
                     keyboardType: TextInputType.emailAddress,
                     initialValue: email,
@@ -271,9 +270,7 @@ class _LoginPasswordVerificationPageState
                             )
                           : null,
                     ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(fontSize: 14),
                     controller: _passwordController,
                     autofocus: true,
                     autocorrect: false,
@@ -309,9 +306,7 @@ class _LoginPasswordVerificationPageState
                         child: Center(
                           child: Text(
                             AppLocalizations.of(context).forgotPassword,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium!
+                            style: Theme.of(context).textTheme.titleMedium!
                                 .copyWith(
                                   fontSize: 14,
                                   decoration: TextDecoration.underline,
@@ -329,15 +324,14 @@ class _LoginPasswordVerificationPageState
                           await dialog.show();
                           await Configuration.instance.logout();
                           await dialog.hide();
-                          Navigator.of(context)
-                              .popUntil((route) => route.isFirst);
+                          Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst);
                         },
                         child: Center(
                           child: Text(
                             AppLocalizations.of(context).changeEmail,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium!
+                            style: Theme.of(context).textTheme.titleMedium!
                                 .copyWith(
                                   fontSize: 14,
                                   decoration: TextDecoration.underline,

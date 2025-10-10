@@ -52,16 +52,12 @@ class MLComputer extends SuperIsolate {
   }
 
   Future<(Uint64List, List<Uint64List>, List<Float32List>)>
-      bulkVectorSearchWithKeys(
-    Uint64List potentialKeys,
-    bool exact,
-  ) async {
+  bulkVectorSearchWithKeys(Uint64List potentialKeys, bool exact) async {
     try {
-      final result =
-          await runInIsolate(IsolateOperation.bulkVectorSearchWithKeys, {
-        "potentialKeys": potentialKeys,
-        "exact": exact,
-      });
+      final result = await runInIsolate(
+        IsolateOperation.bulkVectorSearchWithKeys,
+        {"potentialKeys": potentialKeys, "exact": exact},
+      );
       return result;
     } catch (e, s) {
       _logger.severe("Could not run bulk vector search in MLComputer", e, s);
@@ -73,10 +69,12 @@ class MLComputer extends SuperIsolate {
     try {
       await _ensureLoadedClipTextModel();
       final int clipAddress = ClipTextEncoder.instance.sessionAddress;
-      final textEmbedding = await runInIsolate(IsolateOperation.runClipText, {
-        "text": query,
-        "address": clipAddress,
-      }) as List<double>;
+      final textEmbedding =
+          await runInIsolate(IsolateOperation.runClipText, {
+                "text": query,
+                "address": clipAddress,
+              })
+              as List<double>;
       return textEmbedding;
     } catch (e, s) {
       _logger.severe("Could not run clip text in isolate", e, s);
@@ -93,25 +91,23 @@ class MLComputer extends SuperIsolate {
             ClipTextEncoder.instance.vocabRemotePath;
         final String tokenizerVocabPath = await RemoteAssetsService.instance
             .getAssetPath(tokenizerRemotePath);
-        await runInIsolate(
-          IsolateOperation.initializeClipTokenizer,
-          {'vocabPath': tokenizerVocabPath},
-        );
+        await runInIsolate(IsolateOperation.initializeClipTokenizer, {
+          'vocabPath': tokenizerVocabPath,
+        });
 
         // Load ClipText model
         final String modelName = ClipTextEncoder.instance.modelName;
-        final String? modelPath =
-            await ClipTextEncoder.instance.downloadModelSafe();
+        final String? modelPath = await ClipTextEncoder.instance
+            .downloadModelSafe();
         if (modelPath == null) {
           throw Exception("Could not download clip text model, no wifi");
         }
-        final address = await runInIsolate(
-          IsolateOperation.loadModel,
-          {
-            'modelName': modelName,
-            'modelPath': modelPath,
-          },
-        ) as int;
+        final address =
+            await runInIsolate(IsolateOperation.loadModel, {
+                  'modelName': modelName,
+                  'modelPath': modelPath,
+                })
+                as int;
         ClipTextEncoder.instance.storeSessionAddress(address);
       } catch (e, s) {
         _logger.severe("Could not load clip text model in MLComputer", e, s);
@@ -127,9 +123,10 @@ class MLComputer extends SuperIsolate {
     try {
       final queryToResults =
           await runInIsolate(IsolateOperation.computeBulkSimilarities, {
-        "textQueryToEmbeddingMap": textQueryToEmbeddingMap,
-        "minimumSimilarityMap": minimumSimilarityMap,
-      }) as Map<String, List<QueryResult>>;
+                "textQueryToEmbeddingMap": textQueryToEmbeddingMap,
+                "minimumSimilarityMap": minimumSimilarityMap,
+              })
+              as Map<String, List<QueryResult>>;
       return queryToResults;
     } catch (e, s) {
       _logger.severe(
@@ -143,13 +140,11 @@ class MLComputer extends SuperIsolate {
 
   Future<void> cacheImageEmbeddings(List<EmbeddingVector> embeddings) async {
     try {
-      await runInIsolate(
-        IsolateOperation.setIsolateCache,
-        {
-          'key': imageEmbeddingsKey,
-          'value': embeddings,
-        },
-      ) as bool;
+      await runInIsolate(IsolateOperation.setIsolateCache, {
+            'key': imageEmbeddingsKey,
+            'value': embeddings,
+          })
+          as bool;
       _logger.info(
         'Cached ${embeddings.length} image embeddings inside MLComputer',
       );
@@ -162,10 +157,10 @@ class MLComputer extends SuperIsolate {
 
   Future<void> clearImageEmbeddingsCache() async {
     try {
-      await runInIsolate(
-        IsolateOperation.clearIsolateCache,
-        {'key': imageEmbeddingsKey},
-      ) as bool;
+      await runInIsolate(IsolateOperation.clearIsolateCache, {
+            'key': imageEmbeddingsKey,
+          })
+          as bool;
       return;
     } catch (e, s) {
       _logger.severe(

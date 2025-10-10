@@ -110,12 +110,8 @@ class Configuration {
       if (!_preferences.containsKey(tokenKey)) {
         await _secureStorage.deleteAll();
       } else {
-        _key = await _secureStorage.read(
-          key: keyKey,
-        );
-        _secretKey = await _secureStorage.read(
-          key: secretKeyKey,
-        );
+        _key = await _secureStorage.read(key: keyKey);
+        _secretKey = await _secureStorage.read(key: secretKeyKey);
         if (_key == null) {
           await logout(autoLogout: true);
         }
@@ -132,7 +128,7 @@ class Configuration {
         final PlatformException error = e;
         final bool isBadPaddingError =
             error.toString().contains('BadPaddingException') ||
-                (error.message ?? '').contains('BadPaddingException');
+            (error.message ?? '').contains('BadPaddingException');
         if (isBadPaddingError) {
           await logout(autoLogout: true);
           return;
@@ -184,9 +180,9 @@ class Configuration {
       if (SyncService.instance.isSyncInProgress()) {
         SyncService.instance.stopSync();
         try {
-          await SyncService.instance
-              .existingSync()
-              .timeout(const Duration(seconds: 5));
+          await SyncService.instance.existingSync().timeout(
+            const Duration(seconds: 5),
+          );
         } catch (e) {
           // ignore
         }

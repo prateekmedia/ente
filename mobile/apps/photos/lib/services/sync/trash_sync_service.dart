@@ -56,8 +56,9 @@ class TrashSyncService {
     }
     if (diff.restoredFiles.isNotEmpty) {
       _logger.info("discard ${diff.restoredFiles.length} restored items");
-      final itemsDeleted = await _trashDB
-          .delete(diff.restoredFiles.map((e) => e.uploadedFileID!).toList());
+      final itemsDeleted = await _trashDB.delete(
+        diff.restoredFiles.map((e) => e.uploadedFileID!).toList(),
+      );
       isLocalTrashUpdated = isLocalTrashUpdated || itemsDeleted > 0;
     }
 
@@ -67,8 +68,9 @@ class TrashSyncService {
       await _setSyncTime(diff.lastSyncedTimeStamp);
     }
     if (isLocalTrashUpdated) {
-      _logger
-          .fine('local trash updated, fire ${(TrashUpdatedEvent).toString()}');
+      _logger.fine(
+        'local trash updated, fire ${(TrashUpdatedEvent).toString()}',
+      );
       Bus.instance.fire(TrashUpdatedEvent());
     }
     if (diff.hasMore) {
@@ -76,11 +78,7 @@ class TrashSyncService {
     } else if (diff.trashedFiles.isNotEmpty ||
         diff.deletedUploadIDs.isNotEmpty) {
       Bus.instance.fire(
-        CollectionUpdatedEvent(
-          0,
-          <EnteFile>[],
-          "trash_change",
-        ),
+        CollectionUpdatedEvent(0, <EnteFile>[], "trash_change"),
       );
     }
   }
@@ -110,8 +108,8 @@ class TrashSyncService {
   Future<void> trashFilesOnServer(List<TrashRequest> trashRequestItems) async {
     final includedFileIDs = <int>{};
     final uniqueItems = <TrashRequest>[];
-    final ownedCollectionIDs =
-        CollectionsService.instance.getAllOwnedCollectionIDs();
+    final ownedCollectionIDs = CollectionsService.instance
+        .getAllOwnedCollectionIDs();
     for (final item in trashRequestItems) {
       if (!includedFileIDs.contains(item.fileID)) {
         // Check if the collectionID in the request is owned by the user
@@ -120,8 +118,8 @@ class TrashSyncService {
           includedFileIDs.add(item.fileID);
         } else {
           // If not owned, use a different owned collectionID
-          final fileCollectionIDs =
-              await FilesDB.instance.getAllCollectionIDsOfFile(item.fileID);
+          final fileCollectionIDs = await FilesDB.instance
+              .getAllCollectionIDsOfFile(item.fileID);
           bool foundAnotherOwnedCollection = false;
           for (final collectionID in fileCollectionIDs) {
             if (ownedCollectionIDs.contains(collectionID)) {
@@ -155,9 +153,7 @@ class TrashSyncService {
     try {
       final response = await _enteDio.get(
         "/trash/v2/diff",
-        queryParameters: {
-          "sinceTime": sinceTime,
-        },
+        queryParameters: {"sinceTime": sinceTime},
       );
       int latestUpdatedAtTime = 0;
       final trashedFiles = <TrashFile>[];
@@ -195,8 +191,9 @@ class TrashSyncService {
           fileDecryptionKey,
           CryptoUtil.base642bin(trash.metadataDecryptionHeader!),
         );
-        final Map<String, dynamic> metadata =
-            jsonDecode(utf8.decode(encodedMetadata));
+        final Map<String, dynamic> metadata = jsonDecode(
+          utf8.decode(encodedMetadata),
+        );
         trash.applyMetadata(metadata);
         if (item["file"]['magicMetadata'] != null) {
           final utfEncodedMmd = await CryptoUtil.decryptChaCha(
@@ -215,8 +212,9 @@ class TrashSyncService {
           );
           trash.pubMmdEncodedJson = utf8.decode(utfEncodedMmd);
           trash.pubMmdVersion = item["file"]['pubMagicMetadata']['version'];
-          trash.pubMagicMetadata =
-              PubMagicMetadata.fromEncodedJson(trash.pubMmdEncodedJson!);
+          trash.pubMagicMetadata = PubMagicMetadata.fromEncodedJson(
+            trash.pubMmdEncodedJson!,
+          );
         }
         if (item['isRestored']) {
           restoredFiles.add(trash);
@@ -231,7 +229,8 @@ class TrashSyncService {
             diff.length.toString() +
             ": " +
             Duration(
-              microseconds: (endTime.microsecondsSinceEpoch -
+              microseconds:
+                  (endTime.microsecondsSinceEpoch -
                   startTime.microsecondsSinceEpoch),
             ).inMilliseconds.toString(),
       );
@@ -251,10 +250,7 @@ class TrashSyncService {
   Future<Response<dynamic>> _trashFiles(
     Map<String, dynamic> requestData,
   ) async {
-    return _enteDio.post(
-      "/files/trash",
-      data: requestData,
-    );
+    return _enteDio.post("/files/trash", data: requestData);
   }
 
   Future<void> deleteFromTrash(List<EnteFile> files) async {
@@ -267,10 +263,7 @@ class TrashSyncService {
         params["fileIDs"].add(fileID);
       }
       try {
-        await _enteDio.post(
-          "/trash/delete",
-          data: params,
-        );
+        await _enteDio.post("/trash/delete", data: params);
         await _trashDB.delete(batch);
         Bus.instance.fire(TrashUpdatedEvent());
       } catch (e, s) {
@@ -286,10 +279,7 @@ class TrashSyncService {
     final params = <String, dynamic>{};
     params["lastUpdatedAt"] = _getSyncTime();
     try {
-      await _enteDio.post(
-        "/trash/empty",
-        data: params,
-      );
+      await _enteDio.post("/trash/empty", data: params);
       await _trashDB.clearTable();
       unawaited(syncTrash());
       Bus.instance.fire(TrashUpdatedEvent());

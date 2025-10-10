@@ -34,8 +34,9 @@ class _DeleteEmptyAlbumsState extends State<DeleteEmptyAlbums> {
     if (!RemoteSyncService.instance.isFirstRemoteSyncDone()) {
       return Future.value(false);
     }
-    final Map<int, int> collectionIDToLatestTimeCount =
-        await CollectionsService.instance.getCollectionIDToNewestFileTime();
+    final Map<int, int> collectionIDToLatestTimeCount = await CollectionsService
+        .instance
+        .getCollectionIDToNewestFileTime();
     final emptyAlbumCount = widget.collections
         .where((collection) {
           final latestTimeCount = collectionIDToLatestTimeCount[collection.id];
@@ -126,8 +127,9 @@ class _DeleteEmptyAlbumsState extends State<DeleteEmptyAlbums> {
                   },
                 ),
               ],
-              title: AppLocalizations.of(context)
-                  .deleteEmptyAlbumsWithQuestionMark,
+              title: AppLocalizations.of(
+                context,
+              ).deleteEmptyAlbumsWithQuestionMark,
               body: AppLocalizations.of(context).deleteAlbumsDialogBody,
               actionSheetType: ActionSheetType.defaultActionSheet,
             );
@@ -139,8 +141,8 @@ class _DeleteEmptyAlbumsState extends State<DeleteEmptyAlbums> {
 
   Future<void> _deleteEmptyAlbums() async {
     final collections = CollectionsService.instance.getCollectionsForUI();
-    final idToFileTimeStamp =
-        await FilesDB.instance.getCollectionIDToMaxCreationTime();
+    final idToFileTimeStamp = await FilesDB.instance
+        .getCollectionIDToMaxCreationTime();
 
     // remove collections which are not empty or can't be deleted
     collections.removeWhere(
@@ -149,9 +151,10 @@ class _DeleteEmptyAlbumsState extends State<DeleteEmptyAlbums> {
     int failedCount = 0;
     for (int i = 0; i < collections.length; i++) {
       if (mounted && !_isCancelled) {
-        final String currentlyDeleting = (i + 1)
-            .toString()
-            .padLeft(collections.length.toString().length, '0');
+        final String currentlyDeleting = (i + 1).toString().padLeft(
+          collections.length.toString().length,
+          '0',
+        );
         _deleteProgress.value = AppLocalizations.of(context).deleteProgress(
           currentlyDeleting: currentlyDeleting,
           totalCount: collections.length,

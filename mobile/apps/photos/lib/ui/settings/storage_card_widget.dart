@@ -56,9 +56,7 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
     final userDetails = inheritedUserDetails?.userDetails;
 
     if (inheritedUserDetails == null) {
-      _logger.severe(
-        (InheritedUserDetails).toString() + 'is null',
-      );
+      _logger.severe((InheritedUserDetails).toString() + 'is null');
       throw Error();
     } else {
       return GestureDetector(
@@ -81,21 +79,14 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
     }
   }
 
-  Widget containerForUserDetails(
-    UserDetails? userDetails,
-  ) {
+  Widget containerForUserDetails(UserDetails? userDetails) {
     return Stack(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: _background,
-        ),
+        SizedBox(width: double.infinity, child: _background),
         Positioned.fill(
           child: userDetails is UserDetails
               ? _userDetails(userDetails)
-              : const EnteLoadingWidget(
-                  color: strokeBaseDark,
-                ),
+              : const EnteLoadingWidget(color: strokeBaseDark),
         ),
         Positioned.fill(
           child: Align(
@@ -153,27 +144,26 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
     final totalStorageInTB = roundGBsToTBs(totalStorageInGB);
     late String freeSpace, freeSpaceUnit;
 
-// Determine the appropriate free space and units
+    // Determine the appropriate free space and units
     if (shouldShowFreeSpaceInTBs) {
-      freeSpace =
-          _roundedFreeSpace(totalStorageInTB, usedStorageInTB).toString();
+      freeSpace = _roundedFreeSpace(
+        totalStorageInTB,
+        usedStorageInTB,
+      ).toString();
       freeSpaceUnit = "TB";
     } else if (shouldShowFreeSpaceInMBs) {
       freeSpace = max(0, convertBytesToMBs(freeStorageInBytes)).toString();
       freeSpaceUnit = "MB";
     } else {
-      freeSpace =
-          _roundedFreeSpace(totalStorageInGB, usedStorageInGB).toString();
+      freeSpace = _roundedFreeSpace(
+        totalStorageInGB,
+        usedStorageInGB,
+      ).toString();
       freeSpaceUnit = "GB";
     }
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        20,
-        16,
-        isMobileScreenSmall ? 12 : 20,
-      ),
+      padding: EdgeInsets.fromLTRB(16, 20, 16, isMobileScreenSmall ? 12 : 20),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -186,18 +176,18 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
                   isMobileScreenSmall
                       ? AppLocalizations.of(context).usedSpace
                       : AppLocalizations.of(context).storage,
-                  style: getEnteTextTheme(context)
-                      .small
-                      .copyWith(color: textMutedDark),
+                  style: getEnteTextTheme(
+                    context,
+                  ).small.copyWith(color: textMutedDark),
                 ),
                 const SizedBox(height: 2),
                 RichText(
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                   text: TextSpan(
-                    style: getEnteTextTheme(context)
-                        .h3Bold
-                        .copyWith(color: textBaseDark),
+                    style: getEnteTextTheme(
+                      context,
+                    ).h3Bold.copyWith(color: textBaseDark),
                     children: _usedStorageDetails(
                       isMobileScreenSmall: isMobileScreenSmall,
                       shouldShowTotalStorageInTBs: shouldShowTotalStorageInTBs,
@@ -219,8 +209,12 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
               Stack(
                 children: <Widget>[
                   const StorageProgressWidget(
-                    color:
-                        Color.fromRGBO(255, 255, 255, 0.2), //hardcoded in figma
+                    color: Color.fromRGBO(
+                      255,
+                      255,
+                      255,
+                      0.2,
+                    ), //hardcoded in figma
                     fractionOfStorage: 1,
                   ),
                   showFamilyBreakup
@@ -258,9 +252,9 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
                             const SizedBox(width: 4),
                             Text(
                               AppLocalizations.of(context).storageBreakupYou,
-                              style: getEnteTextTheme(context)
-                                  .miniBold
-                                  .copyWith(color: textBaseDark),
+                              style: getEnteTextTheme(
+                                context,
+                              ).miniBold.copyWith(color: textBaseDark),
                             ),
                             const SizedBox(width: 12),
                             Container(
@@ -274,9 +268,9 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
                             const SizedBox(width: 4),
                             Text(
                               AppLocalizations.of(context).storageBreakupFamily,
-                              style: getEnteTextTheme(context)
-                                  .miniBold
-                                  .copyWith(color: textBaseDark),
+                              style: getEnteTextTheme(
+                                context,
+                              ).miniBold.copyWith(color: textBaseDark),
                             ),
                           ],
                         )
@@ -286,9 +280,9 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
                       freeAmount: freeSpace,
                       storageUnit: freeSpaceUnit,
                     ),
-                    style: getEnteTextTheme(context)
-                        .mini
-                        .copyWith(color: textFaintDark),
+                    style: getEnteTextTheme(
+                      context,
+                    ).mini.copyWith(color: textFaintDark),
                   ),
                 ],
               ),
@@ -332,14 +326,12 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
     @required totalStorageInTB,
   }) {
     if (isMobileScreenSmall) {
-      return [
-        TextSpan(text: '$usedStorageInGB/$totalStorageInGB GB'),
-      ];
+      return [TextSpan(text: '$usedStorageInGB/$totalStorageInGB GB')];
     }
     late num currentUsage, totalStorage;
     late String currentUsageUnit, totalStorageUnit;
 
-// Determine the appropriate usage and units
+    // Determine the appropriate usage and units
     if (shouldShowUsedStorageInTBs) {
       currentUsage = usedStorageInTB;
       currentUsageUnit = "TB";
@@ -351,7 +343,7 @@ class _StorageCardWidgetState extends State<StorageCardWidget> {
       currentUsageUnit = "GB";
     }
 
-// Determine the appropriate total storage and units
+    // Determine the appropriate total storage and units
     if (shouldShowTotalStorageInTBs) {
       totalStorage = totalStorageInTB;
       totalStorageUnit = "TB";

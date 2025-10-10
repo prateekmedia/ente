@@ -68,14 +68,17 @@ class MLIndexingIsolate extends SuperIsolate {
     try {
       final resultJsonString =
           await runInIsolate(IsolateOperation.analyzeImage, {
-        "enteFileID": instruction.file.uploadedFileID ?? -1,
-        "filePath": filePath,
-        "runFaces": instruction.shouldRunFaces,
-        "runClip": instruction.shouldRunClip,
-        "faceDetectionAddress": FaceDetectionService.instance.sessionAddress,
-        "faceEmbeddingAddress": FaceEmbeddingService.instance.sessionAddress,
-        "clipImageAddress": ClipImageEncoder.instance.sessionAddress,
-      }) as String?;
+                "enteFileID": instruction.file.uploadedFileID ?? -1,
+                "filePath": filePath,
+                "runFaces": instruction.shouldRunFaces,
+                "runClip": instruction.shouldRunClip,
+                "faceDetectionAddress":
+                    FaceDetectionService.instance.sessionAddress,
+                "faceEmbeddingAddress":
+                    FaceEmbeddingService.instance.sessionAddress,
+                "clipImageAddress": ClipImageEncoder.instance.sessionAddress,
+              })
+              as String?;
       if (resultJsonString == null) {
         if (!shouldPauseIndexingAndClustering) {
           _logger.severe('Analyzing image in isolate is giving back null');
@@ -152,8 +155,10 @@ class MLIndexingIsolate extends SuperIsolate {
       _logger.info(
         "Loaded models count: $_loadedModelsCount, deloaded models count: $_deloadedModelsCount",
       );
-      await MLIndexingIsolate.instance
-          ._loadModels(loadFaces: shouldLoadFaces, loadClip: shouldLoadClip);
+      await MLIndexingIsolate.instance._loadModels(
+        loadFaces: shouldLoadFaces,
+        loadClip: shouldLoadClip,
+      );
       _logger.info('Models loaded');
     });
   }
@@ -168,12 +173,12 @@ class MLIndexingIsolate extends SuperIsolate {
     final List<String> modelPaths = [];
     if (loadFaces) {
       models.addAll([MLModels.faceDetection, MLModels.faceEmbedding]);
-      final faceDetection =
-          await FaceDetectionService.instance.getModelNameAndPath();
+      final faceDetection = await FaceDetectionService.instance
+          .getModelNameAndPath();
       modelNames.add(faceDetection.$1);
       modelPaths.add(faceDetection.$2);
-      final faceEmbedding =
-          await FaceEmbeddingService.instance.getModelNameAndPath();
+      final faceEmbedding = await FaceEmbeddingService.instance
+          .getModelNameAndPath();
       modelNames.add(faceEmbedding.$1);
       modelPaths.add(faceEmbedding.$2);
     }
@@ -187,9 +192,10 @@ class MLIndexingIsolate extends SuperIsolate {
     try {
       final addresses =
           await runInIsolate(IsolateOperation.loadIndexingModels, {
-        "modelNames": modelNames,
-        "modelPaths": modelPaths,
-      }) as List<int>;
+                "modelNames": modelNames,
+                "modelPaths": modelPaths,
+              })
+              as List<int>;
       for (int i = 0; i < models.length; i++) {
         final model = models[i].model;
         final address = addresses[i];
@@ -215,10 +221,12 @@ class MLIndexingIsolate extends SuperIsolate {
         _logger.severe("Could not download model, no wifi");
         return;
       }
-      final address = await runInIsolate(IsolateOperation.loadModel, {
-        "modelName": modelName,
-        "modelPath": modelPath,
-      }) as int;
+      final address =
+          await runInIsolate(IsolateOperation.loadModel, {
+                "modelName": modelName,
+                "modelPath": modelPath,
+              })
+              as int;
       modelInstance.storeSessionAddress(address);
     });
   }
@@ -235,8 +243,9 @@ class MLIndexingIsolate extends SuperIsolate {
         final mlModel = model.model;
         remoteModelPaths.add(mlModel.modelRemotePath);
       }
-      await RemoteAssetsService.instance
-          .cleanupSelectedModels(remoteModelPaths);
+      await RemoteAssetsService.instance.cleanupSelectedModels(
+        remoteModelPaths,
+      );
 
       areModelsDownloaded = false;
     }

@@ -32,8 +32,9 @@ class ManageIndividualParticipant extends StatefulWidget {
 
 class _ManageIndividualParticipantState
     extends State<ManageIndividualParticipant> {
-  final CollectionActions collectionActions =
-      CollectionActions(CollectionsService.instance);
+  final CollectionActions collectionActions = CollectionActions(
+    CollectionsService.instance,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -52,17 +53,16 @@ class _ManageIndividualParticipantState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(
-                    height: 12,
-                  ),
+                  const SizedBox(height: 12),
                   TitleBarTitleWidget(
                     title: AppLocalizations.of(context).manage,
                   ),
                   Text(
                     widget.user.displayName ?? widget.user.email,
                     textAlign: TextAlign.left,
-                    style:
-                        textTheme.small.copyWith(color: colorScheme.textMuted),
+                    style: textTheme.small.copyWith(
+                      color: colorScheme.textMuted,
+                    ),
                   ),
                 ],
               ),
@@ -79,13 +79,13 @@ class _ManageIndividualParticipantState
               onTap: widget.user.isCollaborator
                   ? null
                   : () async {
-                      final result =
-                          await collectionActions.addEmailToCollection(
-                        context,
-                        widget.collection,
-                        widget.user.email,
-                        CollectionParticipantRole.collaborator,
-                      );
+                      final result = await collectionActions
+                          .addEmailToCollection(
+                            context,
+                            widget.collection,
+                            widget.user.email,
+                            CollectionParticipantRole.collaborator,
+                          );
                       if (result && mounted) {
                         widget.user.role = CollectionParticipantRole
                             .collaborator
@@ -114,24 +114,26 @@ class _ManageIndividualParticipantState
                       final actionResult = await showChoiceActionSheet(
                         context,
                         title: AppLocalizations.of(context).changePermissions,
-                        firstButtonLabel:
-                            AppLocalizations.of(context).yesConvertToViewer,
+                        firstButtonLabel: AppLocalizations.of(
+                          context,
+                        ).yesConvertToViewer,
                         body: AppLocalizations.of(context)
                             .cannotAddMorePhotosAfterBecomingViewer(
-                          user: widget.user.displayName ?? widget.user.email,
-                        ),
+                              user:
+                                  widget.user.displayName ?? widget.user.email,
+                            ),
                         isCritical: true,
                       );
                       if (actionResult?.action != null) {
                         if (actionResult!.action == ButtonAction.first) {
                           try {
-                            isConvertToViewSuccess =
-                                await collectionActions.addEmailToCollection(
-                              context,
-                              widget.collection,
-                              widget.user.email,
-                              CollectionParticipantRole.viewer,
-                            );
+                            isConvertToViewSuccess = await collectionActions
+                                .addEmailToCollection(
+                                  context,
+                                  widget.collection,
+                                  widget.user.email,
+                                  CollectionParticipantRole.viewer,
+                                );
                           } catch (e) {
                             await showGenericErrorDialog(
                               context: context,
@@ -141,8 +143,8 @@ class _ManageIndividualParticipantState
                           if (isConvertToViewSuccess && mounted) {
                             // reset value
                             isConvertToViewSuccess = false;
-                            widget.user.role =
-                                CollectionParticipantRole.viewer.toStringVal();
+                            widget.user.role = CollectionParticipantRole.viewer
+                                .toStringVal();
                             setState(() => {});
                           }
                         }
@@ -151,8 +153,9 @@ class _ManageIndividualParticipantState
               isTopBorderRadiusRemoved: true,
             ),
             MenuSectionDescriptionWidget(
-              content: AppLocalizations.of(context)
-                  .collaboratorsCanAddPhotosAndVideosToTheSharedAlbum,
+              content: AppLocalizations.of(
+                context,
+              ).collaboratorsCanAddPhotosAndVideosToTheSharedAlbum,
             ),
             const SizedBox(height: 24),
             MenuSectionTitle(

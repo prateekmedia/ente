@@ -12,7 +12,8 @@ part of 'location.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 Location _$LocationFromJson(Map<String, dynamic> json) {
   return _Location.fromJson(json);
@@ -49,20 +50,20 @@ class _$LocationCopyWithImpl<$Res, $Val extends Location>
 
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? latitude = freezed,
-    Object? longitude = freezed,
-  }) {
-    return _then(_value.copyWith(
-      latitude: freezed == latitude
-          ? _value.latitude
-          : latitude // ignore: cast_nullable_to_non_nullable
-              as double?,
-      longitude: freezed == longitude
-          ? _value.longitude
-          : longitude // ignore: cast_nullable_to_non_nullable
-              as double?,
-    ) as $Val);
+  $Res call({Object? latitude = freezed, Object? longitude = freezed}) {
+    return _then(
+      _value.copyWith(
+            latitude: freezed == latitude
+                ? _value.latitude
+                : latitude // ignore: cast_nullable_to_non_nullable
+                      as double?,
+            longitude: freezed == longitude
+                ? _value.longitude
+                : longitude // ignore: cast_nullable_to_non_nullable
+                      as double?,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -70,8 +71,9 @@ class _$LocationCopyWithImpl<$Res, $Val extends Location>
 abstract class _$$LocationImplCopyWith<$Res>
     implements $LocationCopyWith<$Res> {
   factory _$$LocationImplCopyWith(
-          _$LocationImpl value, $Res Function(_$LocationImpl) then) =
-      __$$LocationImplCopyWithImpl<$Res>;
+    _$LocationImpl value,
+    $Res Function(_$LocationImpl) then,
+  ) = __$$LocationImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({double? latitude, double? longitude});
@@ -82,25 +84,25 @@ class __$$LocationImplCopyWithImpl<$Res>
     extends _$LocationCopyWithImpl<$Res, _$LocationImpl>
     implements _$$LocationImplCopyWith<$Res> {
   __$$LocationImplCopyWithImpl(
-      _$LocationImpl _value, $Res Function(_$LocationImpl) _then)
-      : super(_value, _then);
+    _$LocationImpl _value,
+    $Res Function(_$LocationImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? latitude = freezed,
-    Object? longitude = freezed,
-  }) {
-    return _then(_$LocationImpl(
-      latitude: freezed == latitude
-          ? _value.latitude
-          : latitude // ignore: cast_nullable_to_non_nullable
-              as double?,
-      longitude: freezed == longitude
-          ? _value.longitude
-          : longitude // ignore: cast_nullable_to_non_nullable
-              as double?,
-    ));
+  $Res call({Object? latitude = freezed, Object? longitude = freezed}) {
+    return _then(
+      _$LocationImpl(
+        latitude: freezed == latitude
+            ? _value.latitude
+            : latitude // ignore: cast_nullable_to_non_nullable
+                  as double?,
+        longitude: freezed == longitude
+            ? _value.longitude
+            : longitude // ignore: cast_nullable_to_non_nullable
+                  as double?,
+      ),
+    );
   }
 }
 
@@ -145,16 +147,15 @@ class _$LocationImpl implements _Location {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$LocationImplToJson(
-      this,
-    );
+    return _$$LocationImplToJson(this);
   }
 }
 
 abstract class _Location implements Location {
-  const factory _Location(
-      {required final double? latitude,
-      required final double? longitude}) = _$LocationImpl;
+  const factory _Location({
+    required final double? latitude,
+    required final double? longitude,
+  }) = _$LocationImpl;
 
   factory _Location.fromJson(Map<String, dynamic> json) =
       _$LocationImpl.fromJson;

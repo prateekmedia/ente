@@ -159,8 +159,9 @@ Future<ButtonResult?> showGenericErrorDialog({
 }) async {
   final errorBody = parseErrorForUI(
     context,
-    AppLocalizations.of(context)
-        .itLooksLikeSomethingWentWrongPleaseRetryAfterSome,
+    AppLocalizations.of(
+      context,
+    ).itLooksLikeSomethingWentWrongPleaseRetryAfterSome,
     error: error,
   );
 

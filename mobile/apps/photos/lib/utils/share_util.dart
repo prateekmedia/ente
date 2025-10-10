@@ -77,8 +77,8 @@ Future<void> share(
 /// If key is null, returned rect will be at the center of the screen
 Rect shareButtonRect(BuildContext context, GlobalKey? shareButtonKey) {
   Size size = MediaQuery.sizeOf(context);
-  final RenderObject? renderObject =
-      shareButtonKey?.currentContext?.findRenderObject();
+  final RenderObject? renderObject = shareButtonKey?.currentContext
+      ?.findRenderObject();
   RenderBox? renderBox;
   if (renderObject != null && renderObject is RenderBox) {
     renderBox = renderObject;
@@ -103,10 +103,7 @@ Future<ShareResult> shareText(
   try {
     final sharePosOrigin = _sharePosOrigin(context, key);
     return SharePlus.instance.share(
-      ShareParams(
-        text: text,
-        sharePositionOrigin: sharePosOrigin,
-      ),
+      ShareParams(text: text, sharePositionOrigin: sharePosOrigin),
     );
   } catch (e, s) {
     _logger.severe("failed to share text", e, s);
@@ -159,8 +156,9 @@ Future<List<EnteFile>> convertIncomingSharedMediaToFile(
     }
     enteFile.localID = sharedMediaIdentifier + sharedLocalId;
     enteFile.collectionID = collectionID;
-    enteFile.fileType =
-        media.type == SharedMediaType.image ? FileType.image : FileType.video;
+    enteFile.fileType = media.type == SharedMediaType.image
+        ? FileType.image
+        : FileType.video;
     if (enteFile.fileType == FileType.image) {
       final dateResult = await tryParseExifDateTime(ioFile, null);
       if (dateResult != null && dateResult.time != null) {
@@ -170,8 +168,9 @@ Future<List<EnteFile>> convertIncomingSharedMediaToFile(
       enteFile.duration = (media.duration ?? 0) ~/ 1000;
     }
     if (enteFile.creationTime == null || enteFile.creationTime == 0) {
-      final parsedDateTime =
-          parseDateTimeFromFileNameV2(basenameWithoutExtension(media.path));
+      final parsedDateTime = parseDateTimeFromFileNameV2(
+        basenameWithoutExtension(media.path),
+      );
       if (parsedDateTime != null) {
         enteFile.creationTime = parsedDateTime.microsecondsSinceEpoch;
       } else {
@@ -223,11 +222,7 @@ void shareSelected(
   GlobalKey shareButtonKey,
   List<EnteFile> selectedFiles,
 ) {
-  share(
-    context,
-    selectedFiles.toList(),
-    shareButtonKey: shareButtonKey,
-  );
+  share(context, selectedFiles.toList(), shareButtonKey: shareButtonKey);
 }
 
 Future<void> shareImageAndUrl(
@@ -261,11 +256,10 @@ Future<void> shareAlbumLinkWithPlaceholder(
   final ScreenshotController screenshotController = ScreenshotController();
   final List<EnteFile> filesInCollection =
       (await FilesDB.instance.getFilesInCollection(
-    collection.id,
-    galleryLoadStartTime,
-    galleryLoadEndTime,
-  ))
-          .files;
+        collection.id,
+        galleryLoadStartTime,
+        galleryLoadEndTime,
+      )).files;
 
   final dialog = createProgressDialog(
     context,
@@ -286,12 +280,7 @@ Future<void> shareAlbumLinkWithPlaceholder(
     );
     await dialog.hide();
 
-    await shareImageAndUrl(
-      placeholderBytes,
-      url,
-      context: context,
-      key: key,
-    );
+    await shareImageAndUrl(placeholderBytes, url, context: context, key: key);
   }
 }
 
@@ -314,9 +303,7 @@ Future<Uint8List> _createAlbumPlaceholder(
   ScreenshotController screenshotController,
   BuildContext context,
 ) async {
-  final Widget imageWidget = LinkPlaceholder(
-    files: files,
-  );
+  final Widget imageWidget = LinkPlaceholder(files: files);
   final double pixelRatio = MediaQuery.devicePixelRatioOf(context);
   final bytesOfImageToWidget = await screenshotController.captureFromWidget(
     imageWidget,

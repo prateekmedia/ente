@@ -39,25 +39,22 @@ class _BackupStatusScreenState extends State<BackupStatusScreen> {
 
   Future<void> getAllFiles() async {
     result = (await SearchService.instance.getAllFilesForSearch())
-        .where(
-          (e) => e.uploadedFileID != null && e.isOwner,
-        )
-        .map(
-          (e) {
-            return BackupItem(
-              status: BackupItemStatus.uploaded,
-              file: e,
-              collectionID: e.collectionID ?? 0,
-              completer: null,
-            );
-          },
-        )
+        .where((e) => e.uploadedFileID != null && e.isOwner)
+        .map((e) {
+          return BackupItem(
+            status: BackupItemStatus.uploaded,
+            file: e,
+            collectionID: e.collectionID ?? 0,
+            completer: null,
+          );
+        })
         .sorted(
           (a, b) => (b.file.uploadedFileID!).compareTo(a.file.uploadedFileID!),
         )
         .toList();
-    _fileUploadedSubscription =
-        Bus.instance.on<FileUploadedEvent>().listen((event) {
+    _fileUploadedSubscription = Bus.instance.on<FileUploadedEvent>().listen((
+      event,
+    ) {
       result!.insert(
         0,
         BackupItem(
@@ -73,8 +70,9 @@ class _BackupStatusScreenState extends State<BackupStatusScreen> {
   }
 
   void checkBackupUpdatedEvent() {
-    _backupUpdatedSubscription =
-        Bus.instance.on<BackupUpdatedEvent>().listen((event) {
+    _backupUpdatedSubscription = Bus.instance.on<BackupUpdatedEvent>().listen((
+      event,
+    ) {
       items = event.items;
       safeSetState();
     });
@@ -96,13 +94,11 @@ class _BackupStatusScreenState extends State<BackupStatusScreen> {
   @override
   Widget build(BuildContext context) {
     final List<BackupItem> items = this.items.values.toList().sorted(
-          (a, b) => a.status.index.compareTo(b.status.index),
-        );
+      (a, b) => a.status.index.compareTo(b.status.index),
+    );
 
     final allItems = <BackupItem>[
-      ...items.where(
-        (element) => element.status != BackupItemStatus.uploaded,
-      ),
+      ...items.where((element) => element.status != BackupItemStatus.uploaded),
       ...?result,
     ];
 
@@ -117,10 +113,7 @@ class _BackupStatusScreenState extends State<BackupStatusScreen> {
       ),
       body: allItems.isEmpty
           ? Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 60,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 12),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

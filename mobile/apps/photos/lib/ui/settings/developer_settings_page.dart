@@ -84,8 +84,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
 
   Future<void> _ping(String endpoint) async {
     try {
-      final response =
-          await NetworkClient.instance.getDio().get('$endpoint/ping');
+      final response = await NetworkClient.instance.getDio().get(
+        '$endpoint/ping',
+      );
       if (response.data['message'] != 'pong') {
         throw Exception('Invalid response');
       }

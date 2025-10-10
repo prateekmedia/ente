@@ -27,7 +27,7 @@ class AlbumHorizontalList extends StatefulWidget {
 
 class _AlbumHorizontalListState extends State<AlbumHorizontalList> {
   late StreamSubscription<CollectionUpdatedEvent>
-      _collectionUpdatesSubscription;
+  _collectionUpdatesSubscription;
   late Logger _logger;
 
   static const maxThumbnailWidth = 224.0;
@@ -37,10 +37,11 @@ class _AlbumHorizontalListState extends State<AlbumHorizontalList> {
   @override
   void initState() {
     super.initState();
-    _collectionUpdatesSubscription =
-        Bus.instance.on<CollectionUpdatedEvent>().listen((event) {
-      setState(() {});
-    });
+    _collectionUpdatesSubscription = Bus.instance
+        .on<CollectionUpdatedEvent>()
+        .listen((event) {
+          setState(() {});
+        });
     _logger = Logger((_AlbumHorizontalListState).toString());
   }
 
@@ -57,7 +58,7 @@ class _AlbumHorizontalListState extends State<AlbumHorizontalList> {
     final totalHorizontalPadding = (albumsCountInRow - 1) * crossAxisSpacing;
     final sideOfThumbnail =
         (screenWidth - totalHorizontalPadding - horizontalPadding) /
-            albumsCountInRow;
+        albumsCountInRow;
     debugPrint('$runtimeType widget build');
     return FutureBuilder<List<Collection>>(
       future: widget.collectionsFuture(),
@@ -76,8 +77,10 @@ class _AlbumHorizontalListState extends State<AlbumHorizontalList> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Text(
                     AppLocalizations.of(context).albums,
                     style: getEnteTextTheme(context).large,

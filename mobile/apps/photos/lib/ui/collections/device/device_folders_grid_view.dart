@@ -16,9 +16,7 @@ import 'package:photos/ui/viewer/gallery/empty_state.dart';
 import "package:photos/utils/standalone/debouncer.dart";
 
 class DeviceFoldersGridView extends StatefulWidget {
-  const DeviceFoldersGridView({
-    super.key,
-  });
+  const DeviceFoldersGridView({super.key});
 
   @override
   State<DeviceFoldersGridView> createState() => _DeviceFoldersGridViewState();
@@ -41,22 +39,24 @@ class _DeviceFoldersGridViewState extends State<DeviceFoldersGridView> {
   @override
   void initState() {
     super.initState();
-    _backupFoldersUpdatedEvent =
-        Bus.instance.on<BackupFoldersUpdatedEvent>().listen((event) {
-      _loadReason = event.reason;
-      if (mounted) {
-        setState(() {});
-      }
-    });
-    _localFilesSubscription =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
-      _debouncer.run(() async {
-        if (mounted) {
+    _backupFoldersUpdatedEvent = Bus.instance
+        .on<BackupFoldersUpdatedEvent>()
+        .listen((event) {
           _loadReason = event.reason;
-          setState(() {});
-        }
-      });
-    });
+          if (mounted) {
+            setState(() {});
+          }
+        });
+    _localFilesSubscription = Bus.instance.on<LocalPhotosUpdatedEvent>().listen(
+      (event) {
+        _debouncer.run(() async {
+          if (mounted) {
+            _loadReason = event.reason;
+            setState(() {});
+          }
+        });
+      },
+    );
   }
 
   @override
@@ -68,7 +68,7 @@ class _DeviceFoldersGridViewState extends State<DeviceFoldersGridView> {
         (albumsCountInCrossAxis - 1) * crossAxisSpacing;
     final double sideOfThumbnail =
         (screenWidth - totalCrossAxisSpacing - horizontalPadding) /
-            albumsCountInCrossAxis;
+        albumsCountInCrossAxis;
 
     debugPrint("${(DeviceFoldersGridView).toString()} - $_loadReason");
     return SizedBox(
@@ -76,8 +76,9 @@ class _DeviceFoldersGridViewState extends State<DeviceFoldersGridView> {
       child: Align(
         alignment: Alignment.centerLeft,
         child: FutureBuilder<List<DeviceCollection>>(
-          future: FilesDB.instance
-              .getDeviceCollections(includeCoverThumbnail: true),
+          future: FilesDB.instance.getDeviceCollections(
+            includeCoverThumbnail: true,
+          ),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               return snapshot.data!.isEmpty

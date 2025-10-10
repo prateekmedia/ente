@@ -33,7 +33,7 @@ abstract class IMLDataDB<T> {
   });
   Future<List<Face>?> getFacesForGivenFileID(T fileUploadID);
   Future<Map<int, List<FaceWithoutEmbedding>>>
-      getFileIDsToFacesWithoutEmbedding();
+  getFileIDsToFacesWithoutEmbedding();
   Future<Map<String, Iterable<String>>> getClusterToFaceIDs(
     Set<String> clusterIDs,
   );

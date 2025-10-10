@@ -69,10 +69,12 @@ void main() {
         ..title = 'test_video.mp4'
         ..collectionID = 1;
 
-      when(mockUploadLocksDB.isInStreamQueue(123))
-          .thenAnswer((_) async => false);
-      when(mockUploadLocksDB.addToStreamQueue(123, any))
-          .thenAnswer((_) async => {});
+      when(
+        mockUploadLocksDB.isInStreamQueue(123),
+      ).thenAnswer((_) async => false);
+      when(
+        mockUploadLocksDB.addToStreamQueue(123, any),
+      ).thenAnswer((_) async => {});
 
       final result = await videoPreviewService.addToManualQueue(file, 'create');
 
@@ -87,8 +89,9 @@ void main() {
         ..uploadedFileID = 123
         ..title = 'test_video.mp4';
 
-      when(mockUploadLocksDB.isInStreamQueue(123))
-          .thenAnswer((_) async => true);
+      when(
+        mockUploadLocksDB.isInStreamQueue(123),
+      ).thenAnswer((_) async => true);
 
       final result = await videoPreviewService.addToManualQueue(file, 'create');
 
@@ -132,33 +135,35 @@ void main() {
   });
 
   group('VideoPreviewService Status Calculation Edge Cases', () {
-    test('should handle video files only (no mixed types in calcStatus)',
-        () async {
-      // Note: calcStatus expects to receive only video files from the DB query
-      // Arrange
-      final files = [
-        EnteFile()
-          ..uploadedFileID = 1
-          ..fileType = FileType.video
-          ..pubMagicMetadata = PubMagicMetadata(),
-        EnteFile()
-          ..uploadedFileID = 3
-          ..fileType = FileType.video
-          ..pubMagicMetadata = PubMagicMetadata(),
-      ];
+    test(
+      'should handle video files only (no mixed types in calcStatus)',
+      () async {
+        // Note: calcStatus expects to receive only video files from the DB query
+        // Arrange
+        final files = [
+          EnteFile()
+            ..uploadedFileID = 1
+            ..fileType = FileType.video
+            ..pubMagicMetadata = PubMagicMetadata(),
+          EnteFile()
+            ..uploadedFileID = 3
+            ..fileType = FileType.video
+            ..pubMagicMetadata = PubMagicMetadata(),
+        ];
 
-      final previewIds = <int, PreviewInfo>{
-        1: PreviewInfo(objectId: 'obj1', objectSize: 1000),
-      };
+        final previewIds = <int, PreviewInfo>{
+          1: PreviewInfo(objectId: 'obj1', objectSize: 1000),
+        };
 
-      final status = await videoPreviewService.calcStatus(files, previewIds);
+        final status = await videoPreviewService.calcStatus(files, previewIds);
 
-      // Assert
-      // Logic: file 1 -> processed, add to both processed {1} and total {1}
-      //        file 3 -> not processed, add to total {1,3}
-      // Status = 1/2 = 0.5
-      expect(status, equals(0.5));
-    });
+        // Assert
+        // Logic: file 1 -> processed, add to both processed {1} and total {1}
+        //        file 3 -> not processed, add to total {1,3}
+        // Status = 1/2 = 0.5
+        expect(status, equals(0.5));
+      },
+    );
 
     test('should handle files with zero uploadedFileID', () async {
       // Arrange
@@ -340,8 +345,7 @@ void main() {
       expect(status, equals(0.5)); // Only file 1 matches and is processed
     });
 
-    test('should maintain precision with floating point calculations',
-        () async {
+    test('should maintain precision with floating point calculations', () async {
       // Arrange - Test edge case numbers that might cause floating point issues
       final files = List.generate(
         3,
@@ -457,8 +461,10 @@ void main() {
       final emptyPreviewIds = <int, PreviewInfo>{};
 
       final stopwatch = Stopwatch()..start();
-      final status =
-          await videoPreviewService.calcStatus(files, emptyPreviewIds);
+      final status = await videoPreviewService.calcStatus(
+        files,
+        emptyPreviewIds,
+      );
       stopwatch.stop();
 
       // Assert
@@ -483,8 +489,10 @@ void main() {
       }
 
       final stopwatch = Stopwatch()..start();
-      final status =
-          await videoPreviewService.calcStatus(files, allProcessedIds);
+      final status = await videoPreviewService.calcStatus(
+        files,
+        allProcessedIds,
+      );
       stopwatch.stop();
 
       // Assert
@@ -526,7 +534,8 @@ void main() {
           ..fileType = FileType.video
           ..pubMagicMetadata = PubMagicMetadata(),
         EnteFile()
-          ..uploadedFileID = 1 // Duplicate ID
+          ..uploadedFileID =
+              1 // Duplicate ID
           ..fileType = FileType.video
           ..pubMagicMetadata = PubMagicMetadata(),
       ];

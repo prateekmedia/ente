@@ -85,8 +85,8 @@ Future<List<FileMLInstruction>> getFilesForMlIndexing() async {
   final time = DateTime.now();
   // Get indexed fileIDs for each ML service
   final Map<int, int> faceIndexedFileIDs = await mlDataDB.faceIndexedFileIds();
-  final Map<int, int> clipIndexedFileIDs =
-      await mlDataDB.clipIndexedFileWithVersion();
+  final Map<int, int> clipIndexedFileIDs = await mlDataDB
+      .clipIndexedFileWithVersion();
   final Set<int> queuedFiledIDs = {};
 
   final Set<int> filesWithFDStatus = await mlDataDB.getFileIDsWithFDData();
@@ -108,10 +108,16 @@ Future<List<FileMLInstruction>> getFilesForMlIndexing() async {
     }
     queuedFiledIDs.add(enteFile.uploadedFileID!);
 
-    final shouldRunFaces =
-        _shouldRunIndexing(enteFile, faceIndexedFileIDs, faceMlVersion);
-    final shouldRunClip =
-        _shouldRunIndexing(enteFile, clipIndexedFileIDs, clipMlVersion);
+    final shouldRunFaces = _shouldRunIndexing(
+      enteFile,
+      faceIndexedFileIDs,
+      faceMlVersion,
+    );
+    final shouldRunClip = _shouldRunIndexing(
+      enteFile,
+      clipIndexedFileIDs,
+      clipMlVersion,
+    );
     if (!shouldRunFaces && !shouldRunClip) {
       continue;
     }
@@ -134,10 +140,16 @@ Future<List<FileMLInstruction>> getFilesForMlIndexing() async {
       continue;
     }
     queuedFiledIDs.add(enteFile.uploadedFileID!);
-    final shouldRunFaces =
-        _shouldRunIndexing(enteFile, faceIndexedFileIDs, faceMlVersion);
-    final shouldRunClip =
-        _shouldRunIndexing(enteFile, clipIndexedFileIDs, clipMlVersion);
+    final shouldRunFaces = _shouldRunIndexing(
+      enteFile,
+      faceIndexedFileIDs,
+      faceMlVersion,
+    );
+    final shouldRunClip = _shouldRunIndexing(
+      enteFile,
+      clipIndexedFileIDs,
+      clipMlVersion,
+    );
     if (!shouldRunFaces && !shouldRunClip) {
       continue;
     }
@@ -184,8 +196,9 @@ Stream<List<FileMLInstruction>> fetchEmbeddingsAndInstructions(
 ) async* {
   final mlDataDB = MLDataDB.instance;
   final List<FileMLInstruction> filesToIndex = await getFilesForMlIndexing();
-  final List<List<FileMLInstruction>> chunks =
-      filesToIndex.chunks(embeddingFetchLimit);
+  final List<List<FileMLInstruction>> chunks = filesToIndex.chunks(
+    embeddingFetchLimit,
+  );
   List<FileMLInstruction> batchToYield = [];
 
   for (final chunk in chunks) {
@@ -216,8 +229,9 @@ Stream<List<FileMLInstruction>> fetchEmbeddingsAndInstructions(
         faces.addAll(facesFromRemoteEmbedding);
         existingInstruction.shouldRunFaces = false;
       }
-      final remoteClipEmbedding =
-          fileMl.getClipEmbeddingIfCompatible(clipMlVersion);
+      final remoteClipEmbedding = fileMl.getClipEmbeddingIfCompatible(
+        clipMlVersion,
+      );
       if (remoteClipEmbedding != null) {
         clipEmbeddings.add(
           ClipEmbedding(
@@ -266,9 +280,7 @@ List<Face>? _getFacesFromRemoteEmbedding(FileDataEntity fileMl) {
   }
   final List<Face> faces = [];
   if (remoteFaceEmbedding!.faces.isEmpty) {
-    faces.add(
-      Face.empty(fileMl.fileID),
-    );
+    faces.add(Face.empty(fileMl.fileID));
   } else {
     for (final f in remoteFaceEmbedding.faces) {
       f.fileInfo = FileInfo(
@@ -285,8 +297,10 @@ bool _shouldDiscardRemoteEmbedding(FileDataEntity fileML) {
   final fileID = fileML.fileID;
   final RemoteFaceEmbedding? faceEmbedding = fileML.faceEmbedding;
   if (faceEmbedding == null || faceEmbedding.version < faceMlVersion) {
-    _logger.info("Discarding remote embedding for fileID $fileID "
-        "because version is ${faceEmbedding?.version} and we need $faceMlVersion");
+    _logger.info(
+      "Discarding remote embedding for fileID $fileID "
+      "because version is ${faceEmbedding?.version} and we need $faceMlVersion",
+    );
     return true;
   }
   // are all landmarks equal?
@@ -305,8 +319,10 @@ bool _shouldDiscardRemoteEmbedding(FileDataEntity fileML) {
     }
   }
   if (allLandmarksEqual) {
-    _logger.info("Discarding remote embedding for fileID $fileID "
-        "because landmarks are equal");
+    _logger.info(
+      "Discarding remote embedding for fileID $fileID "
+      "because landmarks are equal",
+    );
     _logger.info(
       faceEmbedding.faces
           .map((e) => e.detection.landmarks.toString())
@@ -353,11 +369,7 @@ Future<String> getImagePathForML(EnteFile enteFile) async {
       }
       file = await getFile(enteFile, isOrigin: true);
     } catch (e, s) {
-      _logger.severe(
-        "Could not get file for $enteFile",
-        e,
-        s,
-      );
+      _logger.severe("Could not get file for $enteFile", e, s);
     }
   }
   imagePath = file?.path;

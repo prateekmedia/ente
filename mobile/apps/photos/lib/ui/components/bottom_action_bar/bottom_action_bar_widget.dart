@@ -63,10 +63,7 @@ class BottomActionBarWidget extends StatelessWidget {
             clusterID: clusterID,
           ),
           const DividerWidget(dividerType: DividerType.bottomBar),
-          ActionBarWidget(
-            selectedFiles: selectedFiles,
-            onCancel: onCancel,
-          ),
+          ActionBarWidget(selectedFiles: selectedFiles, onCancel: onCancel),
           // const SizedBox(height: 2)
         ],
       ),

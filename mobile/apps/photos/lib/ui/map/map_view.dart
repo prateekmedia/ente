@@ -62,11 +62,9 @@ class _MapViewState extends State<MapView> {
   }
 
   void onChange(LatLngBounds bounds) {
-    _debouncer.run(
-      () async {
-        widget.updateVisibleImages(bounds);
-      },
-    );
+    _debouncer.run(() async {
+      widget.updateVisibleImages(bounds);
+    });
   }
 
   @override

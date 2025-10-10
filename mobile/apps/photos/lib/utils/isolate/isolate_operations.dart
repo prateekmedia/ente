@@ -114,10 +114,7 @@ Future<dynamic> isolateFunction(
       final modelNames = args['modelNames'] as List<String>;
       final modelAddresses = args['modelAddresses'] as List<int>;
       for (int i = 0; i < modelNames.length; i++) {
-        await MlModel.releaseModel(
-          modelNames[i],
-          modelAddresses[i],
-        );
+        await MlModel.releaseModel(modelNames[i], modelAddresses[i]);
       }
       return true;
 
@@ -129,8 +126,9 @@ Future<dynamic> isolateFunction(
     case IsolateOperation.generateFaceThumbnails:
       final imagePath = args['imagePath'] as String;
       final faceBoxesJson = args['faceBoxesList'] as List<Map<String, dynamic>>;
-      final List<FaceBox> faceBoxes =
-          faceBoxesJson.map((json) => FaceBox.fromJson(json)).toList();
+      final List<FaceBox> faceBoxes = faceBoxesJson
+          .map((json) => FaceBox.fromJson(json))
+          .toList();
       final List<Uint8List> results = await generateFaceThumbnailsUsingCanvas(
         imagePath,
         faceBoxes,
@@ -141,10 +139,7 @@ Future<dynamic> isolateFunction(
     case IsolateOperation.loadModel:
       final modelName = args['modelName'] as String;
       final modelPath = args['modelPath'] as String;
-      final int address = await MlModel.loadModel(
-        modelName,
-        modelPath,
-      );
+      final int address = await MlModel.loadModel(modelName, modelPath);
       return address;
 
     /// MLComputer
@@ -179,8 +174,9 @@ Future<dynamic> isolateFunction(
             queryResults.add(QueryResult(imageEmbedding.fileID, similarity));
           }
         }
-        queryResults
-            .sort((first, second) => second.score.compareTo(first.score));
+        queryResults.sort(
+          (first, second) => second.score.compareTo(first.score),
+        );
         result[query] = queryResults;
       }
       return result;

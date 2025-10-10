@@ -12,7 +12,8 @@ part of 'location_tag.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 LocationTag _$LocationTagFromJson(Map<String, dynamic> json) {
   return _LocationTag.fromJson(json);
@@ -35,15 +36,17 @@ mixin _$LocationTag {
 /// @nodoc
 abstract class $LocationTagCopyWith<$Res> {
   factory $LocationTagCopyWith(
-          LocationTag value, $Res Function(LocationTag) then) =
-      _$LocationTagCopyWithImpl<$Res, LocationTag>;
+    LocationTag value,
+    $Res Function(LocationTag) then,
+  ) = _$LocationTagCopyWithImpl<$Res, LocationTag>;
   @useResult
-  $Res call(
-      {String name,
-      double radius,
-      double aSquare,
-      double bSquare,
-      Location centerPoint});
+  $Res call({
+    String name,
+    double radius,
+    double aSquare,
+    double bSquare,
+    Location centerPoint,
+  });
 
   $LocationCopyWith<$Res> get centerPoint;
 }
@@ -67,28 +70,31 @@ class _$LocationTagCopyWithImpl<$Res, $Val extends LocationTag>
     Object? bSquare = null,
     Object? centerPoint = null,
   }) {
-    return _then(_value.copyWith(
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      radius: null == radius
-          ? _value.radius
-          : radius // ignore: cast_nullable_to_non_nullable
-              as double,
-      aSquare: null == aSquare
-          ? _value.aSquare
-          : aSquare // ignore: cast_nullable_to_non_nullable
-              as double,
-      bSquare: null == bSquare
-          ? _value.bSquare
-          : bSquare // ignore: cast_nullable_to_non_nullable
-              as double,
-      centerPoint: null == centerPoint
-          ? _value.centerPoint
-          : centerPoint // ignore: cast_nullable_to_non_nullable
-              as Location,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            name: null == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String,
+            radius: null == radius
+                ? _value.radius
+                : radius // ignore: cast_nullable_to_non_nullable
+                      as double,
+            aSquare: null == aSquare
+                ? _value.aSquare
+                : aSquare // ignore: cast_nullable_to_non_nullable
+                      as double,
+            bSquare: null == bSquare
+                ? _value.bSquare
+                : bSquare // ignore: cast_nullable_to_non_nullable
+                      as double,
+            centerPoint: null == centerPoint
+                ? _value.centerPoint
+                : centerPoint // ignore: cast_nullable_to_non_nullable
+                      as Location,
+          )
+          as $Val,
+    );
   }
 
   @override
@@ -104,16 +110,18 @@ class _$LocationTagCopyWithImpl<$Res, $Val extends LocationTag>
 abstract class _$$LocationTagImplCopyWith<$Res>
     implements $LocationTagCopyWith<$Res> {
   factory _$$LocationTagImplCopyWith(
-          _$LocationTagImpl value, $Res Function(_$LocationTagImpl) then) =
-      __$$LocationTagImplCopyWithImpl<$Res>;
+    _$LocationTagImpl value,
+    $Res Function(_$LocationTagImpl) then,
+  ) = __$$LocationTagImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String name,
-      double radius,
-      double aSquare,
-      double bSquare,
-      Location centerPoint});
+  $Res call({
+    String name,
+    double radius,
+    double aSquare,
+    double bSquare,
+    Location centerPoint,
+  });
 
   @override
   $LocationCopyWith<$Res> get centerPoint;
@@ -124,8 +132,9 @@ class __$$LocationTagImplCopyWithImpl<$Res>
     extends _$LocationTagCopyWithImpl<$Res, _$LocationTagImpl>
     implements _$$LocationTagImplCopyWith<$Res> {
   __$$LocationTagImplCopyWithImpl(
-      _$LocationTagImpl _value, $Res Function(_$LocationTagImpl) _then)
-      : super(_value, _then);
+    _$LocationTagImpl _value,
+    $Res Function(_$LocationTagImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -136,41 +145,43 @@ class __$$LocationTagImplCopyWithImpl<$Res>
     Object? bSquare = null,
     Object? centerPoint = null,
   }) {
-    return _then(_$LocationTagImpl(
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      radius: null == radius
-          ? _value.radius
-          : radius // ignore: cast_nullable_to_non_nullable
-              as double,
-      aSquare: null == aSquare
-          ? _value.aSquare
-          : aSquare // ignore: cast_nullable_to_non_nullable
-              as double,
-      bSquare: null == bSquare
-          ? _value.bSquare
-          : bSquare // ignore: cast_nullable_to_non_nullable
-              as double,
-      centerPoint: null == centerPoint
-          ? _value.centerPoint
-          : centerPoint // ignore: cast_nullable_to_non_nullable
-              as Location,
-    ));
+    return _then(
+      _$LocationTagImpl(
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String,
+        radius: null == radius
+            ? _value.radius
+            : radius // ignore: cast_nullable_to_non_nullable
+                  as double,
+        aSquare: null == aSquare
+            ? _value.aSquare
+            : aSquare // ignore: cast_nullable_to_non_nullable
+                  as double,
+        bSquare: null == bSquare
+            ? _value.bSquare
+            : bSquare // ignore: cast_nullable_to_non_nullable
+                  as double,
+        centerPoint: null == centerPoint
+            ? _value.centerPoint
+            : centerPoint // ignore: cast_nullable_to_non_nullable
+                  as Location,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$LocationTagImpl extends _LocationTag {
-  const _$LocationTagImpl(
-      {required this.name,
-      required this.radius,
-      required this.aSquare,
-      required this.bSquare,
-      required this.centerPoint})
-      : super._();
+  const _$LocationTagImpl({
+    required this.name,
+    required this.radius,
+    required this.aSquare,
+    required this.bSquare,
+    required this.centerPoint,
+  }) : super._();
 
   factory _$LocationTagImpl.fromJson(Map<String, dynamic> json) =>
       _$$LocationTagImplFromJson(json);
@@ -217,19 +228,18 @@ class _$LocationTagImpl extends _LocationTag {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$LocationTagImplToJson(
-      this,
-    );
+    return _$$LocationTagImplToJson(this);
   }
 }
 
 abstract class _LocationTag extends LocationTag {
-  const factory _LocationTag(
-      {required final String name,
-      required final double radius,
-      required final double aSquare,
-      required final double bSquare,
-      required final Location centerPoint}) = _$LocationTagImpl;
+  const factory _LocationTag({
+    required final String name,
+    required final double radius,
+    required final double aSquare,
+    required final double bSquare,
+    required final Location centerPoint,
+  }) = _$LocationTagImpl;
   const _LocationTag._() : super._();
 
   factory _LocationTag.fromJson(Map<String, dynamic> json) =

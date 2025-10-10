@@ -74,8 +74,9 @@ class _FileSelectionOverlayBarState extends State<FileSelectionOverlayBar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final inheritedSearchFilterData =
-        InheritedSearchFilterData.maybeOf(context);
+    final inheritedSearchFilterData = InheritedSearchFilterData.maybeOf(
+      context,
+    );
     if (inheritedSearchFilterData?.isHierarchicalSearchable ?? false) {
       _searchFilterDataProvider =
           inheritedSearchFilterData!.searchFilterDataProvider;
@@ -131,15 +132,11 @@ class _FileSelectionOverlayBarState extends State<FileSelectionOverlayBar> {
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 4),
-                child: SelectAllButton(
-                  backgroundColor: widget.backgroundColor,
-                ),
+                child: SelectAllButton(backgroundColor: widget.backgroundColor),
               ),
               const SizedBox(height: 8),
               Container(
-                decoration: BoxDecoration(
-                  boxShadow: shadowFloatFaintLight,
-                ),
+                decoration: BoxDecoration(boxShadow: shadowFloatFaintLight),
                 child: BottomActionBarWidget(
                   selectedFiles: widget.selectedFiles,
                   galleryType: _galleryType,
@@ -194,8 +191,9 @@ class _FileSelectionOverlayBarState extends State<FileSelectionOverlayBar> {
       if (initialFilter is FaceFilter) {
         for (HierarchicalSearchFilter filter in appliedFilters) {
           if (filter is OnlyThemFilter) {
-            if (filter.faceFilters
-                .any((faceFilter) => faceFilter.isSameFilter(initialFilter))) {
+            if (filter.faceFilters.any(
+              (faceFilter) => faceFilter.isSameFilter(initialFilter),
+            )) {
               initalFilterIsInAppliedFiters = true;
               break;
             }
@@ -240,9 +238,7 @@ class _SelectAllButtonState extends State<SelectAllButton> {
           if (_allSelected) {
             selectionState.selectedFiles.clearAll();
           } else {
-            selectionState.selectedFiles.selectAll(
-              allGalleryFiles.toSet(),
-            );
+            selectionState.selectedFiles.selectAll(allGalleryFiles.toSet());
           }
           _allSelected = !_allSelected;
         });

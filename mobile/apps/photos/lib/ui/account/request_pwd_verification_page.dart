@@ -157,9 +157,7 @@ class _RequestPasswordVerificationPageState
                   // password
                   visible: false,
                   child: TextFormField(
-                    autofillHints: const [
-                      AutofillHints.email,
-                    ],
+                    autofillHints: const [AutofillHints.email],
                     autocorrect: false,
                     keyboardType: TextInputType.emailAddress,
                     initialValue: email,
@@ -197,9 +195,7 @@ class _RequestPasswordVerificationPageState
                             )
                           : null,
                     ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(fontSize: 14),
                     controller: _passwordController,
                     autofocus: true,
                     autocorrect: false,

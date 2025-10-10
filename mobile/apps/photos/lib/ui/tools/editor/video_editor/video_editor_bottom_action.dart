@@ -43,25 +43,19 @@ class VideoEditorBottomAction extends StatelessWidget {
             child: icon != null
                 ? Icon(icon!)
                 : svgPath != null
-                    ? SvgPicture.asset(
-                        svgPath!,
-                        colorFilter: ColorFilter.mode(
-                          Theme.of(context).colorScheme.onSurface,
-                          BlendMode.srcIn,
-                        ),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: child!,
-                      ),
+                ? SvgPicture.asset(
+                    svgPath!,
+                    colorFilter: ColorFilter.mode(
+                      Theme.of(context).colorScheme.onSurface,
+                      BlendMode.srcIn,
+                    ),
+                  )
+                : Padding(padding: const EdgeInsets.all(2), child: child!),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),

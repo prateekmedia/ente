@@ -101,18 +101,16 @@ class SmartAlbumsService {
         continue;
       }
 
-      final collection =
-          CollectionsService.instance.getCollectionByID(collectionId);
+      final collection = CollectionsService.instance.getCollectionByID(
+        collectionId,
+      );
 
       if (collection == null || !collection.canAutoAdd(userId)) {
         _logger.warning(
           "For config ($collectionId) user does not have permission",
         );
         if (collection?.isDeleted ?? false) {
-          await _deleteEntry(
-            userId: userId,
-            collectionId: collectionId,
-          );
+          await _deleteEntry(userId: userId, collectionId: collectionId);
         }
 
         continue;
@@ -143,18 +141,17 @@ class SmartAlbumsService {
           continue;
         }
 
-        final fileIds = (await SearchService.instance
-                .getClusterFilesForPersonID(personId))
-            .entries
-            .expand((e) => e.value)
-            .toList()
-          ..removeWhere(
-            (e) =>
-                e.uploadedFileID == null ||
-                config.infoMap[personId]!.addedFiles
-                    .contains(e.uploadedFileID) ||
-                e.ownerID != userId,
-          );
+        final fileIds =
+            (await SearchService.instance.getClusterFilesForPersonID(
+              personId,
+            )).entries.expand((e) => e.value).toList()..removeWhere(
+              (e) =>
+                  e.uploadedFileID == null ||
+                  config.infoMap[personId]!.addedFiles.contains(
+                    e.uploadedFileID,
+                  ) ||
+                  e.ownerID != userId,
+            );
 
         pendingSyncFiles = {
           ...pendingSyncFiles,

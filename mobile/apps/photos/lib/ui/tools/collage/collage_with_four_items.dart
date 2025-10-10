@@ -7,10 +7,7 @@ import "package:photos/ui/tools/collage/collage_item_widget.dart";
 import "package:photos/ui/tools/collage/collage_save_button.dart";
 import "package:widgets_to_image/widgets_to_image.dart";
 
-enum Variant {
-  first,
-  second,
-}
+enum Variant { first, second }
 
 class CollageWithFourItems extends StatefulWidget {
   const CollageWithFourItems(
@@ -53,9 +50,7 @@ class _CollageWithFourItemsState extends State<CollageWithFourItems> {
     return Row(
       children: [
         CollageLayoutIconButton(
-          child: FirstVariantIcon(
-            isActive: _variant == Variant.first,
-          ),
+          child: FirstVariantIcon(isActive: _variant == Variant.first),
           onTap: () {
             setState(() {
               _variant = Variant.first;
@@ -64,9 +59,7 @@ class _CollageWithFourItemsState extends State<CollageWithFourItems> {
         ),
         const Padding(padding: EdgeInsets.all(2)),
         CollageLayoutIconButton(
-          child: SecondVariantIcon(
-            isActive: _variant == Variant.second,
-          ),
+          child: SecondVariantIcon(isActive: _variant == Variant.second),
           onTap: () {
             setState(() {
               _variant = Variant.second;
@@ -211,10 +204,7 @@ class SecondVariant extends StatelessWidget {
 }
 
 class FirstVariantIcon extends StatelessWidget {
-  const FirstVariantIcon({
-    super.key,
-    this.isActive = false,
-  });
+  const FirstVariantIcon({super.key, this.isActive = false});
 
   final bool isActive;
 
@@ -236,10 +226,7 @@ class FirstVariantIcon extends StatelessWidget {
 }
 
 class SecondVariantIcon extends StatelessWidget {
-  const SecondVariantIcon({
-    super.key,
-    this.isActive = false,
-  });
+  const SecondVariantIcon({super.key, this.isActive = false});
   final bool isActive;
 
   @override

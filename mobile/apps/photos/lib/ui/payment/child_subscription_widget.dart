@@ -9,10 +9,7 @@ import 'package:photos/utils/dialog_util.dart';
 import "package:styled_text/styled_text.dart";
 
 class ChildSubscriptionWidget extends StatelessWidget {
-  const ChildSubscriptionWidget({
-    super.key,
-    required this.userDetails,
-  });
+  const ChildSubscriptionWidget({super.key, required this.userDetails});
 
   final UserDetails userDetails;
 
@@ -32,14 +29,13 @@ class ChildSubscriptionWidget extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: StyledText(
-              text: AppLocalizations.of(context)
-                  .contactFamilyAdmin(familyAdminEmail: familyAdmin),
+              text: AppLocalizations.of(
+                context,
+              ).contactFamilyAdmin(familyAdminEmail: familyAdmin),
               style: Theme.of(context).textTheme.bodyLarge,
               tags: {
                 'green': StyledTextTag(
@@ -50,24 +46,19 @@ class ChildSubscriptionWidget extends StatelessWidget {
               },
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-          ),
-          Image.asset(
-            "assets/family_plan_leave.png",
-            height: 256,
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 0),
-          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8)),
+          Image.asset("assets/family_plan_leave.png", height: 256),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 0)),
           InkWell(
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 18, horizontal: 100),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 100,
+                ),
                 backgroundColor: Colors.red[500],
               ),
               child: Text(
@@ -92,8 +83,9 @@ class ChildSubscriptionWidget extends StatelessWidget {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: AppLocalizations.of(context)
-                            .pleaseContactSupportAndWeWillBeHappyToHelp,
+                        text: AppLocalizations.of(
+                          context,
+                        ).pleaseContactSupportAndWeWillBeHappyToHelp,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],

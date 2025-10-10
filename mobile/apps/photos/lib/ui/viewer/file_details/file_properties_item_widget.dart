@@ -34,10 +34,12 @@ class _FilePropertiesItemWidgetState extends State<FilePropertiesItemWidget> {
       leadingIcon: widget.isImage
           ? Icons.photo_outlined
           : Icons.video_camera_back_outlined,
-      title: path.basenameWithoutExtension(widget.file.displayName) +
+      title:
+          path.basenameWithoutExtension(widget.file.displayName) +
           path.extension(widget.file.displayName).toUpperCase(),
       subtitleSection: _subTitleSection(),
-      editOnTap: widget.file.uploadedFileID == null ||
+      editOnTap:
+          widget.file.uploadedFileID == null ||
               widget.file.ownerID != widget.currentUserID
           ? null
           : () async {
@@ -64,12 +66,7 @@ class _FilePropertiesItemWidgetState extends State<FilePropertiesItemWidget> {
     final subSectionWidgets = <Widget>[];
 
     if (dimString.isNotEmpty) {
-      subSectionWidgets.add(
-        Text(
-          dimString.toString(),
-          style: textStyle,
-        ),
-      );
+      subSectionWidgets.add(Text(dimString.toString(), style: textStyle));
     }
 
     int fileSize;
@@ -78,21 +75,13 @@ class _FilePropertiesItemWidgetState extends State<FilePropertiesItemWidget> {
     } else {
       fileSize = await getFile(widget.file).then((f) => f!.length());
     }
-    subSectionWidgets.add(
-      Text(
-        formatBytes(fileSize),
-        style: textStyle,
-      ),
-    );
+    subSectionWidgets.add(Text(formatBytes(fileSize), style: textStyle));
 
     if ((widget.file.fileType == FileType.video) &&
         (widget.file.localID != null || widget.file.duration != 0)) {
       if (widget.file.duration != 0) {
         subSectionWidgets.add(
-          Text(
-            secondsToHHMMSS(widget.file.duration!),
-            style: textStyle,
-          ),
+          Text(secondsToHHMMSS(widget.file.duration!), style: textStyle),
         );
       } else {
         final asset = await widget.file.getAsset;

@@ -68,18 +68,19 @@ class _CollectionsFlexiGridViewWidgetState
     extends State<CollectionsFlexiGridViewWidget> {
   bool isAnyAlbumSelected = false;
   late StreamSubscription<ClearAlbumSelectionsEvent>
-      _clearAlbumSelectionSubscription;
+  _clearAlbumSelectionSubscription;
 
   @override
   void initState() {
-    _clearAlbumSelectionSubscription =
-        Bus.instance.on<ClearAlbumSelectionsEvent>().listen((event) {
-      if (mounted) {
-        setState(() {
-          isAnyAlbumSelected = false;
+    _clearAlbumSelectionSubscription = Bus.instance
+        .on<ClearAlbumSelectionsEvent>()
+        .listen((event) {
+          if (mounted) {
+            setState(() {
+              isAnyAlbumSelected = false;
+            });
+          }
         });
-      }
-    });
     super.initState();
   }
 
@@ -100,7 +101,8 @@ class _CollectionsFlexiGridViewWidgetState
   Future<void> _navigateToCollectionPage(Collection c) async {
     final thumbnail = await CollectionsService.instance.getCover(c);
     final bool isOwner = c.isOwner(Configuration.instance.getUserID()!);
-    final String tagPrefix = (isOwner ? "collection" : "shared_collection") +
+    final String tagPrefix =
+        (isOwner ? "collection" : "shared_collection") +
         widget.tag +
         "_" +
         c.id.toString();
@@ -137,12 +139,16 @@ class _CollectionsFlexiGridViewWidgetState
 
   Widget _buildGridView(BuildContext context, Key key) {
     final double screenWidth = MediaQuery.sizeOf(context).width;
-    final int albumsCountInCrossAxis =
-        max(screenWidth ~/ CollectionsFlexiGridViewWidget.maxThumbnailWidth, 3);
-    final double totalCrossAxisSpacing = (albumsCountInCrossAxis - 1) *
+    final int albumsCountInCrossAxis = max(
+      screenWidth ~/ CollectionsFlexiGridViewWidget.maxThumbnailWidth,
+      3,
+    );
+    final double totalCrossAxisSpacing =
+        (albumsCountInCrossAxis - 1) *
         CollectionsFlexiGridViewWidget.crossAxisSpacing;
 
-    final double sideOfThumbnail = (screenWidth -
+    final double sideOfThumbnail =
+        (screenWidth -
             totalCrossAxisSpacing -
             CollectionsFlexiGridViewWidget.horizontalPadding) /
         albumsCountInCrossAxis;
@@ -161,36 +167,33 @@ class _CollectionsFlexiGridViewWidgetState
         bottom: widget.scrollBottomSafeArea,
       ),
       sliver: SliverGrid(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (showCreateAlbum && index == 0) {
-              return NewAlbumRowItemWidget(
-                height: sideOfThumbnail,
-                width: sideOfThumbnail,
-              );
-            }
-            final collectionIndex = showCreateAlbum ? index - 1 : index;
-            return AlbumRowItemWidget(
-              widget.collections![collectionIndex],
-              sideOfThumbnail,
-              tag: widget.tag,
-              selectedAlbums: widget.selectedAlbums,
-              onTapCallback: (c) {
-                isAnyAlbumSelected || widget.onlyAllowSelection
-                    ? _toggleAlbumSelection(c)
-                    : _navigateToCollectionPage(c);
-              },
-              onLongPressCallback: widget.enableSelectionMode
-                  ? (c) {
-                      isAnyAlbumSelected || widget.onlyAllowSelection
-                          ? _navigateToCollectionPage(c)
-                          : _toggleAlbumSelection(c);
-                    }
-                  : null,
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (showCreateAlbum && index == 0) {
+            return NewAlbumRowItemWidget(
+              height: sideOfThumbnail,
+              width: sideOfThumbnail,
             );
-          },
-          childCount: displayItemCount,
-        ),
+          }
+          final collectionIndex = showCreateAlbum ? index - 1 : index;
+          return AlbumRowItemWidget(
+            widget.collections![collectionIndex],
+            sideOfThumbnail,
+            tag: widget.tag,
+            selectedAlbums: widget.selectedAlbums,
+            onTapCallback: (c) {
+              isAnyAlbumSelected || widget.onlyAllowSelection
+                  ? _toggleAlbumSelection(c)
+                  : _navigateToCollectionPage(c);
+            },
+            onLongPressCallback: widget.enableSelectionMode
+                ? (c) {
+                    isAnyAlbumSelected || widget.onlyAllowSelection
+                        ? _navigateToCollectionPage(c)
+                        : _toggleAlbumSelection(c);
+                  }
+                : null,
+          );
+        }, childCount: displayItemCount),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: albumsCountInCrossAxis,
           mainAxisSpacing: 8,
@@ -227,87 +230,84 @@ class _CollectionsFlexiGridViewWidgetState
                   onTapCallback: (c) {},
                 ),
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            Widget item;
+        delegate: SliverChildBuilderDelegate((context, index) {
+          Widget item;
 
-            if (showCreateAlbum && index == 0) {
-              item = GestureDetector(
-                onTap: () async {
-                  GestureDetector(
-                    onTap: () async {
-                      final result = await showTextInputDialog(
-                        context,
-                        title: AppLocalizations.of(context).newAlbum,
-                        submitButtonLabel: AppLocalizations.of(context).create,
-                        hintText: AppLocalizations.of(context).enterAlbumName,
-                        alwaysShowSuccessState: false,
-                        initialValue: "",
-                        textCapitalization: TextCapitalization.words,
-                        popnavAfterSubmission: false,
-                        onSubmit: (String text) async {
-                          if (text.trim() == "") {
-                            return;
-                          }
+          if (showCreateAlbum && index == 0) {
+            item = GestureDetector(
+              onTap: () async {
+                GestureDetector(
+                  onTap: () async {
+                    final result = await showTextInputDialog(
+                      context,
+                      title: AppLocalizations.of(context).newAlbum,
+                      submitButtonLabel: AppLocalizations.of(context).create,
+                      hintText: AppLocalizations.of(context).enterAlbumName,
+                      alwaysShowSuccessState: false,
+                      initialValue: "",
+                      textCapitalization: TextCapitalization.words,
+                      popnavAfterSubmission: false,
+                      onSubmit: (String text) async {
+                        if (text.trim() == "") {
+                          return;
+                        }
 
-                          try {
-                            final Collection c = await CollectionsService
-                                .instance
-                                .createAlbum(text);
-                            // ignore: unawaited_futures
-                            await routeToPage(
-                              context,
-                              CollectionPage(CollectionWithThumbnail(c, null)),
-                            );
-                            Navigator.of(context).pop();
-                          } catch (e, s) {
-                            Logger("CreateNewAlbumIcon")
-                                .severe("Failed to rename album", e, s);
-                            rethrow;
-                          }
-                        },
+                        try {
+                          final Collection c = await CollectionsService.instance
+                              .createAlbum(text);
+                          // ignore: unawaited_futures
+                          await routeToPage(
+                            context,
+                            CollectionPage(CollectionWithThumbnail(c, null)),
+                          );
+                          Navigator.of(context).pop();
+                        } catch (e, s) {
+                          Logger(
+                            "CreateNewAlbumIcon",
+                          ).severe("Failed to rename album", e, s);
+                          rethrow;
+                        }
+                      },
+                    );
+
+                    if (result is Exception) {
+                      await showGenericErrorDialog(
+                        context: context,
+                        error: result,
                       );
-
-                      if (result is Exception) {
-                        await showGenericErrorDialog(
-                          context: context,
-                          error: result,
-                        );
-                      }
-                    },
-                    child: const NewAlbumListItemWidget(),
-                  );
-                },
-                child: const NewAlbumListItemWidget(),
-              );
-            } else {
-              final collectionIndex = showCreateAlbum ? index - 1 : index;
-
-              item = AlbumListItemWidget(
-                widget.collections![collectionIndex],
-                selectedAlbums: widget.selectedAlbums,
-                onTapCallback: (c) {
-                  isAnyAlbumSelected
-                      ? _toggleAlbumSelection(c)
-                      : _navigateToCollectionPage(c);
-                },
-                onLongPressCallback: widget.enableSelectionMode
-                    ? (c) {
-                        isAnyAlbumSelected
-                            ? _navigateToCollectionPage(c)
-                            : _toggleAlbumSelection(c);
-                      }
-                    : null,
-              );
-            }
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: item,
+                    }
+                  },
+                  child: const NewAlbumListItemWidget(),
+                );
+              },
+              child: const NewAlbumListItemWidget(),
             );
-          },
-          childCount: displayItemCount,
-        ),
+          } else {
+            final collectionIndex = showCreateAlbum ? index - 1 : index;
+
+            item = AlbumListItemWidget(
+              widget.collections![collectionIndex],
+              selectedAlbums: widget.selectedAlbums,
+              onTapCallback: (c) {
+                isAnyAlbumSelected
+                    ? _toggleAlbumSelection(c)
+                    : _navigateToCollectionPage(c);
+              },
+              onLongPressCallback: widget.enableSelectionMode
+                  ? (c) {
+                      isAnyAlbumSelected
+                          ? _navigateToCollectionPage(c)
+                          : _toggleAlbumSelection(c);
+                    }
+                  : null,
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: item,
+          );
+        }, childCount: displayItemCount),
       ),
     );
   }

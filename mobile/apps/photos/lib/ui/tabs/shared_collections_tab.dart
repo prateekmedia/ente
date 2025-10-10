@@ -41,7 +41,7 @@ class _SharedCollectionsTabState extends State<SharedCollectionsTab>
   final Logger _logger = Logger("SharedCollectionGallery");
   late StreamSubscription<LocalPhotosUpdatedEvent> _localFilesSubscription;
   late StreamSubscription<CollectionUpdatedEvent>
-      _collectionUpdatesSubscription;
+  _collectionUpdatesSubscription;
   late StreamSubscription<UserLoggedOutEvent> _loggedOutEvent;
   final _debouncer = Debouncer(
     const Duration(seconds: 2),
@@ -67,24 +67,26 @@ class _SharedCollectionsTabState extends State<SharedCollectionsTab>
   @override
   void initState() {
     super.initState();
-    _localFilesSubscription =
-        Bus.instance.on<LocalPhotosUpdatedEvent>().listen((event) {
-      _debouncer.run(() async {
-        if (mounted) {
-          debugPrint("SetState Shared Collections on ${event.reason}");
-          setState(() {});
-        }
-      });
-    });
-    _collectionUpdatesSubscription =
-        Bus.instance.on<CollectionUpdatedEvent>().listen((event) {
-      _debouncer.run(() async {
-        if (mounted) {
-          debugPrint("SetState Shared Collections on ${event.reason}");
-          setState(() {});
-        }
-      });
-    });
+    _localFilesSubscription = Bus.instance.on<LocalPhotosUpdatedEvent>().listen(
+      (event) {
+        _debouncer.run(() async {
+          if (mounted) {
+            debugPrint("SetState Shared Collections on ${event.reason}");
+            setState(() {});
+          }
+        });
+      },
+    );
+    _collectionUpdatesSubscription = Bus.instance
+        .on<CollectionUpdatedEvent>()
+        .listen((event) {
+          _debouncer.run(() async {
+            if (mounted) {
+              debugPrint("SetState Shared Collections on ${event.reason}");
+              setState(() {});
+            }
+          });
+        });
     _loggedOutEvent = Bus.instance.on<UserLoggedOutEvent>().listen((event) {
       setState(() {});
     });
@@ -148,12 +150,14 @@ class _SharedCollectionsTabState extends State<SharedCollectionsTab>
     final totalHorizontalPadding = (albumsCountInRow - 1) * crossAxisSpacing;
     final sideOfThumbnail =
         (screenWidth - totalHorizontalPadding - horizontalPadding) /
-            albumsCountInRow;
+        albumsCountInRow;
     const quickLinkTitleHeroTag = "quick_link_title";
-    final SectionTitle sharedWithYou =
-        SectionTitle(title: AppLocalizations.of(context).sharedWithYou);
-    final SectionTitle sharedByYou =
-        SectionTitle(title: AppLocalizations.of(context).sharedByYou);
+    final SectionTitle sharedWithYou = SectionTitle(
+      title: AppLocalizations.of(context).sharedWithYou,
+    );
+    final SectionTitle sharedByYou = SectionTitle(
+      title: AppLocalizations.of(context).sharedByYou,
+    );
     final colorTheme = getEnteColorScheme(context);
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -250,9 +254,7 @@ class _SharedCollectionsTabState extends State<SharedCollectionsTab>
                     ? SizedBox(
                         height: sideOfThumbnail + 46,
                         child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           scrollDirection: Axis.horizontal,
                           itemBuilder: (context, index) {
                             return Padding(

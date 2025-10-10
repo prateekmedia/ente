@@ -33,23 +33,22 @@ Future<File?> downloadAndDecryptPublicFile(
   ProgressCallback? progressCallback,
 }) async {
   final String logPrefix = 'Public File-${file.uploadedFileID}:';
-  _logger
-      .info('$logPrefix starting download ${formatBytes(file.fileSize ?? 0)}');
+  _logger.info(
+    '$logPrefix starting download ${formatBytes(file.fileSize ?? 0)}',
+  );
 
   final String tempDir = Configuration.instance.getTempDirectory();
   final String encryptedFilePath = "$tempDir${file.uploadedFileID}.encrypted";
   final String decryptedFilePath = "$tempDir${file.uploadedFileID}.decrypted";
 
   try {
-    final headers =
-        CollectionsService.instance.publicCollectionHeaders(file.collectionID!);
+    final headers = CollectionsService.instance.publicCollectionHeaders(
+      file.collectionID!,
+    );
     final response = (await NetworkClient.instance.getDio().download(
       FileUrl.getUrl(file.uploadedFileID!, FileUrlType.publicDownload),
       encryptedFilePath,
-      options: Options(
-        headers: headers,
-        responseType: ResponseType.bytes,
-      ),
+      options: Options(headers: headers, responseType: ResponseType.bytes),
       onReceiveProgress: (a, b) {
         progressCallback?.call(a, b);
       },
@@ -107,8 +106,9 @@ Future<File?> downloadAndDecrypt(
   }
 
   final String logPrefix = 'File-${file.uploadedFileID}:';
-  _logger
-      .info('$logPrefix starting download ${formatBytes(file.fileSize ?? 0)}');
+  _logger.info(
+    '$logPrefix starting download ${formatBytes(file.fileSize ?? 0)}',
+  );
   final String tempDir = Configuration.instance.getTempDirectory();
   String encryptedFilePath = "$tempDir${file.generatedID}.encrypted";
   File encryptedFile = File(encryptedFilePath);
@@ -184,8 +184,9 @@ Future<File?> downloadAndDecrypt(
         getFileKey(file),
       );
       fakeProgress?.stop();
-      _logger
-          .info('$logPrefix decryption completed (genID ${file.generatedID})');
+      _logger.info(
+        '$logPrefix decryption completed (genID ${file.generatedID})',
+      );
     } catch (e, s) {
       fakeProgress?.stop();
       _logger.severe(
@@ -218,14 +219,20 @@ Future<void> downloadToGallery(EnteFile file) async {
       //files db before triggering a sync.
       await PhotoManager.stopChangeNotify();
       if (type == FileType.image) {
-        savedAsset = await PhotoManager.editor
-            .saveImageWithPath(fileToSave!.path, title: file.title!);
+        savedAsset = await PhotoManager.editor.saveImageWithPath(
+          fileToSave!.path,
+          title: file.title!,
+        );
       } else if (type == FileType.video) {
-        savedAsset = await PhotoManager.editor
-            .saveVideo(fileToSave!, title: file.title!);
+        savedAsset = await PhotoManager.editor.saveVideo(
+          fileToSave!,
+          title: file.title!,
+        );
       } else if (type == FileType.livePhoto) {
-        final File? liveVideoFile =
-            await getFileFromServer(file, liveVideo: true);
+        final File? liveVideoFile = await getFileFromServer(
+          file,
+          liveVideo: true,
+        );
         if (liveVideoFile == null) {
           throw AssertionError("Live video can not be null");
         }
@@ -243,12 +250,7 @@ Future<void> downloadToGallery(EnteFile file) async {
       if (savedAsset != null) {
         file.localID = savedAsset!.id;
         await FilesDB.instance.insert(file);
-        Bus.instance.fire(
-          LocalPhotosUpdatedEvent(
-            [file],
-            source: "download",
-          ),
-        );
+        Bus.instance.fire(LocalPhotosUpdatedEvent([file], source: "download"));
       } else if (!downloadLivePhotoOnDroid && savedAsset == null) {
         _logger.severe('Failed to save assert of type $type');
       }
@@ -268,11 +270,13 @@ Future<void> _saveLivePhotoOnDroid(
   EnteFile enteFile,
 ) async {
   debugPrint("Downloading LivePhoto on Droid");
-  AssetEntity? savedAsset = await (PhotoManager.editor
-          .saveImageWithPath(image.path, title: enteFile.title!))
-      .catchError((err) {
-    throw Exception("Failed to save image of live photo");
-  });
+  AssetEntity? savedAsset =
+      await (PhotoManager.editor.saveImageWithPath(
+        image.path,
+        title: enteFile.title!,
+      )).catchError((err) {
+        throw Exception("Failed to save image of live photo");
+      });
   IgnoredFile ignoreVideoFile = IgnoredFile(
     savedAsset.id,
     savedAsset.title ?? '',
@@ -280,7 +284,8 @@ Future<void> _saveLivePhotoOnDroid(
     "remoteDownload",
   );
   await IgnoredFilesService.instance.cacheAndInsert([ignoreVideoFile]);
-  final videoTitle = file_path.basenameWithoutExtension(enteFile.title!) +
+  final videoTitle =
+      file_path.basenameWithoutExtension(enteFile.title!) +
       file_path.extension(video.path);
   savedAsset = (await (PhotoManager.editor.saveVideo(
     video,

@@ -33,8 +33,8 @@ class ArchivePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Set<int> hiddenCollectionIDs =
-        CollectionsService.instance.getHiddenCollectionIds();
+    final Set<int> hiddenCollectionIDs = CollectionsService.instance
+        .getHiddenCollectionIds();
     final gallery = Gallery(
       asyncLoader: (creationStartTime, creationEndTime, {limit, asc}) {
         return FilesDB.instance.getAllPendingOrUploadedFiles(
@@ -53,21 +53,21 @@ class ArchivePage extends StatelessWidget {
         );
       },
       reloadEvent: Bus.instance.on<FilesUpdatedEvent>().where(
-            (event) =>
-                event.updatedFiles.firstWhereOrNull(
-                  (element) => element.uploadedFileID != null,
-                ) !=
-                null,
-          ),
+        (event) =>
+            event.updatedFiles.firstWhereOrNull(
+              (element) => element.uploadedFileID != null,
+            ) !=
+            null,
+      ),
       removalEventTypes: const {EventType.unarchived},
       forceReloadEvents: [
         Bus.instance.on<FilesUpdatedEvent>().where(
-              (event) =>
-                  event.updatedFiles.firstWhereOrNull(
-                    (element) => element.uploadedFileID != null,
-                  ) !=
-                  null,
-            ),
+          (event) =>
+              event.updatedFiles.firstWhereOrNull(
+                (element) => element.uploadedFileID != null,
+              ) !=
+              null,
+        ),
       ],
       tagPrefix: tagPrefix,
       selectedFiles: _selectedFiles,
@@ -95,10 +95,7 @@ class ArchivePage extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             children: [
               gallery,
-              FileSelectionOverlayBar(
-                overlayType,
-                _selectedFiles,
-              ),
+              FileSelectionOverlayBar(overlayType, _selectedFiles),
             ],
           ),
         ),

@@ -27,24 +27,15 @@ class WidgetSettingsScreen extends StatelessWidget {
       );
       return;
     }
-    routeToPage(
-      context,
-      const PeopleWidgetSettings(),
-    );
+    routeToPage(context, const PeopleWidgetSettings());
   }
 
   void onAlbumsTapped(BuildContext context) {
-    routeToPage(
-      context,
-      const AlbumsWidgetSettings(),
-    );
+    routeToPage(context, const AlbumsWidgetSettings());
   }
 
   void onMemoriesTapped(BuildContext context) {
-    routeToPage(
-      context,
-      const MemoriesWidgetSettings(),
-    );
+    routeToPage(context, const MemoriesWidgetSettings());
   }
 
   @override
@@ -70,76 +61,73 @@ class WidgetSettingsScreen extends StatelessWidget {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          children: [
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context).people,
-                              ),
-                              leadingIconWidget: SvgPicture.asset(
-                                "assets/icons/people-widget-icon.svg",
-                                colorFilter: ColorFilter.mode(
-                                  colorScheme.textBase,
-                                  BlendMode.srcIn,
-                                ),
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              singleBorderRadius: 8,
-                              trailingIcon: Icons.chevron_right_outlined,
-                              onTap: () async => onPeopleTapped(context),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Column(
+                        children: [
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(context).people,
                             ),
-                            const SizedBox(height: 8),
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context).albums,
+                            leadingIconWidget: SvgPicture.asset(
+                              "assets/icons/people-widget-icon.svg",
+                              colorFilter: ColorFilter.mode(
+                                colorScheme.textBase,
+                                BlendMode.srcIn,
                               ),
-                              leadingIconWidget: SvgPicture.asset(
-                                "assets/icons/albums-widget-icon.svg",
-                                colorFilter: ColorFilter.mode(
-                                  colorScheme.textBase,
-                                  BlendMode.srcIn,
-                                ),
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              singleBorderRadius: 8,
-                              trailingIcon: Icons.chevron_right_outlined,
-                              onTap: () async => onAlbumsTapped(context),
                             ),
-                            const SizedBox(height: 8),
-                            MenuItemWidget(
-                              captionedTextWidget: CaptionedTextWidget(
-                                title: AppLocalizations.of(context).memories,
-                              ),
-                              leadingIconWidget: SvgPicture.asset(
-                                "assets/icons/memories-widget-icon.svg",
-                                colorFilter: ColorFilter.mode(
-                                  colorScheme.textBase,
-                                  BlendMode.srcIn,
-                                ),
-                              ),
-                              menuItemColor: colorScheme.fillFaint,
-                              singleBorderRadius: 8,
-                              trailingIcon: Icons.chevron_right_outlined,
-                              onTap: () async => onMemoriesTapped(context),
+                            menuItemColor: colorScheme.fillFaint,
+                            singleBorderRadius: 8,
+                            trailingIcon: Icons.chevron_right_outlined,
+                            onTap: () async => onPeopleTapped(context),
+                          ),
+                          const SizedBox(height: 8),
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(context).albums,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            leadingIconWidget: SvgPicture.asset(
+                              "assets/icons/albums-widget-icon.svg",
+                              colorFilter: ColorFilter.mode(
+                                colorScheme.textBase,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            menuItemColor: colorScheme.fillFaint,
+                            singleBorderRadius: 8,
+                            trailingIcon: Icons.chevron_right_outlined,
+                            onTap: () async => onAlbumsTapped(context),
+                          ),
+                          const SizedBox(height: 8),
+                          MenuItemWidget(
+                            captionedTextWidget: CaptionedTextWidget(
+                              title: AppLocalizations.of(context).memories,
+                            ),
+                            leadingIconWidget: SvgPicture.asset(
+                              "assets/icons/memories-widget-icon.svg",
+                              colorFilter: ColorFilter.mode(
+                                colorScheme.textBase,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            menuItemColor: colorScheme.fillFaint,
+                            singleBorderRadius: 8,
+                            trailingIcon: Icons.chevron_right_outlined,
+                            onTap: () async => onMemoriesTapped(context),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                );
-              },
-              childCount: 1,
-            ),
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),

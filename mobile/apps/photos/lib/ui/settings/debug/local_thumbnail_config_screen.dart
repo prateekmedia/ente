@@ -66,14 +66,16 @@ class _LocalThumbnailConfigScreenState
   Future<void> _saveSettings() async {
     try {
       // Validate and save small queue settings
-      final smallMaxConcurrent =
-          int.tryParse(_smallMaxConcurrentController.text);
+      final smallMaxConcurrent = int.tryParse(
+        _smallMaxConcurrentController.text,
+      );
       final smallTimeout = int.tryParse(_smallTimeoutController.text);
       final smallMaxSize = int.tryParse(_smallMaxSizeController.text);
 
       // Validate and save large queue settings
-      final largeMaxConcurrent =
-          int.tryParse(_largeMaxConcurrentController.text);
+      final largeMaxConcurrent = int.tryParse(
+        _largeMaxConcurrentController.text,
+      );
       final largeTimeout = int.tryParse(_largeTimeoutController.text);
       final largeMaxSize = int.tryParse(_largeMaxSizeController.text);
 
@@ -94,10 +96,7 @@ class _LocalThumbnailConfigScreenState
           largeTimeout < 1 ||
           smallMaxSize < 1 ||
           largeMaxSize < 1) {
-        showShortToast(
-          context,
-          "All values must be positive numbers",
-        );
+        showShortToast(context, "All values must be positive numbers");
         return;
       }
 
@@ -162,9 +161,9 @@ class _LocalThumbnailConfigScreenState
         children: [
           Text(
             label,
-            style: getEnteTextTheme(context).body.copyWith(
-                  color: getEnteColorScheme(context).textMuted,
-                ),
+            style: getEnteTextTheme(
+              context,
+            ).body.copyWith(color: getEnteColorScheme(context).textMuted),
           ),
           const SizedBox(height: 4),
           TextField(
@@ -173,9 +172,9 @@ class _LocalThumbnailConfigScreenState
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: getEnteTextTheme(context).body.copyWith(
-                    color: getEnteColorScheme(context).textFaint,
-                  ),
+              hintStyle: getEnteTextTheme(
+                context,
+              ).body.copyWith(color: getEnteColorScheme(context).textFaint),
               filled: true,
               fillColor: getEnteColorScheme(context).fillFaint,
               border: OutlineInputBorder(
@@ -203,9 +202,7 @@ class _LocalThumbnailConfigScreenState
         child: SafeArea(
           child: Column(
             children: [
-              const TitleBarTitleWidget(
-                title: "Local Thumbnail Queue Config",
-              ),
+              const TitleBarTitleWidget(title: "Local Thumbnail Queue Config"),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
@@ -219,9 +216,9 @@ class _LocalThumbnailConfigScreenState
                       const SizedBox(height: 8),
                       Text(
                         "Used when gallery grid has 4 or more columns",
-                        style: getEnteTextTheme(context).small.copyWith(
-                              color: colorScheme.textMuted,
-                            ),
+                        style: getEnteTextTheme(
+                          context,
+                        ).small.copyWith(color: colorScheme.textMuted),
                       ),
                       const SizedBox(height: 16),
                       _buildNumberField(
@@ -247,9 +244,9 @@ class _LocalThumbnailConfigScreenState
                       const SizedBox(height: 8),
                       Text(
                         "Used when gallery grid has less than 4 columns",
-                        style: getEnteTextTheme(context).small.copyWith(
-                              color: colorScheme.textMuted,
-                            ),
+                        style: getEnteTextTheme(
+                          context,
+                        ).small.copyWith(color: colorScheme.textMuted),
                       ),
                       const SizedBox(height: 16),
                       _buildNumberField(
@@ -281,9 +278,9 @@ class _LocalThumbnailConfigScreenState
                           ),
                           child: Text(
                             "Save Settings",
-                            style: getEnteTextTheme(context).bodyBold.copyWith(
-                                  color: Colors.white,
-                                ),
+                            style: getEnteTextTheme(
+                              context,
+                            ).bodyBold.copyWith(color: Colors.white),
                           ),
                         ),
                       ),
@@ -297,9 +294,7 @@ class _LocalThumbnailConfigScreenState
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(
-                                color: colorScheme.strokeMuted,
-                              ),
+                              side: BorderSide(color: colorScheme.strokeMuted),
                             ),
                           ),
                           child: const Text(
@@ -329,9 +324,9 @@ class _LocalThumbnailConfigScreenState
                             Expanded(
                               child: Text(
                                 "Changes require app restart to take effect",
-                                style: getEnteTextTheme(context).small.copyWith(
-                                      color: colorScheme.textMuted,
-                                    ),
+                                style: getEnteTextTheme(
+                                  context,
+                                ).small.copyWith(color: colorScheme.textMuted),
                               ),
                             ),
                           ],

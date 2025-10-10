@@ -76,21 +76,17 @@ class _SubscriptionPlanWidgetState extends State<SubscriptionPlanWidget> {
                       borderRadius: const BorderRadius.only(
                         topRight: Radius.circular(8),
                       ),
-                      child: Image.asset(
-                        "assets/active_subscription.png",
-                      ),
+                      child: Image.asset("assets/active_subscription.png"),
                     ),
                   )
                 : widget.isPopular
-                    ? ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                        ),
-                        child: Image.asset(
-                          "assets/popular_subscription.png",
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+                ? ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                    ),
+                    child: Image.asset("assets/popular_subscription.png"),
+                  )
+                : const SizedBox.shrink(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -112,9 +108,9 @@ class _SubscriptionPlanWidgetState extends State<SubscriptionPlanWidget> {
                             offset: const Offset(2, -16),
                             child: Text(
                               storageUnit,
-                              style: getEnteTextTheme(context).h3.copyWith(
-                                    color: textMutedLight,
-                                  ),
+                              style: getEnteTextTheme(
+                                context,
+                              ).h3.copyWith(color: textMutedLight),
                             ),
                           ),
                         ),
@@ -151,9 +147,9 @@ class _Price extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            price + ' / ' + AppLocalizations.of(context).month,
-            style: textTheme.largeBold.copyWith(color: textBaseLight),
-          )
+                price + ' / ' + AppLocalizations.of(context).month,
+                style: textTheme.largeBold.copyWith(color: textBaseLight),
+              )
               .animate(delay: const Duration(milliseconds: 100))
               .fadeIn(duration: const Duration(milliseconds: 250)),
         ],
@@ -166,42 +162,44 @@ class _Price extends StatelessWidget {
       String pricePerMonthString = pricePerMonth.toStringAsFixed(2);
 
       if (pricePerMonthString.endsWith(".00")) {
-        pricePerMonthString =
-            pricePerMonthString.substring(0, pricePerMonthString.length - 3);
+        pricePerMonthString = pricePerMonthString.substring(
+          0,
+          pricePerMonthString.length - 3,
+        );
       }
 
       final bool isPlayStore = updateService.isPlayStoreFlavor();
       return Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (isPlayStore)
-            Text(
-              currencySymbol +
-                  pricePerMonthString +
-                  ' / ' +
-                  AppLocalizations.of(context).month,
-              style: textTheme.largeBold.copyWith(color: textBaseLight),
-            ),
-          if (isPlayStore)
-            Text(
-              price + " / " + AppLocalizations.of(context).yearShort,
-              style: textTheme.small.copyWith(color: textFaintLight),
-            ),
-          if (!isPlayStore)
-            Text(
-              currencySymbol +
-                  pricePerMonthString +
-                  ' / ' +
-                  AppLocalizations.of(context).month,
-              style: textTheme.largeBold.copyWith(color: textBaseLight),
-            ),
-          if (!isPlayStore)
-            Text(
-              price + " / " + AppLocalizations.of(context).yearShort,
-              style: textTheme.small.copyWith(color: textFaintLight),
-            ),
-        ],
-      )
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (isPlayStore)
+                Text(
+                  currencySymbol +
+                      pricePerMonthString +
+                      ' / ' +
+                      AppLocalizations.of(context).month,
+                  style: textTheme.largeBold.copyWith(color: textBaseLight),
+                ),
+              if (isPlayStore)
+                Text(
+                  price + " / " + AppLocalizations.of(context).yearShort,
+                  style: textTheme.small.copyWith(color: textFaintLight),
+                ),
+              if (!isPlayStore)
+                Text(
+                  currencySymbol +
+                      pricePerMonthString +
+                      ' / ' +
+                      AppLocalizations.of(context).month,
+                  style: textTheme.largeBold.copyWith(color: textBaseLight),
+                ),
+              if (!isPlayStore)
+                Text(
+                  price + " / " + AppLocalizations.of(context).yearShort,
+                  style: textTheme.small.copyWith(color: textFaintLight),
+                ),
+            ],
+          )
           .animate(delay: const Duration(milliseconds: 100))
           .fadeIn(duration: const Duration(milliseconds: 250));
     } else {

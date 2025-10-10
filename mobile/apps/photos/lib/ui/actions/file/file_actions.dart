@@ -31,18 +31,22 @@ Future<void> showSingleFileDeleteSheet(
       file.uploadedFileID != null && file.localID != null;
   final bool isLocalOnly = file.uploadedFileID == null && file.localID != null;
   final bool isRemoteOnly = file.uploadedFileID != null && file.localID == null;
-  final String bodyHighlight =
-      AppLocalizations.of(context).singleFileDeleteHighlight;
+  final String bodyHighlight = AppLocalizations.of(
+    context,
+  ).singleFileDeleteHighlight;
   String body = "";
   if (isBothLocalAndRemote) {
-    body = AppLocalizations.of(context)
-        .singleFileInBothLocalAndRemote(fileType: fileType);
+    body = AppLocalizations.of(
+      context,
+    ).singleFileInBothLocalAndRemote(fileType: fileType);
   } else if (isRemoteOnly) {
-    body =
-        AppLocalizations.of(context).singleFileInRemoteOnly(fileType: fileType);
+    body = AppLocalizations.of(
+      context,
+    ).singleFileInRemoteOnly(fileType: fileType);
   } else if (isLocalOnly) {
-    body = AppLocalizations.of(context)
-        .singleFileDeleteFromDevice(fileType: fileType);
+    body = AppLocalizations.of(
+      context,
+    ).singleFileDeleteFromDevice(fileType: fileType);
   } else {
     throw AssertionError("Unexpected state");
   }
@@ -154,17 +158,16 @@ Future<void> showDetailsSheet(BuildContext context, EnteFile file) async {
   await showBarModalBottomSheet(
     topControl: const SizedBox.shrink(),
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(5),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(5)),
     ),
     backgroundColor: colorScheme.backgroundElevated,
     barrierColor: backdropFaintDark,
     context: context,
     builder: (BuildContext context) {
       return Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: FileDetailsWidget(file),
       );
     },

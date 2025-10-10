@@ -18,13 +18,7 @@ class TimeMemory extends SmartMemory {
     this.yearsAgo,
     super.firstCreationTime,
     super.lastCreationTime,
-  }) : super(
-          memories,
-          MemoryType.time,
-          '',
-          firstDateToShow,
-          lastDateToShow,
-        );
+  }) : super(memories, MemoryType.time, '', firstDateToShow, lastDateToShow);
 
   @override
   String createTitle(AppLocalizations locals, String languageCode) {

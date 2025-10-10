@@ -165,34 +165,26 @@ class PeopleHomeWidgetService {
 
     final person = await PersonService.instance.getPerson(personId);
     if (person == null) {
-      _logger
-          .warning("Cannot launch widget: person with ID $personId not found");
+      _logger.warning(
+        "Cannot launch widget: person with ID $personId not found",
+      );
       return;
     }
 
     routeToPage(
       context,
-      PeoplePage(
-        person: person,
-        searchResult: null,
-      ),
+      PeoplePage(person: person, searchResult: null),
       forceCustomPageRoute: true,
     ).ignore();
 
-    final clusterFiles =
-        await SearchService.instance.getClusterFilesForPersonID(
-      personId,
-    );
+    final clusterFiles = await SearchService.instance
+        .getClusterFilesForPersonID(personId);
     final files = clusterFiles.entries.expand((e) => e.value).toList();
 
     routeToPage(
       context,
       DetailPage(
-        DetailPageConfiguration(
-          files,
-          files.indexOf(file),
-          "peoplewidget",
-        ),
+        DetailPageConfiguration(files, files.indexOf(file), "peoplewidget"),
       ),
       forceCustomPageRoute: true,
     ).ignore();
@@ -225,8 +217,8 @@ class PeopleHomeWidgetService {
     }
 
     // Check if first import is completed
-    final hasCompletedFirstImport =
-        LocalSyncService.instance.hasCompletedFirstImport();
+    final hasCompletedFirstImport = LocalSyncService.instance
+        .hasCompletedFirstImport();
     if (!hasCompletedFirstImport) {
       return true;
     }
@@ -350,15 +342,15 @@ class PeopleHomeWidgetService {
 
       final renderResult = await HomeWidgetService.instance
           .renderFile(
-        randomPersonFile,
-        "people_widget_$renderedCount",
-        personName,
-        personId,
-      )
+            randomPersonFile,
+            "people_widget_$renderedCount",
+            personName,
+            personId,
+          )
           .catchError((e, stackTrace) {
-        _logger.severe("Error rendering widget", e, stackTrace);
-        return null;
-      });
+            _logger.severe("Error rendering widget", e, stackTrace);
+            return null;
+          });
 
       if (renderResult != null) {
         // Check for blockers again before continuing

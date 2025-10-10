@@ -46,21 +46,20 @@ class _HomeHeaderWidgetState extends State<HomeHeaderWidget> {
           iconButtonType: IconButtonType.primary,
           onTap: () async {
             try {
-              final PermissionState state =
-                  await permissionService.requestPhotoMangerPermissions();
+              final PermissionState state = await permissionService
+                  .requestPhotoMangerPermissions();
               await permissionService.onUpdatePermission(state);
             } on Exception catch (e) {
-              Logger("HomeHeaderWidget").severe(
-                "Failed to request permission: ${e.toString()}",
-                e,
-              );
+              Logger(
+                "HomeHeaderWidget",
+              ).severe("Failed to request permission: ${e.toString()}", e);
             }
             if (!permissionService.hasGrantedFullPermission()) {
               if (Platform.isAndroid) {
                 await PhotoManager.openSetting();
               } else {
-                final bool hasGrantedLimit =
-                    permissionService.hasGrantedLimitedPermissions();
+                final bool hasGrantedLimit = permissionService
+                    .hasGrantedLimitedPermissions();
                 // ignore: unawaited_futures
                 showChoiceActionSheet(
                   context,
@@ -84,9 +83,7 @@ class _HomeHeaderWidgetState extends State<HomeHeaderWidget> {
               unawaited(
                 routeToPage(
                   context,
-                  const BackupFolderSelectionPage(
-                    isFirstBackup: false,
-                  ),
+                  const BackupFolderSelectionPage(isFirstBackup: false),
                 ),
               );
             }

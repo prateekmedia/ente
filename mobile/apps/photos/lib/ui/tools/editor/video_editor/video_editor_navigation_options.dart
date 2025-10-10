@@ -33,13 +33,8 @@ class VideoEditorNavigationOptions extends StatelessWidget {
             const Spacer(),
             TextButton(
               onPressed: onSecondaryPressed,
-              style: TextButton.styleFrom(
-                foregroundColor: color,
-              ),
-              child: Text(
-                secondaryText,
-                style: TextStyle(color: color),
-              ),
+              style: TextButton.styleFrom(foregroundColor: color),
+              child: Text(secondaryText, style: TextStyle(color: color)),
             ),
             const SizedBox(width: 28),
           ],

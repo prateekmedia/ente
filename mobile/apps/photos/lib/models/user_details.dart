@@ -38,8 +38,9 @@ class UserDetails {
 
   bool isFamilyAdmin() {
     assert(isPartOfFamily(), "verify user is part of family before calling");
-    final FamilyMember currentUserMember = familyData!.members!
-        .firstWhere((element) => element.email.trim() == email.trim());
+    final FamilyMember currentUserMember = familyData!.members!.firstWhere(
+      (element) => element.email.trim() == email.trim(),
+    );
     return currentUserMember.isAdmin;
   }
 
@@ -197,11 +198,7 @@ class FamilyData {
   final int storage;
   final int expiryTime;
 
-  FamilyData(
-    this.members,
-    this.storage,
-    this.expiryTime,
-  );
+  FamilyData(this.members, this.storage, this.expiryTime);
 
   int getTotalUsage() {
     return members!.map((e) => e.usage).toList().sum;
@@ -217,11 +214,7 @@ class FamilyData {
     final members = List<FamilyMember>.from(
       map['members'].map((x) => FamilyMember.fromMap(x)),
     );
-    return FamilyData(
-      members,
-      map['storage'] as int,
-      map['expiryTime'] as int,
-    );
+    return FamilyData(members, map['storage'] as int, map['expiryTime'] as int);
   }
 
   Map<String, dynamic> toMap() {

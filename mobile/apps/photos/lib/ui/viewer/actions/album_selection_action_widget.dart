@@ -59,10 +59,12 @@ class _AlbumSelectionActionWidgetState
       return const SizedBox.shrink();
     }
     final List<SelectionActionButton> items = [];
-    final hasPinnedAlbum =
-        widget.selectedAlbums.albums.any((album) => album.isPinned);
-    final hasUnpinnedAlbum =
-        widget.selectedAlbums.albums.any((album) => !album.isPinned);
+    final hasPinnedAlbum = widget.selectedAlbums.albums.any(
+      (album) => album.isPinned,
+    );
+    final hasUnpinnedAlbum = widget.selectedAlbums.albums.any(
+      (album) => !album.isPinned,
+    );
 
     if (widget.sectionType == UISectionType.homeCollections ||
         widget.sectionType == UISectionType.outgoingCollections) {
@@ -160,10 +162,10 @@ class _AlbumSelectionActionWidgetState
   Future<void> _shareCollection() async {
     await routeToPage(
       context,
-      AddParticipantPage(
-        widget.selectedAlbums.albums.toList(),
-        const [ActionTypesToShow.addViewer, ActionTypesToShow.addCollaborator],
-      ),
+      AddParticipantPage(widget.selectedAlbums.albums.toList(), const [
+        ActionTypesToShow.addViewer,
+        ActionTypesToShow.addCollaborator,
+      ]),
     );
     widget.selectedAlbums.clearAll();
   }
@@ -191,10 +193,7 @@ class _AlbumSelectionActionWidgetState
       }
     }
     if (errors.isNotEmpty) {
-      await showGenericErrorDialog(
-        context: context,
-        error: errors.first,
-      );
+      await showGenericErrorDialog(context: context, error: errors.first);
     }
 
     if (nonEmptyCollection.isNotEmpty) {
@@ -218,11 +217,7 @@ class _AlbumSelectionActionWidgetState
         continue;
       }
 
-      await updateOrder(
-        context,
-        collection,
-        collection.isPinned ? 1 : 1,
-      );
+      await updateOrder(context, collection, collection.isPinned ? 1 : 1);
     }
     if (hasFavorites) {
       _showFavToast();
@@ -236,11 +231,7 @@ class _AlbumSelectionActionWidgetState
         continue;
       }
 
-      await updateOrder(
-        context,
-        collection,
-        collection.isPinned ? 0 : 0,
-      );
+      await updateOrder(context, collection, collection.isPinned ? 0 : 0);
     }
     if (hasFavorites) {
       _showFavToast();
@@ -277,10 +268,12 @@ class _AlbumSelectionActionWidgetState
       }
       if (widget.sectionType == UISectionType.incomingCollections) {
         final hasShareeArchived = collection.hasShareeArchived();
-        final int prevVisiblity =
-            hasShareeArchived ? archiveVisibility : visibleVisibility;
-        final int newVisiblity =
-            hasShareeArchived ? visibleVisibility : archiveVisibility;
+        final int prevVisiblity = hasShareeArchived
+            ? archiveVisibility
+            : visibleVisibility;
+        final int newVisiblity = hasShareeArchived
+            ? visibleVisibility
+            : archiveVisibility;
 
         await changeCollectionVisibility(
           context,
@@ -291,10 +284,12 @@ class _AlbumSelectionActionWidgetState
         );
       } else {
         final isArchived = collection.isArchived();
-        final int prevVisiblity =
-            isArchived ? archiveVisibility : visibleVisibility;
-        final int newVisiblity =
-            isArchived ? visibleVisibility : archiveVisibility;
+        final int prevVisiblity = isArchived
+            ? archiveVisibility
+            : visibleVisibility;
+        final int newVisiblity = isArchived
+            ? visibleVisibility
+            : archiveVisibility;
 
         await changeCollectionVisibility(
           context,
@@ -340,8 +335,9 @@ class _AlbumSelectionActionWidgetState
         ),
       ],
       title: AppLocalizations.of(context).leaveSharedAlbum,
-      body: AppLocalizations.of(context)
-          .photosAddedByYouWillBeRemovedFromTheAlbum,
+      body: AppLocalizations.of(
+        context,
+      ).photosAddedByYouWillBeRemovedFromTheAlbum,
     );
     if (actionResult?.action != null && mounted) {
       if (actionResult!.action == ButtonAction.error) {
@@ -357,8 +353,9 @@ class _AlbumSelectionActionWidgetState
 
   void _selectionChangedListener() {
     if (mounted) {
-      hasFavorites = widget.selectedAlbums.albums
-          .any((album) => album.type == CollectionType.favorites);
+      hasFavorites = widget.selectedAlbums.albums.any(
+        (album) => album.type == CollectionType.favorites,
+      );
       setState(() {});
     }
   }

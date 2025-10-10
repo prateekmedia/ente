@@ -10,17 +10,11 @@ class IsolateLogString {
 
   IsolateLogString(this.logString, this.error);
 
-  String toJsonString() => jsonEncode({
-        'logString': logString,
-        'error': error,
-      });
+  String toJsonString() => jsonEncode({'logString': logString, 'error': error});
 
   static IsolateLogString fromJsonString(String jsonString) {
     final json = jsonDecode(jsonString);
-    return IsolateLogString(
-      json['logString'] as String,
-      json['error'],
-    );
+    return IsolateLogString(json['logString'] as String, json['error']);
   }
 }
 

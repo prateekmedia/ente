@@ -19,13 +19,7 @@ class TripMemory extends SmartMemory {
     this.tripYear,
     super.firstCreationTime,
     super.lastCreationTime,
-  }) : super(
-          memories,
-          MemoryType.trips,
-          '',
-          firstDateToShow,
-          lastDateToShow,
-        );
+  }) : super(memories, MemoryType.trips, '', firstDateToShow, lastDateToShow);
 
   TripMemory copyWith({
     List<Memory>? memories,

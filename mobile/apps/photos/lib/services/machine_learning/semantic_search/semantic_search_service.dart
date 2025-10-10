@@ -160,11 +160,12 @@ class SemanticSearchService {
       fileIDToScoreMap[result.id] = result.score;
     }
 
-    final filesMap = await FilesDB.instance
-        .getFileIDToFileFromIDs(queryResults.map((e) => e.id).toList());
+    final filesMap = await FilesDB.instance.getFileIDToFileFromIDs(
+      queryResults.map((e) => e.id).toList(),
+    );
 
-    final ignoredCollections =
-        CollectionsService.instance.getHiddenCollectionIds();
+    final ignoredCollections = CollectionsService.instance
+        .getHiddenCollectionIds();
 
     final deletedEntries = <int>[];
     final results = <EnteFile>[];
@@ -207,8 +208,9 @@ class SemanticSearchService {
       final query = entry.key;
       final score = entry.value;
       // Use cache service instead of _getTextEmbedding
-      final textEmbedding =
-          await textEmbeddingsCacheService.getEmbedding(query);
+      final textEmbedding = await textEmbeddingsCacheService.getEmbedding(
+        query,
+      );
       textEmbeddings[query] = textEmbedding;
       minimumSimilarityMap[query] = score;
     }
@@ -281,11 +283,9 @@ class SemanticSearchService {
     //   }
     // }
     await _cacheClipVectors();
-    final Map<String, List<QueryResult>> queryResults =
-        await MLComputer.instance.computeBulkSimilarities(
-      textQueryToEmbeddingMap,
-      minimumSimilarityMap,
-    );
+    final Map<String, List<QueryResult>> queryResults = await MLComputer
+        .instance
+        .computeBulkSimilarities(textQueryToEmbeddingMap, minimumSimilarityMap);
     final endTime = DateTime.now();
     _logger.info(
       "computingSimilarities took for ${textQueryToEmbeddingMap.length} queries " +

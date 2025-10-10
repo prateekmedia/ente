@@ -31,12 +31,11 @@ class QuickLinkAlbumItem extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
         border: Border.all(
-          color:
-              isSelected ? colorScheme.strokeMuted : colorScheme.strokeFainter,
+          color: isSelected
+              ? colorScheme.strokeMuted
+              : colorScheme.strokeFainter,
         ),
-        borderRadius: const BorderRadius.all(
-          Radius.circular(6),
-        ),
+        borderRadius: const BorderRadius.all(Radius.circular(6)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -77,13 +76,8 @@ class QuickLinkAlbumItem extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          c.displayName,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(
-                          height: 2,
-                        ),
+                        Text(c.displayName, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
                         FutureBuilder<int>(
                           future: CollectionsService.instance.getFileCount(c),
                           builder: (context, snapshot) {
@@ -108,16 +102,16 @@ class QuickLinkAlbumItem extends StatelessWidget {
                                   ),
                                   c.hasLink
                                       ? (c.publicURLs.first.isExpired
-                                          ? Icon(
-                                              Icons.link_outlined,
-                                              color: colorScheme.warning500,
-                                              size: 22,
-                                            )
-                                          : Icon(
-                                              Icons.link_outlined,
-                                              color: colorScheme.strokeMuted,
-                                              size: 22,
-                                            ))
+                                            ? Icon(
+                                                Icons.link_outlined,
+                                                color: colorScheme.warning500,
+                                                size: 22,
+                                              )
+                                            : Icon(
+                                                Icons.link_outlined,
+                                                color: colorScheme.strokeMuted,
+                                                size: 22,
+                                              ))
                                       : const SizedBox.shrink(),
                                 ],
                               );

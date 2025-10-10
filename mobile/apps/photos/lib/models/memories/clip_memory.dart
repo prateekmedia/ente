@@ -11,7 +11,7 @@ enum ClipMemoryType {
   moon,
   onTheRoad,
   food,
-  pets
+  pets,
 }
 
 ClipMemoryType clipMemoryTypeFromString(String type) {
@@ -95,13 +95,7 @@ class ClipMemory extends SmartMemory {
     this.clipMemoryType, {
     super.firstCreationTime,
     super.lastCreationTime,
-  }) : super(
-          memories,
-          MemoryType.clip,
-          '',
-          firstDateToShow,
-          lastDateToShow,
-        );
+  }) : super(memories, MemoryType.clip, '', firstDateToShow, lastDateToShow);
 
   @override
   String createTitle(AppLocalizations locals, String languageCode) {

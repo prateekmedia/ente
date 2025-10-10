@@ -36,10 +36,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 class StripeSubscriptionPage extends StatefulWidget {
   final bool isOnboarding;
 
-  const StripeSubscriptionPage({
-    this.isOnboarding = false,
-    super.key,
-  });
+  const StripeSubscriptionPage({this.isOnboarding = false, super.key});
 
   @override
   State<StripeSubscriptionPage> createState() => _StripeSubscriptionPageState();
@@ -64,16 +61,16 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
   final Logger logger = Logger("StripeSubscriptionPage");
 
   Future<void> _fetchSub() async {
-    return _userService
-        .getUserDetailsV2(memoryCount: false)
-        .then((userDetails) async {
+    return _userService.getUserDetailsV2(memoryCount: false).then((
+      userDetails,
+    ) async {
       _userDetails = userDetails;
       _currentSubscription = userDetails.subscription;
 
       _showYearlyPlan = _currentSubscription!.isYearlyPlan();
       _hideCurrentPlanSelection =
           (_currentSubscription?.attributes?.isCancelled ?? false) &&
-              userDetails.hasPaidAddon();
+          userDetails.hasPaidAddon();
       _hasActiveSubscription = _currentSubscription!.isValid();
       _isStripeSubscriber = _currentSubscription!.paymentProvider == stripe;
 
@@ -140,8 +137,9 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
                   currentStep: 4,
                   selectedColor: Theme.of(context).colorScheme.greenAlternative,
                   roundedEdges: const Radius.circular(10),
-                  unselectedColor:
-                      Theme.of(context).colorScheme.stepProgressUnselectedColor,
+                  unselectedColor: Theme.of(
+                    context,
+                  ).colorScheme.stepProgressUnselectedColor,
                 ),
               ),
             )
@@ -153,9 +151,7 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
                 onTap: () {
                   Navigator.pop(context);
                 },
-                child: const Icon(
-                  Icons.arrow_back_outlined,
-                ),
+                child: const Icon(Icons.arrow_back_outlined),
               ),
             ),
       body: Column(
@@ -249,9 +245,7 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
     }
 
     if (_currentSubscription!.productID == freeProductID) {
-      widgets.add(
-        SubFaqWidget(isOnboarding: widget.isOnboarding),
-      );
+      widgets.add(SubFaqWidget(isOnboarding: widget.isOnboarding));
     }
 
     if (!widget.isOnboarding) {
@@ -349,8 +343,9 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
         await showErrorDialog(
           context,
           AppLocalizations.of(context).sorry,
-          AppLocalizations.of(context)
-              .contactToManageSubscription(provider: capitalizedWord),
+          AppLocalizations.of(
+            context,
+          ).contactToManageSubscription(provider: capitalizedWord),
         );
     }
   }
@@ -360,13 +355,18 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
     try {
       final String url = await _billingService.getStripeCustomerPortalUrl();
       await _dialog.hide();
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (BuildContext context) {
-            return WebPage(AppLocalizations.of(context).paymentDetails, url);
-          },
-        ),
-      ).then((value) => onWebPaymentGoBack);
+      await Navigator.of(context)
+          .push(
+            MaterialPageRoute(
+              builder: (BuildContext context) {
+                return WebPage(
+                  AppLocalizations.of(context).paymentDetails,
+                  url,
+                );
+              },
+            ),
+          )
+          .then((value) => onWebPaymentGoBack);
     } catch (e) {
       await _dialog.hide();
       await showGenericErrorDialog(context: context, error: e);
@@ -383,9 +383,7 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
         ? AppLocalizations.of(context).renewSubscription
         : AppLocalizations.of(context).cancelSubscription;
     return MenuItemWidget(
-      captionedTextWidget: CaptionedTextWidget(
-        title: title,
-      ),
+      captionedTextWidget: CaptionedTextWidget(title: title),
       alwaysShowSuccessState: false,
       surfaceExecutionStates: false,
       menuItemColor: colorScheme.fillFaint,
@@ -472,7 +470,8 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
       if (productID.isEmpty) {
         continue;
       }
-      final isActive = _hasActiveSubscription &&
+      final isActive =
+          _hasActiveSubscription &&
           _currentSubscription!.productID == productID;
       if (isActive) {
         foundActivePlan = true;
@@ -539,8 +538,9 @@ class _StripeSubscriptionPageState extends State<StripeSubscriptionPage> {
                 final result = await showChoiceDialog(
                   context,
                   title: AppLocalizations.of(context).confirmPlanChange,
-                  body: AppLocalizations.of(context)
-                      .areYouSureYouWantToChangeYourPlan,
+                  body: AppLocalizations.of(
+                    context,
+                  ).areYouSureYouWantToChangeYourPlan,
                   firstButtonLabel: AppLocalizations.of(context).yes,
                 );
                 if (result!.action == ButtonAction.first) {

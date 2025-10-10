@@ -26,10 +26,7 @@ class _VideoCropPageState extends State<VideoCropPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
+      appBar: AppBar(elevation: 0, toolbarHeight: 0),
       body: SafeArea(
         child: Column(
           children: [
@@ -46,9 +43,7 @@ class _VideoCropPageState extends State<VideoCropPage> {
                 ),
               ),
             ),
-            VideoEditorPlayerControl(
-              controller: widget.controller,
-            ),
+            VideoEditorPlayerControl(controller: widget.controller),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -66,25 +61,13 @@ class _VideoCropPageState extends State<VideoCropPage> {
                             const SizedBox(width: 40),
                             _buildCropButton(context, CropValue.ratio_1_1),
                             const SizedBox(width: 40),
-                            _buildCropButton(
-                              context,
-                              CropValue.ratio_9_16,
-                            ),
+                            _buildCropButton(context, CropValue.ratio_9_16),
                             const SizedBox(width: 40),
-                            _buildCropButton(
-                              context,
-                              CropValue.ratio_16_9,
-                            ),
+                            _buildCropButton(context, CropValue.ratio_16_9),
                             const SizedBox(width: 40),
-                            _buildCropButton(
-                              context,
-                              CropValue.ratio_3_4,
-                            ),
+                            _buildCropButton(context, CropValue.ratio_3_4),
                             const SizedBox(width: 40),
-                            _buildCropButton(
-                              context,
-                              CropValue.ratio_4_3,
-                            ),
+                            _buildCropButton(context, CropValue.ratio_4_3),
                           ],
                         ),
                       ],
@@ -116,7 +99,8 @@ class _VideoCropPageState extends State<VideoCropPage> {
 
     return VideoEditorBottomAction(
       label: value.displayName,
-      isSelected: value != CropValue.original &&
+      isSelected:
+          value != CropValue.original &&
           widget.controller.preferredCropAspectRatio == f?.toDouble(),
       onPressed: () {
         if (value == CropValue.original) {

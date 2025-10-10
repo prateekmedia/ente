@@ -68,6 +68,8 @@ class FlagService {
 
   bool get addToAlbumFeature => internalUser;
 
+  bool get enableNestedAlbums => flags.enableNestedAlbums || internalUser;
+
   bool hasSyncedAccountFlags() {
     return _prefs.containsKey("remote_flags");
   }

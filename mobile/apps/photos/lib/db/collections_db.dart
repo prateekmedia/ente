@@ -97,7 +97,7 @@ class CollectionsDB {
           $columnSharees TEXT,
           $columnUpdationTime TEXT NOT NULL
         );
-    '''
+    ''',
     ];
   }
 
@@ -113,7 +113,7 @@ class CollectionsDB {
         
         ALTER TABLE $tempTable 
         RENAME TO $table;
-    '''
+    ''',
     ];
   }
 
@@ -125,7 +125,7 @@ class CollectionsDB {
       ''',
       '''ALTER TABLE $table
         ADD COLUMN $columnNameDecryptionNonce TEXT;
-      '''
+      ''',
     ];
   }
 
@@ -134,7 +134,7 @@ class CollectionsDB {
       '''
         ALTER TABLE $table
         ADD COLUMN $columnVersion INTEGER DEFAULT 0;
-      '''
+      ''',
     ];
   }
 
@@ -143,7 +143,7 @@ class CollectionsDB {
       '''
         ALTER TABLE $table
         ADD COLUMN $columnIsDeleted INTEGER DEFAULT $_sqlBoolFalse;
-      '''
+      ''',
     ];
   }
 
@@ -152,7 +152,7 @@ class CollectionsDB {
       '''
         ALTER TABLE $table 
         ADD COLUMN $columnPublicURLs TEXT;
-      '''
+      ''',
     ];
   }
 
@@ -163,7 +163,7 @@ class CollectionsDB {
       ''',
       '''
         ALTER TABLE $table ADD COLUMN $columnMMdVersion INTEGER DEFAULT 0;
-      '''
+      ''',
     ];
   }
 
@@ -175,7 +175,7 @@ class CollectionsDB {
       ''',
       '''
         ALTER TABLE $table ADD COLUMN $columnPubMMdVersion INTEGER DEFAULT 0;
-      '''
+      ''',
     ];
   }
 
@@ -187,7 +187,7 @@ class CollectionsDB {
       ''',
       '''
         ALTER TABLE $table ADD COLUMN $columnSharedMMdVersion INTEGER DEFAULT 0;
-      '''
+      ''',
     ];
   }
 
@@ -233,19 +233,16 @@ class CollectionsDB {
     );
     final collectionIDsAndUpdationTime = <int, int>{};
     for (final row in rows) {
-      collectionIDsAndUpdationTime[row[columnID] as int] =
-          int.parse(row[columnUpdationTime] as String);
+      collectionIDsAndUpdationTime[row[columnID] as int] = int.parse(
+        row[columnUpdationTime] as String,
+      );
     }
     return collectionIDsAndUpdationTime;
   }
 
   Future<int> deleteCollection(int collectionID) async {
     final db = await instance.database;
-    return db.delete(
-      table,
-      where: '$columnID = ?',
-      whereArgs: [collectionID],
-    );
+    return db.delete(table, where: '$columnID = ?', whereArgs: [collectionID]);
   }
 
   Map<String, dynamic> _getRowForCollection(Collection collection) {
@@ -262,10 +259,12 @@ class CollectionsDB {
     row[columnEncryptedPath] = collection.attributes.encryptedPath;
     row[columnPathDecryptionNonce] = collection.attributes.pathDecryptionNonce;
     row[columnVersion] = collection.attributes.version;
-    row[columnSharees] =
-        json.encode(collection.sharees.map((x) => x.toMap()).toList());
-    row[columnPublicURLs] =
-        json.encode(collection.publicURLs.map((x) => x.toMap()).toList());
+    row[columnSharees] = json.encode(
+      collection.sharees.map((x) => x.toMap()).toList(),
+    );
+    row[columnPublicURLs] = json.encode(
+      collection.publicURLs.map((x) => x.toMap()).toList(),
+    );
     row[columnUpdationTime] = collection.updationTime;
     if (collection.isDeleted) {
       row[columnIsDeleted] = _sqlBoolTrue;
@@ -303,8 +302,9 @@ class CollectionsDB {
       row[columnPublicURLs] == null
           ? []
           : List<PublicURL>.from(
-              (json.decode(row[columnPublicURLs]) as List)
-                  .map((x) => PublicURL.fromMap(x)),
+              (json.decode(row[columnPublicURLs]) as List).map(
+                (x) => PublicURL.fromMap(x),
+              ),
             ),
       int.parse(row[columnUpdationTime]),
       // default to False is columnIsDeleted is not set

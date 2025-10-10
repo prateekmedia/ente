@@ -41,9 +41,7 @@ class SearchTabEmptyState extends StatelessWidget {
                 // ignore: unawaited_futures
                 routeToPage(
                   context,
-                  const BackupFolderSelectionPage(
-                    isFirstBackup: false,
-                  ),
+                  const BackupFolderSelectionPage(isFirstBackup: false),
                 );
               },
             ),

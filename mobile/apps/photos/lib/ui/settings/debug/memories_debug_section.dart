@@ -60,17 +60,11 @@ class _MemoriesDebugSectionState extends State<MemoriesDebugSection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Smart memories debug (I)",
-                    style: textTheme.largeBold,
-                  ),
+                  Text("Smart memories debug (I)", style: textTheme.largeBold),
                   const SizedBox(height: 24),
                   Padding(
                     padding: const EdgeInsets.only(left: 4),
-                    child: Text(
-                      "Test memories",
-                      style: textTheme.smallMuted,
-                    ),
+                    child: Text("Test memories", style: textTheme.smallMuted),
                   ),
                 ],
               ),
@@ -156,7 +150,8 @@ class MomentRecommendation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heroTag = momentSearchResult.heroTag() +
+    final heroTag =
+        momentSearchResult.heroTag() +
         (momentSearchResult.previewThumbnail()?.tag ?? "");
     final enteTextTheme = getEnteTextTheme(context);
     return Padding(
@@ -167,10 +162,7 @@ class MomentRecommendation extends StatelessWidget {
           if (momentSearchResult.onResultTap != null) {
             momentSearchResult.onResultTap!(context);
           } else {
-            routeToPage(
-              context,
-              SearchResultPage(momentSearchResult),
-            );
+            routeToPage(context, SearchResultPage(momentSearchResult));
           }
         },
         child: SizedBox(
@@ -236,22 +228,14 @@ class MomentRecommendation extends StatelessWidget {
                               Colors.black.withValues(alpha: 0),
                               Colors.black.withValues(alpha: 0.5),
                             ],
-                            stops: const [
-                              0,
-                              0.1,
-                              1,
-                            ],
+                            stops: const [0, 0.1, 1],
                           ),
                         ),
                       ),
                       ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: 76,
-                        ),
+                        constraints: const BoxConstraints(maxWidth: 76),
                         child: Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: 8,
-                          ),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
                             momentSearchResult.name(),
                             style: enteTextTheme.small.copyWith(

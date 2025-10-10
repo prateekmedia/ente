@@ -38,10 +38,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
   }
 
   Future<Tuple2<ReferralView, UserDetails>> _fetchData() async {
-    UserDetails? cachedUserDetails =
-        UserService.instance.getCachedUserDetails();
-    cachedUserDetails ??=
-        await UserService.instance.getUserDetailsV2(memoryCount: false);
+    UserDetails? cachedUserDetails = UserService.instance
+        .getCachedUserDetails();
+    cachedUserDetails ??= await UserService.instance.getUserDetailsV2(
+      memoryCount: false,
+    );
     final referralView = await storageBonusService.getReferralView();
     return Tuple2(referralView, cachedUserDetails);
   }
@@ -56,8 +57,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
             flexibleSpaceTitle: TitleBarTitleWidget(
               title: AppLocalizations.of(context).claimFreeStorage,
             ),
-            flexibleSpaceCaption:
-                AppLocalizations.of(context).inviteYourFriends,
+            flexibleSpaceCaption: AppLocalizations.of(
+              context,
+            ).inviteYourFriends,
             actionIcons: [
               IconButtonWidget(
                 icon: Icons.close_outlined,
@@ -74,40 +76,40 @@ class _ReferralScreenState extends State<ReferralScreen> {
             ],
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (delegateBuildContext, index) {
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: FutureBuilder<Tuple2<ReferralView, UserDetails>>(
-                    future: _fetchData(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        return ReferralWidget(
-                          referralView: snapshot.data!.item1,
-                          userDetails: snapshot.data!.item2,
-                          notifyParent: _safeUIUpdate,
-                        );
-                      } else if (snapshot.hasError) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Text(
-                              AppLocalizations.of(context)
-                                  .failedToFetchReferralDetails,
-                            ),
+            delegate: SliverChildBuilderDelegate((delegateBuildContext, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 20,
+                ),
+                child: FutureBuilder<Tuple2<ReferralView, UserDetails>>(
+                  future: _fetchData(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return ReferralWidget(
+                        referralView: snapshot.data!.item1,
+                        userDetails: snapshot.data!.item2,
+                        notifyParent: _safeUIUpdate,
+                      );
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Text(
+                            AppLocalizations.of(
+                              context,
+                            ).failedToFetchReferralDetails,
                           ),
-                        );
-                      }
-                      {
-                        return const EnteLoadingWidget();
-                      }
-                    },
-                  ),
-                );
-              },
-              childCount: 1,
-            ),
+                        ),
+                      );
+                    }
+                    {
+                      return const EnteLoadingWidget();
+                    }
+                  },
+                ),
+              );
+            }, childCount: 1),
           ),
         ],
       ),
@@ -165,9 +167,7 @@ class ReferralWidget extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              AppLocalizations.of(context).referralStep1,
-                            ),
+                            Text(AppLocalizations.of(context).referralStep1),
                             const SizedBox(height: 12),
                             ReferralCodeWidget(
                               referralView.code,
@@ -176,9 +176,7 @@ class ReferralWidget extends StatelessWidget {
                               notifyParent: notifyParent,
                             ),
                             const SizedBox(height: 12),
-                            Text(
-                              AppLocalizations.of(context).referralStep2,
-                            ),
+                            Text(AppLocalizations.of(context).referralStep2),
                             const SizedBox(height: 12),
                             Text(
                               AppLocalizations.of(context).referralStep3(
@@ -206,16 +204,15 @@ class ReferralWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: colorScheme.strokeMuted,
-                      ),
+                      Icon(Icons.error_outline, color: colorScheme.strokeMuted),
                       const SizedBox(height: 12),
                       Text(
-                        AppLocalizations.of(context)
-                            .referralsAreCurrentlyPaused,
-                        style: textStyle.small
-                            .copyWith(color: colorScheme.textFaint),
+                        AppLocalizations.of(
+                          context,
+                        ).referralsAreCurrentlyPaused,
+                        style: textStyle.small.copyWith(
+                          color: colorScheme.textFaint,
+                        ),
                       ),
                     ],
                   ),
@@ -225,9 +222,7 @@ class ReferralWidget extends StatelessWidget {
         isReferralEnabled
             ? Text(
                 AppLocalizations.of(context).youCanAtMaxDoubleYourStorage,
-                style: textStyle.mini.copyWith(
-                  color: colorScheme.textMuted,
-                ),
+                style: textStyle.mini.copyWith(color: colorScheme.textMuted),
                 textAlign: TextAlign.left,
               )
             : const SizedBox.shrink(),
@@ -285,20 +280,17 @@ class ReferralWidget extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8.0,
-            vertical: 6.0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
           child: Text(
             AppLocalizations.of(context).claimedStorageSoFar(
-              isFamilyMember:
-                  referralView.isFamilyMember.toString().toLowerCase(),
-              storageAmountInGb:
-                  convertBytesToAbsoluteGBs(referralView.claimedStorage),
+              isFamilyMember: referralView.isFamilyMember
+                  .toString()
+                  .toLowerCase(),
+              storageAmountInGb: convertBytesToAbsoluteGBs(
+                referralView.claimedStorage,
+              ),
             ),
-            style: textStyle.small.copyWith(
-              color: colorScheme.textMuted,
-            ),
+            style: textStyle.small.copyWith(color: colorScheme.textMuted),
           ),
         ),
         MenuItemWidget(

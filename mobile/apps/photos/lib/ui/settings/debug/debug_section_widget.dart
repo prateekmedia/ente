@@ -87,10 +87,7 @@ class _DebugSectionWidgetState extends State<DebugSectionWidget> {
           trailingIcon: Icons.chevron_right_outlined,
           trailingIconIsMuted: true,
           onTap: () async {
-            await routeToPage(
-              context,
-              const LocalThumbnailConfigScreen(),
-            );
+            await routeToPage(context, const LocalThumbnailConfigScreen());
           },
         ),
         sectionOptionSpacing,
@@ -144,10 +141,7 @@ class _DebugSectionWidgetState extends State<DebugSectionWidget> {
       content: SingleChildScrollView(
         child: Column(
           children: [
-            const Text(
-              "Key",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text("Key", style: TextStyle(fontWeight: FontWeight.bold)),
             Text(CryptoUtil.bin2base64(Configuration.instance.getKey()!)),
             const Padding(padding: EdgeInsets.all(12)),
             const Text(

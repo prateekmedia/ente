@@ -34,8 +34,8 @@ class LargeFilesPagePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final gallery = Gallery(
       asyncLoader: (creationStartTime, creationEndTime, {limit, asc}) async {
-        final List<EnteFile> allFiles =
-            await SearchService.instance.getAllFilesForSearch();
+        final List<EnteFile> allFiles = await SearchService.instance
+            .getAllFilesForSearch();
         final Set<int> alreadyTracked = <int>{};
 
         final filesWithSize = <EnteFile>[];
@@ -61,9 +61,7 @@ class LargeFilesPagePage extends StatelessWidget {
         EventType.deletedFromEverywhere,
         EventType.hide,
       },
-      forceReloadEvents: [
-        Bus.instance.on<CollectionMetaEvent>(),
-      ],
+      forceReloadEvents: [Bus.instance.on<CollectionMetaEvent>()],
       tagPrefix: tagPrefix,
       selectedFiles: _selectedFiles,
       sortAsyncFn: () => false,
@@ -80,10 +78,9 @@ class LargeFilesPagePage extends StatelessWidget {
             centerTitle: false,
             title: Text(
               AppLocalizations.of(context).viewLargeFiles,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall!
-                  .copyWith(fontSize: 16),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall!.copyWith(fontSize: 16),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -95,10 +92,7 @@ class LargeFilesPagePage extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             children: [
               gallery,
-              FileSelectionOverlayBar(
-                overlayType,
-                _selectedFiles,
-              ),
+              FileSelectionOverlayBar(overlayType, _selectedFiles),
             ],
           ),
         ),

@@ -8,10 +8,7 @@ import 'package:photos/theme/ente_theme.dart';
 import 'package:photos/ui/components/buttons/button_widget.dart';
 import 'package:photos/utils/separators_util.dart';
 
-enum ActionSheetType {
-  defaultActionSheet,
-  iconOnly,
-}
+enum ActionSheetType { defaultActionSheet, iconOnly }
 
 ///Returns null if dismissed
 Future<ButtonResult?> showActionSheet({
@@ -111,9 +108,7 @@ class ActionSheetWidget extends StatelessWidget {
                               isCheckIconGreen: isCheckIconGreen,
                             ),
                           ),
-                    ActionButtons(
-                      actionButtons,
-                    ),
+                    ActionButtons(actionButtons),
                   ],
                 ),
               ),
@@ -159,22 +154,24 @@ class ContentContainerWidget extends StatelessWidget {
             ? const SizedBox.shrink()
             : Text(
                 title!,
-                style: textTheme.largeBold
-                    .copyWith(color: textBaseDark), //constant color
+                style: textTheme.largeBold.copyWith(
+                  color: textBaseDark,
+                ), //constant color
               ),
         title == null || bodyMissing
             ? const SizedBox.shrink()
             : const SizedBox(height: 19),
         actionSheetType == ActionSheetType.defaultActionSheet
             ? bodyMissing
-                ? const SizedBox.shrink()
-                : (bodyWidget != null
-                    ? bodyWidget!
-                    : Text(
-                        body!,
-                        style: textTheme.body
-                            .copyWith(color: textMutedDark), //constant color
-                      ))
+                  ? const SizedBox.shrink()
+                  : (bodyWidget != null
+                        ? bodyWidget!
+                        : Text(
+                            body!,
+                            style: textTheme.body.copyWith(
+                              color: textMutedDark,
+                            ), //constant color
+                          ))
             : Icon(
                 Icons.check_outlined,
                 size: 48,
@@ -188,8 +185,9 @@ class ContentContainerWidget extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 19.0),
                 child: Text(
                   bodyHighlight!,
-                  style: textTheme.body
-                      .copyWith(color: textBaseDark), //constant color
+                  style: textTheme.body.copyWith(
+                    color: textBaseDark,
+                  ), //constant color
                 ),
               )
             : const SizedBox.shrink(),

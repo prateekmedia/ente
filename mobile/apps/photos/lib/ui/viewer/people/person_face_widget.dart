@@ -33,9 +33,9 @@ class PersonFaceWidget extends StatefulWidget {
     this.keepAlive = false,
     super.key,
   }) : assert(
-          personId != null || clusterID != null,
-          "PersonFaceWidget requires either personId or clusterID to be non-null",
-        );
+         personId != null || clusterID != null,
+         "PersonFaceWidget requires either personId or clusterID to be non-null",
+       );
 
   @override
   State<PersonFaceWidget> createState() => _PersonFaceWidgetState();
@@ -81,12 +81,7 @@ class _PersonFaceWidgetState extends State<PersonFaceWidget>
           final ImageProvider imageProvider = MemoryImage(snapshot.data!);
           return Stack(
             fit: StackFit.expand,
-            children: [
-              Image(
-                image: imageProvider,
-                fit: BoxFit.cover,
-              ),
-            ],
+            children: [Image(image: imageProvider, fit: BoxFit.cover)],
           );
         } else {
           if (snapshot.hasError) {
@@ -107,8 +102,9 @@ class _PersonFaceWidgetState extends State<PersonFaceWidget>
   Future<Uint8List?> _getFaceCrop() async {
     try {
       final String personOrClusterId = widget.personId ?? widget.clusterID!;
-      final tryInMemoryCachedCrop =
-          checkInMemoryCachedCropForPersonOrClusterID(personOrClusterId);
+      final tryInMemoryCachedCrop = checkInMemoryCachedCropForPersonOrClusterID(
+        personOrClusterId,
+      );
       if (tryInMemoryCachedCrop != null) return tryInMemoryCachedCrop;
       String? fixedFaceID;
       PersonEntity? personEntity;
@@ -122,11 +118,12 @@ class _PersonFaceWidgetState extends State<PersonFaceWidget>
         }
         fixedFaceID = personEntity.data.avatarFaceID;
       }
-      fixedFaceID ??=
-          await checkUsedFaceIDForPersonOrClusterId(personOrClusterId);
-      final hiddenFileIDs = await SearchService.instance
-          .getHiddenFiles()
-          .then((onValue) => onValue.map((e) => e.uploadedFileID));
+      fixedFaceID ??= await checkUsedFaceIDForPersonOrClusterId(
+        personOrClusterId,
+      );
+      final hiddenFileIDs = await SearchService.instance.getHiddenFiles().then(
+        (onValue) => onValue.map((e) => e.uploadedFileID),
+      );
       EnteFile? fileForFaceCrop;
       if (fixedFaceID != null) {
         final fileID = getFileIdFromFaceId<int>(fixedFaceID);
@@ -135,26 +132,24 @@ class _PersonFaceWidgetState extends State<PersonFaceWidget>
           _logger.severe(
             "File with ID $fileID not found in DB, cannot get cover face.",
           );
-          await checkRemoveCachedFaceIDForPersonOrClusterId(
-            personOrClusterId,
-          );
+          await checkRemoveCachedFaceIDForPersonOrClusterId(personOrClusterId);
         } else if (hiddenFileIDs.contains(fileInDB.uploadedFileID)) {
           _logger.info(
             "File with ID $fileID is hidden, skipping it for face crop.",
           );
-          await checkRemoveCachedFaceIDForPersonOrClusterId(
-            personOrClusterId,
-          );
+          await checkRemoveCachedFaceIDForPersonOrClusterId(personOrClusterId);
         } else {
           fileForFaceCrop = fileInDB;
         }
       }
       if (fileForFaceCrop == null) {
         final List<String> allFaces = isPerson
-            ? await MLDataDB.instance
-                .getFaceIDsForPersonOrderedByScore(widget.personId!)
-            : await MLDataDB.instance
-                .getFaceIDsForClusterOrderedByScore(widget.clusterID!);
+            ? await MLDataDB.instance.getFaceIDsForPersonOrderedByScore(
+                widget.personId!,
+              )
+            : await MLDataDB.instance.getFaceIDsForClusterOrderedByScore(
+                widget.clusterID!,
+              );
         for (final faceID in allFaces) {
           final fileID = getFileIdFromFaceId<int>(faceID);
           if (hiddenFileIDs.contains(fileID)) {
@@ -189,9 +184,7 @@ class _PersonFaceWidgetState extends State<PersonFaceWidget>
         _logger.severe(
           "No cover face for person: ${widget.personId} or cluster ${widget.clusterID} and fileID ${fileForFaceCrop.uploadedFileID!}",
         );
-        await checkRemoveCachedFaceIDForPersonOrClusterId(
-          personOrClusterId,
-        );
+        await checkRemoveCachedFaceIDForPersonOrClusterId(personOrClusterId);
         return null;
       }
       final cropMap = await getCachedFaceCrops(

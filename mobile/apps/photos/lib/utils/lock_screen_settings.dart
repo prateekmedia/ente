@@ -49,9 +49,7 @@ class LockScreenSettings {
               enablePrivacy: true,
               lockTrigger: IosLockTrigger.didEnterBackground,
             ),
-            androidOptions: const PrivacyAndroidOptions(
-              enableSecure: true,
-            ),
+            androidOptions: const PrivacyAndroidOptions(enableSecure: true),
             blurEffect: PrivacyBlurEffect.extraLight,
           );
     await _preferences.setBool(keyHideAppContent, hideContent);

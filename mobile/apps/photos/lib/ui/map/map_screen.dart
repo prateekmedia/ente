@@ -89,7 +89,8 @@ class _MapScreenState extends State<MapScreen> {
     final List<ImageMarker> tempMarkers = result.$2;
 
     if (tempMarkers.isNotEmpty) {
-      center = widget.center ??
+      center =
+          widget.center ??
           LatLng(
             mostRecentFile!.location!.latitude!,
             mostRecentFile.location!.longitude!,
@@ -111,10 +112,7 @@ class _MapScreenState extends State<MapScreen> {
       imageMarkers = tempMarkers;
     });
 
-    mapController.move(
-      center,
-      widget.initialZoom,
-    );
+    mapController.move(center, widget.initialZoom);
 
     Timer(Duration(milliseconds: debounceDuration), () {
       calculateVisibleMarkers(mapController.camera.visibleBounds);
@@ -230,7 +228,8 @@ class _MapScreenState extends State<MapScreen> {
               LayoutBuilder(
                 builder: (context, constrains) {
                   return SizedBox(
-                    height: constrains.maxHeight * 0.75 +
+                    height:
+                        constrains.maxHeight * 0.75 +
                         bottomSheetDraggableAreaHeight -
                         bottomUnsafeArea,
                     child: MapView(

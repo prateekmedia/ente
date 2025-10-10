@@ -64,17 +64,16 @@ class _RecoveryPageState extends State<RecoveryPage> {
                 builder: (BuildContext context) {
                   return const PopScope(
                     canPop: false,
-                    child: PasswordEntryPage(
-                      mode: PasswordEntryMode.reset,
-                    ),
+                    child: PasswordEntryPage(mode: PasswordEntryMode.reset),
                   );
                 },
               ),
             );
           } catch (e) {
             await dialog.hide();
-            String errMessage =
-                AppLocalizations.of(context).incorrectRecoveryKeyBody;
+            String errMessage = AppLocalizations.of(
+              context,
+            ).incorrectRecoveryKeyBody;
             if (e is AssertionError) {
               errMessage = '$errMessage : ${e.message}';
             }
@@ -95,8 +94,10 @@ class _RecoveryPageState extends State<RecoveryPage> {
             child: ListView(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 30,
+                    horizontal: 20,
+                  ),
                   child: Text(
                     AppLocalizations.of(context).forgotPassword,
                     style: Theme.of(context).textTheme.headlineMedium,
@@ -108,8 +109,9 @@ class _RecoveryPageState extends State<RecoveryPage> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: getEnteColorScheme(context).fillFaint,
-                      hintText:
-                          AppLocalizations.of(context).enterYourRecoveryKey,
+                      hintText: AppLocalizations.of(
+                        context,
+                      ).enterYourRecoveryKey,
                       contentPadding: const EdgeInsets.all(20),
                       border: UnderlineInputBorder(
                         borderSide: BorderSide.none,
@@ -145,8 +147,9 @@ class _RecoveryPageState extends State<RecoveryPage> {
                         showErrorDialog(
                           context,
                           AppLocalizations.of(context).sorry,
-                          AppLocalizations.of(context)
-                              .noRecoveryKeyNoDecryption,
+                          AppLocalizations.of(
+                            context,
+                          ).noRecoveryKeyNoDecryption,
                         );
                       },
                       child: Container(
@@ -154,9 +157,7 @@ class _RecoveryPageState extends State<RecoveryPage> {
                         child: Center(
                           child: Text(
                             AppLocalizations.of(context).noRecoveryKey,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium!
+                            style: Theme.of(context).textTheme.titleMedium!
                                 .copyWith(
                                   fontSize: 14,
                                   decoration: TextDecoration.underline,

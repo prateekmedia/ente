@@ -75,7 +75,8 @@ class SearchResultWidget extends StatelessWidget {
                           style: textTheme.smallMuted,
                         ),
                         FutureBuilder<int>(
-                          future: resultCount ??
+                          future:
+                              resultCount ??
                               Future.value(searchResult.resultFiles().length),
                           builder: (context, snapshot) {
                             if (snapshot.hasData && snapshot.data! > 0) {
@@ -116,19 +117,9 @@ class SearchResultWidget extends StatelessWidget {
             onResultTap!();
           } else {
             if (searchResult.type() == ResultType.shared) {
-              routeToPage(
-                context,
-                ContactResultPage(
-                  searchResult,
-                ),
-              );
+              routeToPage(context, ContactResultPage(searchResult));
             } else {
-              routeToPage(
-                context,
-                SearchResultPage(
-                  searchResult,
-                ),
-              );
+              routeToPage(context, SearchResultPage(searchResult));
             }
           }
         },

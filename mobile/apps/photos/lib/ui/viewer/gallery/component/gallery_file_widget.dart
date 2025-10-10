@@ -96,14 +96,14 @@ class _GalleryFileWidgetState extends State<GalleryFileWidget> {
                   borderRadius: borderRadius,
                   child: Hero(
                     tag: heroTag,
-                    flightShuttleBuilder: (
-                      flightContext,
-                      animation,
-                      flightDirection,
-                      fromHeroContext,
-                      toHeroContext,
-                    ) =>
-                        thumbnailWidget,
+                    flightShuttleBuilder:
+                        (
+                          flightContext,
+                          animation,
+                          flightDirection,
+                          fromHeroContext,
+                          toHeroContext,
+                        ) => thumbnailWidget,
                     transitionOnUserGestures: true,
                     child: thumbnailWidget,
                   ),
@@ -130,14 +130,14 @@ class _GalleryFileWidgetState extends State<GalleryFileWidget> {
               borderRadius: borderRadius,
               child: Hero(
                 tag: heroTag,
-                flightShuttleBuilder: (
-                  flightContext,
-                  animation,
-                  flightDirection,
-                  fromHeroContext,
-                  toHeroContext,
-                ) =>
-                    thumbnailWidget,
+                flightShuttleBuilder:
+                    (
+                      flightContext,
+                      animation,
+                      flightDirection,
+                      fromHeroContext,
+                      toHeroContext,
+                    ) => thumbnailWidget,
                 transitionOnUserGestures: true,
                 child: thumbnailWidget,
               ),
@@ -174,7 +174,7 @@ class _GalleryFileWidgetState extends State<GalleryFileWidget> {
   void _onTapNoSelectionLimit(BuildContext context, EnteFile file) async {
     final bool shouldToggleSelection =
         (widget.selectedFiles?.files.isNotEmpty ?? false) ||
-            GalleryContextState.of(context)!.inSelectionMode;
+        GalleryContextState.of(context)!.inSelectionMode;
     if (shouldToggleSelection) {
       _toggleFileSelection(file);
     } else {

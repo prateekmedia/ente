@@ -128,7 +128,8 @@ class _FileSelectionActionsWidgetState
     final ownedFilesCount = split.ownedByCurrentUser.length;
     final ownedAndPendingUploadFilesCount =
         ownedFilesCount + split.pendingUploads.length;
-    final int removeCount = split.ownedByCurrentUser.length +
+    final int removeCount =
+        split.ownedByCurrentUser.length +
         (isCollectionOwner ? split.ownedByOtherUsers.length : 0);
 
     final bool anyOwnedFiles =
@@ -137,14 +138,14 @@ class _FileSelectionActionsWidgetState
         ownedAndPendingUploadFilesCount > 0 && split.ownedByOtherUsers.isEmpty;
 
     final bool anyUploadedFiles = split.ownedByCurrentUser.isNotEmpty;
-    final showCollageOption = CollageCreatorPage.isValidCount(
-          widget.selectedFiles.files.length,
-        ) &&
+    final showCollageOption =
+        CollageCreatorPage.isValidCount(widget.selectedFiles.files.length) &&
         !widget.selectedFiles.files.any(
           (element) => element.fileType == FileType.video,
         );
-    final showDownloadOption =
-        widget.selectedFiles.files.any((element) => element.localID == null);
+    final showDownloadOption = widget.selectedFiles.files.any(
+      (element) => element.localID == null,
+    );
 
     //To animate adding and removing of [SelectedActionButton], add all items
     //and set [shouldShow] to false for items that should not be shown and true
@@ -176,8 +177,9 @@ class _FileSelectionActionsWidgetState
       items.add(
         SelectionActionButton(
           icon: Icons.remove_circle_outline,
-          labelText: AppLocalizations.of(context)
-              .notPersonLabel(name: widget.person!.data.name),
+          labelText: AppLocalizations.of(
+            context,
+          ).notPersonLabel(name: widget.person!.data.name),
           onTap: _onNotpersonClicked,
         ),
       );
@@ -202,7 +204,8 @@ class _FileSelectionActionsWidgetState
       );
     }
 
-    final showUploadIcon = widget.type == GalleryType.localFolder &&
+    final showUploadIcon =
+        widget.type == GalleryType.localFolder &&
         split.ownedByCurrentUser.isEmpty;
     if (widget.type.showAddToAlbum()) {
       if (showUploadIcon) {
@@ -485,9 +488,7 @@ class _FileSelectionActionsWidgetState
   Future<void> _editLocation() async {
     await showBarModalBottomSheet(
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(5),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(5)),
       ),
       backgroundColor: getEnteColorScheme(context).backgroundElevated,
       barrierColor: backdropFaintDark,
@@ -505,37 +506,33 @@ class _FileSelectionActionsWidgetState
             width: 40,
             decoration: const BoxDecoration(
               color: backgroundElevated2Light,
-              borderRadius: BorderRadius.all(
-                Radius.circular(5),
-              ),
+              borderRadius: BorderRadius.all(Radius.circular(5)),
             ),
           ),
         ],
       ),
       context: context,
       builder: (context) {
-        return UpdateLocationDataWidget(
-          widget.selectedFiles.files.toList(),
-        );
+        return UpdateLocationDataWidget(widget.selectedFiles.files.toList());
       },
     );
   }
 
   Future<void> _shareSelectedFiles() async {
-    shareSelected(
-      context,
-      shareButtonKey,
-      widget.selectedFiles.files.toList(),
-    );
+    shareSelected(context, shareButtonKey, widget.selectedFiles.files.toList());
     widget.selectedFiles.clearAll();
   }
 
   Future<void> _moveFiles() async {
     if (split.pendingUploads.isNotEmpty || split.ownedByOtherUsers.isNotEmpty) {
-      widget.selectedFiles
-          .unSelectAll(split.pendingUploads.toSet(), skipNotify: true);
-      widget.selectedFiles
-          .unSelectAll(split.ownedByOtherUsers.toSet(), skipNotify: true);
+      widget.selectedFiles.unSelectAll(
+        split.pendingUploads.toSet(),
+        skipNotify: true,
+      );
+      widget.selectedFiles.unSelectAll(
+        split.ownedByOtherUsers.toSet(),
+        skipNotify: true,
+      );
     }
     showCollectionActionSheet(
       context,
@@ -570,12 +567,16 @@ class _FileSelectionActionsWidgetState
 
   Future<void> _removeFilesFromAlbum() async {
     if (split.pendingUploads.isNotEmpty) {
-      widget.selectedFiles
-          .unSelectAll(split.pendingUploads.toSet(), skipNotify: true);
+      widget.selectedFiles.unSelectAll(
+        split.pendingUploads.toSet(),
+        skipNotify: true,
+      );
     }
     if (!isCollectionOwner && split.ownedByOtherUsers.isNotEmpty) {
-      widget.selectedFiles
-          .unSelectAll(split.ownedByOtherUsers.toSet(), skipNotify: true);
+      widget.selectedFiles.unSelectAll(
+        split.ownedByOtherUsers.toSet(),
+        skipNotify: true,
+      );
     }
     final bool removingOthersFile =
         isCollectionOwner && split.ownedByOtherUsers.isNotEmpty;
@@ -623,11 +624,7 @@ class _FileSelectionActionsWidgetState
     final List<EnteFile> selectedFiles = widget.selectedFiles.files.toList();
     if (await LocalAuthentication().isDeviceSupported()) {
       final page = DetailPage(
-        DetailPageConfiguration(
-          selectedFiles,
-          0,
-          "guest_view",
-        ),
+        DetailPageConfiguration(selectedFiles, 0, "guest_view"),
       );
       await localSettings.setOnGuestView(true);
       routeToPage(context, page, forceCustomPageRoute: true).ignore();
@@ -672,10 +669,14 @@ class _FileSelectionActionsWidgetState
 
   Future<void> _onUnhideClick() async {
     if (split.pendingUploads.isNotEmpty || split.ownedByOtherUsers.isNotEmpty) {
-      widget.selectedFiles
-          .unSelectAll(split.pendingUploads.toSet(), skipNotify: true);
-      widget.selectedFiles
-          .unSelectAll(split.ownedByOtherUsers.toSet(), skipNotify: true);
+      widget.selectedFiles.unSelectAll(
+        split.pendingUploads.toSet(),
+        skipNotify: true,
+      );
+      widget.selectedFiles.unSelectAll(
+        split.ownedByOtherUsers.toSet(),
+        skipNotify: true,
+      );
     }
     showCollectionActionSheet(
       context,
@@ -703,9 +704,7 @@ class _FileSelectionActionsWidgetState
   Future<Uint8List> _createPlaceholder(
     List<EnteFile> ownedSelectedFiles,
   ) async {
-    final Widget imageWidget = LinkPlaceholder(
-      files: ownedSelectedFiles,
-    );
+    final Widget imageWidget = LinkPlaceholder(files: ownedSelectedFiles);
     final double pixelRatio = MediaQuery.devicePixelRatioOf(context);
     final bytesOfImageToWidget = await screenshotController.captureFromWidget(
       imageWidget,
@@ -749,8 +748,10 @@ class _FileSelectionActionsWidgetState
 
   Future<void> _setPersonCover() async {
     final EnteFile file = widget.selectedFiles.files.first;
-    final updatedPerson =
-        await PersonService.instance.updateAvatar(widget.person!, file);
+    final updatedPerson = await PersonService.instance.updateAvatar(
+      widget.person!,
+      file,
+    );
     widget.selectedFiles.clearAll();
     if (mounted) {
       setState(() => {});
@@ -786,8 +787,9 @@ class _FileSelectionActionsWidgetState
             isInAlert: true,
           ),
         ],
-        body: AppLocalizations.of(context)
-            .selectedItemsWillBeRemovedFromThisPerson,
+        body: AppLocalizations.of(
+          context,
+        ).selectedItemsWillBeRemovedFromThisPerson,
         actionSheetType: ActionSheetType.defaultActionSheet,
       );
       if (actionResult?.action != null) {
@@ -832,8 +834,9 @@ class _FileSelectionActionsWidgetState
           isInAlert: true,
         ),
       ],
-      body:
-          AppLocalizations.of(context).selectedItemsWillBeRemovedFromThisPerson,
+      body: AppLocalizations.of(
+        context,
+      ).selectedItemsWillBeRemovedFromThisPerson,
       actionSheetType: ActionSheetType.defaultActionSheet,
     );
     if (actionResult?.action != null) {
@@ -874,10 +877,7 @@ class _FileSelectionActionsWidgetState
   }
 
   Future<void> _permanentlyDelete() async {
-    if (await deleteFromTrash(
-      context,
-      widget.selectedFiles.files.toList(),
-    )) {
+    if (await deleteFromTrash(context, widget.selectedFiles.files.toList())) {
       widget.selectedFiles.clearAll();
     }
   }
@@ -903,7 +903,8 @@ class _FileSelectionActionsWidgetState
               await downloadToGallery(file);
               downloadedFiles++;
               dialog.update(
-                message: AppLocalizations.of(context).downloading +
+                message:
+                    AppLocalizations.of(context).downloading +
                     " ($downloadedFiles/$totalFiles)",
               );
             }),

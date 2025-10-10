@@ -5,10 +5,7 @@ class CollectionWithThumbnail {
   final Collection collection;
   final EnteFile? thumbnail;
 
-  CollectionWithThumbnail(
-    this.collection,
-    this.thumbnail,
-  );
+  CollectionWithThumbnail(this.collection, this.thumbnail);
 }
 
 class SharedCollections {
