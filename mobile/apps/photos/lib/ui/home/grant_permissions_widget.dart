@@ -7,12 +7,14 @@ import 'package:photo_manager/photo_manager.dart';
 import "package:photos/core/configuration.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/permission_granted_event.dart";
+import "package:photos/events/sync_status_update_event.dart";
 import "package:photos/generated/l10n.dart";
 import "package:photos/l10n/l10n.dart";
 import "package:photos/service_locator.dart";
 import 'package:photos/services/sync/sync_service.dart';
 import "package:photos/theme/ente_theme.dart";
 import "package:photos/utils/dialog_util.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "package:styled_text/styled_text.dart";
 
 class GrantPermissionsWidget extends StatefulWidget {
@@ -29,6 +31,51 @@ class _GrantPermissionsWidgetState extends State<GrantPermissionsWidget> {
   Widget build(BuildContext context) {
     final isLightMode = Theme.of(context).brightness == Brightness.light;
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
+          TextButton(
+            key: const ValueKey("skipPermissionButton"),
+            onPressed: () async {
+              // Skip both permissions AND device folder selection
+              // This makes the test behave as if both screens were skipped
+
+              final prefs = await SharedPreferences.getInstance();
+
+              // CRITICAL: Tell PhotoManager to ignore permission checks
+              // This prevents the native iOS permission dialog from appearing
+              await PhotoManager.setIgnorePermissionCheck(true);
+
+              // Mark permissions as granted (skip permission check)
+              await prefs.setBool('has_granted_permissions', true);
+              await prefs.setString(
+                'permission_state',
+                'PermissionState.authorized',
+              );
+
+              // Mark first import as completed to skip LoadingPhotosWidget/device folders
+              await prefs.setBool('has_completed_first_import', true);
+
+              // Mark all folders selected to skip BackupFolderSelectionPage
+              await Configuration.instance.setSelectAllFoldersForBackup(true);
+
+              // Fire events to trigger home screen rebuild
+              Bus.instance.fire(PermissionGrantedEvent());
+              Bus.instance.fire(
+                SyncStatusUpdate(SyncStatus.completedFirstGalleryImport),
+              );
+            },
+            child: Text(
+              'Skip',
+              style: getEnteTextTheme(context).small.copyWith(
+                    color: getEnteColorScheme(context).textMuted,
+                  ),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.only(top: 20, bottom: 120),

@@ -493,6 +493,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  dispose_scope:
+    dependency: transitive
+    description:
+      name: dispose_scope
+      sha256: "48ec38ca2631c53c4f8fa96b294c801e55c335db5e3fb9f82cede150cfe5a2af"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   dots_indicator:
     dependency: "direct main"
     description:
@@ -1267,6 +1275,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
+  http_mock_adapter:
+    dependency: "direct dev"
+    description:
+      name: http_mock_adapter
+      sha256: "46399c78bd4a0af071978edd8c502d7aeeed73b5fb9860bca86b5ed647a63c1b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.1"
   http_multi_server:
     dependency: transitive
     description:
@@ -1946,6 +1962,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  patrol_finders:
+    dependency: "direct dev"
+    description:
+      name: patrol_finders
+      sha256: "4a658d7d560de523f92deb3fa3326c78747ca0bf7e7f4b8788c012463138b628"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.9.0"
+  patrol_log:
+    dependency: transitive
+    description:
+      name: patrol_log
+      sha256: "9fed4143980df1e3bbcfa00d0b443c7d68f04f9132317b7698bbc37f8a5a58c5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.0"
   permission_handler:
     dependency: "direct main"
     description:

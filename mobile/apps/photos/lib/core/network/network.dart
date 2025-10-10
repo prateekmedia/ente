@@ -14,35 +14,43 @@ class NetworkClient {
   late Dio _enteDio;
   static const kConnectTimeout = 15;
 
-  Future<void> init(PackageInfo packageInfo) async {
+  Future<void> init(
+    PackageInfo packageInfo, {
+    Dio? dio,
+    Dio? enteDio,
+  }) async {
     final String ua = await userAgent();
     final endpoint = Configuration.instance.getHttpEndpoint();
-    _dio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: kConnectTimeout),
-        headers: {
-          HttpHeaders.userAgentHeader: ua,
-          'X-Client-Version': packageInfo.version,
-          'X-Client-Package': packageInfo.packageName,
-        },
-      ),
-    );
-    _enteDio = Dio(
-      BaseOptions(
-        baseUrl: endpoint,
-        connectTimeout: const Duration(seconds: kConnectTimeout),
-        headers: {
-          HttpHeaders.userAgentHeader: ua,
-          'X-Client-Version': packageInfo.version,
-          'X-Client-Package': packageInfo.packageName,
-        },
-      ),
-    );
+
+    // Use provided Dio instances for testing, or create new ones
+    _dio = dio ??
+        Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: kConnectTimeout),
+            headers: {
+              HttpHeaders.userAgentHeader: ua,
+              'X-Client-Version': packageInfo.version,
+              'X-Client-Package': packageInfo.packageName,
+            },
+          ),
+        );
+    _enteDio = enteDio ??
+        Dio(
+          BaseOptions(
+            baseUrl: endpoint,
+            connectTimeout: const Duration(seconds: kConnectTimeout),
+            headers: {
+              HttpHeaders.userAgentHeader: ua,
+              'X-Client-Version': packageInfo.version,
+              'X-Client-Package': packageInfo.packageName,
+            },
+          ),
+        );
 
     // Only use NativeAdapter on iOS. On Android, Cronet (used by NativeAdapter)
     // doesn't work in background tasks on Android 15, causing CronetException
     // during background sync. Use default adapter on Android instead.
-    if (Platform.isIOS) {
+    if (Platform.isIOS && enteDio == null) {
       _enteDio.httpClientAdapter = NativeAdapter();
     }
 
