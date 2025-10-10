@@ -9,11 +9,9 @@ import "package:photos/ui/tools/editor/video_editor/video_editor_player_control.
 import 'package:video_editor/video_editor.dart';
 
 class VideoCropPage extends StatefulWidget {
-  final int quarterTurnsForRotationCorrection;
   const VideoCropPage({
     super.key,
     required this.controller,
-    required this.quarterTurnsForRotationCorrection,
   });
 
   final VideoEditorController controller;
@@ -53,15 +51,11 @@ class _VideoCropPageState extends State<VideoCropPage> {
                       Positioned.fill(
                         child: Hero(
                           tag: "video-editor-preview",
-                          child: RotatedBox(
-                            quarterTurns:
-                                widget.quarterTurnsForRotationCorrection,
-                            child: CropGridViewer.edit(
-                              controller: widget.controller,
-                              rotateCropArea: false,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
+                          child: CropGridViewer.edit(
+                            controller: widget.controller,
+                            rotateCropArea: false,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
                             ),
                           ),
                         ),
@@ -105,19 +99,19 @@ class _VideoCropPageState extends State<VideoCropPage> {
   }
 
   Widget _buildCropButton(BuildContext context, CropValue value) {
-    final f = value.getFraction();
+    final aspectRatio = value.getFraction()?.toDouble();
 
     return VideoEditorBottomAction(
       label: value.displayName,
       isSelected: value != CropValue.original &&
-          widget.controller.preferredCropAspectRatio == f?.toDouble(),
+          widget.controller.preferredCropAspectRatio == aspectRatio,
       onPressed: () {
         if (value == CropValue.original) {
           widget.controller.updateCrop(Offset.zero, const Offset(1.0, 1.0));
           widget.controller.cropAspectRatio(null);
           setState(() {});
         } else {
-          widget.controller.preferredCropAspectRatio = f?.toDouble();
+          widget.controller.preferredCropAspectRatio = aspectRatio;
         }
       },
       svgPath: "assets/video-editor/video-crop-${value.name}-action.svg",
