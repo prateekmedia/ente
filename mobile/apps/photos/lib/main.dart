@@ -3,6 +3,7 @@ import 'dart:io';
 
 import "package:adaptive_theme/adaptive_theme.dart";
 import "package:computer/computer.dart";
+import "package:dio/dio.dart";
 import 'package:ente_crypto/ente_crypto.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -64,14 +65,18 @@ const kFGTaskDeathTimeoutInMicroseconds = 5000000;
 bool isProcessBg = true;
 bool _stopHearBeat = false;
 
-void main() async {
+void main({Dio? testDio, Dio? testEnteDio}) async {
   debugRepaintRainbowEnabled = false;
   await RustLib.init();
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
 
   final savedThemeMode = await AdaptiveTheme.getThemeMode();
-  await _runInForeground(savedThemeMode);
+  await _runInForeground(
+    savedThemeMode,
+    testDio: testDio,
+    testEnteDio: testEnteDio,
+  );
 
   if (Platform.isAndroid) FlutterDisplayMode.setHighRefreshRate().ignore();
   SystemChrome.setSystemUIOverlayStyle(
@@ -81,11 +86,20 @@ void main() async {
   unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
 }
 
-Future<void> _runInForeground(AdaptiveThemeMode? savedThemeMode) async {
+Future<void> _runInForeground(
+  AdaptiveThemeMode? savedThemeMode, {
+  Dio? testDio,
+  Dio? testEnteDio,
+}) async {
   return await runWithLogs(() async {
     _logger.info("Starting app in foreground");
     isProcessBg = false;
-    await _init(false, via: 'mainMethod');
+    await _init(
+      false,
+      via: 'mainMethod',
+      testDio: testDio,
+      testEnteDio: testEnteDio,
+    );
     final Locale? locale = await getLocale(noFallback: true);
     runApp(
       AppLock(
@@ -201,7 +215,12 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
   }
 }
 
-Future<void> _init(bool isBackground, {String via = ''}) async {
+Future<void> _init(
+  bool isBackground, {
+  String via = '',
+  Dio? testDio,
+  Dio? testEnteDio,
+}) async {
   try {
     bool initComplete = false;
     final TimeLogger tlog = TimeLogger();
@@ -241,7 +260,11 @@ Future<void> _init(bool isBackground, {String via = ''}) async {
     _logger.info("Configuration done $tlog");
 
     _logger.info("NetworkClient init $tlog");
-    await NetworkClient.instance.init(packageInfo);
+    await NetworkClient.instance.init(
+      packageInfo,
+      dio: testDio,
+      enteDio: testEnteDio,
+    );
     _logger.info("NetworkClient init done $tlog");
 
     ServiceLocator.instance.init(
