@@ -683,6 +683,13 @@ export interface CollectionPublicMagicMetadataData {
      * When undefined, the UI defaults to "grouped" behavior.
      */
     layout?: string;
+    /**
+     * The ID of the parent collection in a nested folder hierarchy.
+     *
+     * Used when collections are created with the "nested" mapping to maintain
+     * the parent-child relationship between folder-based collections.
+     */
+    parentId?: number;
 }
 
 /**
@@ -692,6 +699,7 @@ export const CollectionPublicMagicMetadataData = z.looseObject({
     asc: z.boolean().nullish().transform(nullToUndefined),
     coverID: z.number().nullish().transform(nullToUndefined),
     layout: z.string().nullish().transform(nullToUndefined),
+    parentId: z.number().nullish().transform(nullToUndefined),
 });
 
 /**

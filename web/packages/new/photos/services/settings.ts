@@ -51,6 +51,11 @@ export interface Settings {
     mapEnabled: boolean;
 
     /**
+     * `true` if nested folder watch is enabled for internal users.
+     */
+    nestedFolderWatchEnabled: boolean;
+
+    /**
      * `true` if the user has saved a preference to disable workers for uploads.
      *
      * Unlike {@link shouldDisableCFUploadProxy}, whose value reflects other
@@ -104,6 +109,7 @@ export interface Settings {
 const createDefaultSettings = (): Settings => ({
     isInternalUser: false,
     mapEnabled: false,
+    nestedFolderWatchEnabled: false,
     cfUploadProxyDisabled: false,
     castURL: "https://cast.ente.io",
     embedURL: "https://embed.ente.io",
@@ -194,6 +200,7 @@ const syncSettingsSnapshotWithLocalStorage = () => {
     const settings = createDefaultSettings();
     settings.isInternalUser = flags?.internalUser || false;
     settings.mapEnabled = flags?.mapEnabled || false;
+    settings.nestedFolderWatchEnabled = flags?.internalUser || false;
     settings.cfUploadProxyDisabled = savedCFProxyDisabled();
     if (flags?.castUrl) settings.castURL = flags.castUrl;
     if (flags?.embedUrl) settings.embedURL = flags.embedUrl;

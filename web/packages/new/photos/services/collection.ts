@@ -68,6 +68,19 @@ export const createAlbum = (albumName: string) =>
     createCollection(albumName, "album");
 
 /**
+ * Create a new album (a collection of type "album") with a parent ID on remote,
+ * and return its local representation.
+ *
+ * Remote only, does not modify local state.
+ *
+ * @param albumName The name to use for the new album.
+ *
+ * @param parentId The ID of the parent collection in the hierarchy.
+ */
+export const createAlbumWithParent = (albumName: string, parentId: number) =>
+    createCollection(albumName, "album", undefined, { parentId });
+
+/**
  * Create a new collection on remote, and return its local representation.
  *
  * Remote only, does not modify local state.
@@ -78,11 +91,15 @@ export const createAlbum = (albumName: string) =>
  *
  * @param magicMetadataData Optional metadata to use as the collection's private
  * mutable metadata when creating the new collection.
+ *
+ * @param pubMagicMetadataData Optional metadata to use as the collection's public
+ * mutable metadata when creating the new collection.
  */
 const createCollection = async (
     name: string,
     type: CollectionType,
     magicMetadataData?: CollectionPrivateMagicMetadataData,
+    pubMagicMetadataData?: CollectionPublicMagicMetadataData,
 ): Promise<Collection> => {
     const collectionKey = await generateKey();
     const { encryptedData: encryptedKey, nonce: keyDecryptionNonce } =
@@ -95,6 +112,12 @@ const createCollection = async (
               collectionKey,
           )
         : undefined;
+    const pubMagicMetadata = pubMagicMetadataData
+        ? await encryptMagicMetadata(
+              createMagicMetadata(pubMagicMetadataData),
+              collectionKey,
+          )
+        : undefined;
 
     const remoteCollection = await postCollections({
         encryptedKey,
@@ -103,6 +126,7 @@ const createCollection = async (
         nameDecryptionNonce,
         type,
         ...(magicMetadata && { magicMetadata }),
+        ...(pubMagicMetadata && { pubMagicMetadata }),
     });
 
     return decryptRemoteKeyAndCollection(remoteCollection);

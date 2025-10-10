@@ -62,7 +62,11 @@ class FolderWatcher {
      * This is passed as a param to {@link init}.
      */
     private upload:
-        | ((collectionName: string, filePaths: string[]) => void)
+        | ((
+              collectionName: string,
+              filePaths: string[],
+              mapping: CollectionMapping,
+          ) => void)
         | undefined;
     /**
      * A function to call when we want to trigger a full remote pull. It will
@@ -90,7 +94,11 @@ class FolderWatcher {
      * files, and to pull the latest changes from remote (say after deletion).
      */
     init(
-        upload: (collectionName: string, filePaths: string[]) => void,
+        upload: (
+            collectionName: string,
+            filePaths: string[],
+            mapping: CollectionMapping,
+        ) => void,
         onTriggerRemotePull: () => void,
     ) {
         this.upload = upload;
@@ -268,7 +276,7 @@ class FolderWatcher {
                 `Folder watch requested upload of ${paths.length} files to collection ${collectionName}`,
             );
 
-            this.upload!(collectionName, paths);
+            this.upload!(collectionName, paths, watch.collectionMapping);
         } else {
             if (this.pruneFileEventsFromDeletedFolderPaths()) {
                 skip("event was from a deleted folder path");
@@ -604,9 +612,17 @@ const isSyncedOrIgnoredPath = (path: string, watch: FolderWatch) =>
     watch.ignoredFiles.includes(path) ||
     watch.syncedFiles.find((f) => f.path === path);
 
-const collectionNameForPath = (path: string, watch: FolderWatch) =>
-    watch.collectionMapping == "root"
-        ? basename(watch.folderPath)
-        : parentDirectoryName(path);
+const collectionNameForPath = (path: string, watch: FolderWatch) => {
+    switch (watch.collectionMapping) {
+        case "root":
+            return basename(watch.folderPath);
+        case "parent":
+            return parentDirectoryName(path);
+        case "nested":
+            // For nested mapping, collection name determination happens during upload.
+            // Here we use the root folder name as a placeholder.
+            return basename(watch.folderPath);
+    }
+};
 
 const parentDirectoryName = (path: string) => basename(dirname(path));

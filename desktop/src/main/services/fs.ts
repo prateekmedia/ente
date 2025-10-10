@@ -60,3 +60,73 @@ export const fsFindFiles = async (dirPath: string) => {
     }
     return paths;
 };
+
+/**
+ * Information about a folder node in a hierarchy.
+ */
+export interface FolderNode {
+    /** The absolute path to the folder. */
+    absolutePath: string;
+    /** The relative path from the root (empty string for root itself). */
+    relativePath: string;
+    /** The name of the folder. */
+    name: string;
+}
+
+/**
+ * Discover the folder hierarchy under the given root path.
+ *
+ * @param rootPath The absolute path to the root folder.
+ * @returns A flat array of folder nodes representing the entire hierarchy,
+ * including the root folder itself.
+ */
+export const fsDiscoverFolderHierarchy = async (
+    rootPath: string,
+): Promise<FolderNode[]> => {
+    const discoverRecursive = async (
+        currentPath: string,
+        relativePath: string,
+    ): Promise<FolderNode[]> => {
+        const items = await fs.readdir(currentPath, { withFileTypes: true });
+        let nodes: FolderNode[] = [];
+
+        for (const item of items) {
+            if (item.isDirectory()) {
+                const itemAbsolutePath = path.posix.join(currentPath, item.name);
+                const itemRelativePath = relativePath
+                    ? path.posix.join(relativePath, item.name)
+                    : item.name;
+
+                nodes.push({
+                    absolutePath: itemAbsolutePath,
+                    relativePath: itemRelativePath,
+                    name: item.name,
+                });
+
+                // Recursively discover subdirectories
+                nodes = [
+                    ...nodes,
+                    ...(await discoverRecursive(
+                        itemAbsolutePath,
+                        itemRelativePath,
+                    )),
+                ];
+            }
+        }
+
+        return nodes;
+    };
+
+    // Start with the root folder itself
+    const rootName = path.basename(rootPath);
+    const result: FolderNode[] = [
+        {
+            absolutePath: rootPath,
+            relativePath: "",
+            name: rootName,
+        },
+    ];
+
+    // Add all subdirectories
+    return [...result, ...(await discoverRecursive(rootPath, ""))];
+};
