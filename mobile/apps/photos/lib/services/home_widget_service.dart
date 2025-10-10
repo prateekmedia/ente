@@ -15,6 +15,7 @@ import 'package:photos/services/people_home_widget_service.dart';
 import 'package:photos/services/smart_memories_service.dart';
 import 'package:photos/utils/thumbnail_util.dart';
 import "package:synchronized/synchronized.dart";
+import 'package:async/async.dart';
 
 enum WidgetStatus {
   // notSynced means the widget is not initialized or has no data
@@ -55,6 +56,9 @@ class HomeWidgetService {
   final Logger _logger = Logger((HomeWidgetService).toString());
   final computeLock = Lock();
   bool _isAppGroupSet = false;
+  
+  // Track separate operations for each widget type
+  final Map<String, CancelableOperation> _widgetOperations = {};
 
   Future<void> setAppGroup({String id = iOSGroupIDMemory}) async {
     if (!Platform.isIOS || _isAppGroupSet) return;
@@ -215,6 +219,11 @@ class HomeWidgetService {
   }
 
   Future<void> clearWidget(bool autoLogout) async {
+    // Cancel all ongoing widget operations
+    for (final widgetType in _widgetOperations.keys.toList()) {
+      await cancelWidgetOperation(widgetType);
+    }
+    
     if (autoLogout) {
       await setAppGroup();
     }
@@ -235,6 +244,21 @@ class HomeWidgetService {
     } catch (e) {
       _logger.severe("Failed to clear widget directory", e);
     }
+  }
+
+  /// Cancel ongoing widget operation for a specific widget type
+  Future<void> cancelWidgetOperation(String widgetType) async {
+    final operation = _widgetOperations[widgetType];
+    if (operation != null && !operation.isCompleted) {
+      _logger.info("Cancelling ongoing $widgetType widget operation");
+      operation.cancel();
+      _widgetOperations.remove(widgetType);
+    }
+  }
+
+  /// Set the widget operation for a specific widget type
+  void setWidgetOperation(String widgetType, CancelableOperation operation) {
+    _widgetOperations[widgetType] = operation;
   }
 
   /// Handle app launch from a widget
