@@ -164,7 +164,7 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       }
     });
 
-    if (Platform.isIOS) {
+    if (Platform.isIOS && featureFlagService.isAirplaySupported) {
       _airPlayStateSubscription = AirPlayService.instance.isAirPlayingStream
           .listen((isAirPlaying) async {
         if (mounted) {
@@ -193,7 +193,9 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
 
     VideoSource videoSource;
 
-    if (_filePath!.toLowerCase().endsWith('.m3u8')) {
+    if (_filePath!.toLowerCase().endsWith('.m3u8') &&
+        Platform.isIOS &&
+        featureFlagService.isAirplaySupported) {
       final httpUrl = M3u8ServerService.instance.getHttpUrlForM3u8(_filePath!);
       if (httpUrl != null) {
         _logger.info('Using HTTP URL for m3u8 file: $httpUrl');
