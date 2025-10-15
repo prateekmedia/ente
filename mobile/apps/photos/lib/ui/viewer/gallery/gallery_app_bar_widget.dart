@@ -1126,6 +1126,7 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
     final airPlayService = AirPlayService.instance;
 
     if (!airPlayService.isSupported) {
+      // TODO(prateekmedia)[isAirplaySupported]: Move this to translations when flag is removed
       showToast(context, 'AirPlay is not supported on this device');
       return;
     }
@@ -1138,6 +1139,7 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // TODO(prateekmedia)[isAirplaySupported]: Move this to translations when flag is removed
               const Text('Select an AirPlay device to stream your album'),
               const SizedBox(height: 20),
               airPlayService.buildAirPlayButton(
@@ -1145,6 +1147,7 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
                 height: 60,
               ),
               const SizedBox(height: 10),
+              // TODO(prateekmedia)[isAirplaySupported]: Move this to translations when flag is removed
               const Text(
                 'Tap the AirPlay button above to select a device',
                 style: TextStyle(fontSize: 12),
