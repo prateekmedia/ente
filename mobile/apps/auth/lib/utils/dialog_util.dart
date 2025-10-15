@@ -179,7 +179,7 @@ Future<ButtonResult?> showGenericErrorDialog({
             PlatformUtil.openWebView(
               context,
               context.l10n.faq,
-              "https://help.ente.io/auth/troubleshooting/windows-login",
+              "https://ente.io/help/auth/troubleshooting/windows-login",
             ).ignore();
           },
         ),
@@ -414,6 +414,7 @@ Future<dynamic> showTextInputDialog(
   bool alwaysShowSuccessState = false,
   bool isPasswordInput = false,
   bool useRootNavigator = false,
+  VoidCallback? onCancel,
 }) {
   return showDialog(
     barrierColor: backdropFaintDark,

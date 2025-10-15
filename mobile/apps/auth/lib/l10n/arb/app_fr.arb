@@ -6,7 +6,7 @@
   "@counterAppBarTitle": {
     "description": "Text shown in the AppBar of the Counter Page"
   },
-  "onBoardingBody": "Sauvegarder vos codes A2F",
+  "onBoardingBody": "Sécurisez vos codes A2F",
   "onBoardingGetStarted": "Premiers pas",
   "setupFirstAccount": "Configurez votre premier compte",
   "importScanQrCode": "Scannez un QR Code",
@@ -376,6 +376,7 @@
   "shouldHideCode": "Cacher les codes",
   "doubleTapToViewHiddenCode": "Vous pouvez appuyer deux fois sur une entrée pour afficher le code",
   "focusOnSearchBar": "Cibler le champ de recherche au démarrage de l'application",
+  "minimizeToTrayOnClose": "Réduire dans la barre d'état à la fermeture",
   "confirmUpdatingkey": "Êtes-vous sûr de vouloir mettre à jour la clé secrète ?",
   "minimizeAppOnCopy": "Réduire l'application après la copie",
   "editCodeAuthMessage": "Authentification requise pour modifier le code",

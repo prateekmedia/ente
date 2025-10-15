@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude, Codex, and any other agent when working with code in this repository.
 
 ## Project Philosophy
 
@@ -195,6 +195,11 @@ lib/
 - Check for related spec files in `docs/` or project directories
 - Ensure documentation reflects the current implementation
 - Update examples in specs if behavior changes
+
+### 5. Database Methods - BEST PRACTICE
+**Prioritize readability in database methods**
+- For small result sets (e.g., 1-2 stale entries), prefer filtering in Dart for cleaner, more readable code
+- For large datasets, use SQL WHERE clauses for performance - they're much more efficient in SQLite
 
 ## Important Notes
 

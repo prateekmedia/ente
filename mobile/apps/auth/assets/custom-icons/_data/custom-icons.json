@@ -1666,6 +1666,14 @@
       "hex": "858585"
     },
     {
+      "title": "TETR.IO",
+      "slug": "tetrio",
+      "altNames": [
+        "tetrio",
+        "tetr.io"
+      ]
+    },
+    {
       "title": "Temu",
       "slug": "temu"
     },
@@ -1979,6 +1987,32 @@
     {
       "title": "Allegro",
       "slug": "allegro"
+    },
+    {
+      "title": "Leibniz Institute of Photonic Technology",
+      "slug": "leibniz-ipht"
+    },
+    {
+      "title": "University of Auckland",
+      "slug": "uoa"
+    },
+    {
+      "title": "Autenti",
+      "slug": "autenti"
+    },
+    {
+      "title": "Creately",
+      "slug": "creately"
+    },
+    {
+      "title": "ESET",
+      "slug": "eset",
+      "altNames": [
+        "ESET Home",
+        "ESET Protect",
+        "ESET Small Business Security",
+        "ESET Home Security"
+      ]
     }
   ]
 }

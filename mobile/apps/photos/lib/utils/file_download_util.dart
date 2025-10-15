@@ -81,7 +81,11 @@ Future<File?> downloadAndDecryptPublicFile(
       _logger.info('$logPrefix file saved at $decryptedFilePath');
     } catch (e, s) {
       fakeProgress?.stop();
-      _logger.severe("Critical: $logPrefix failed to decrypt", e, s);
+      _logger.severe(
+        "Critical: $logPrefix failed to decrypt  v:${file.metadataVersion}, viaMob:${(file.deviceFolder ?? '') != ''}",
+        e,
+        s,
+      );
       return null;
     }
     return File(decryptedFilePath);
@@ -184,7 +188,11 @@ Future<File?> downloadAndDecrypt(
           .info('$logPrefix decryption completed (genID ${file.generatedID})');
     } catch (e, s) {
       fakeProgress?.stop();
-      _logger.severe("Critical: $logPrefix failed to decrypt", e, s);
+      _logger.severe(
+        "Critical: $logPrefix failed to decrypt  v:${file.metadataVersion}, viaMob:${(file.deviceFolder ?? '') != ''}",
+        e,
+        s,
+      );
       return null;
     }
     await encryptedFile.delete();
@@ -263,7 +271,7 @@ Future<void> _saveLivePhotoOnDroid(
   AssetEntity? savedAsset = await (PhotoManager.editor
           .saveImageWithPath(image.path, title: enteFile.title!))
       .catchError((err) {
-    throw Exception("Failed to save image of live photo");
+    throw Exception("Failed to save image of live photo: $err");
   });
   IgnoredFile ignoreVideoFile = IgnoredFile(
     savedAsset.id,
@@ -277,7 +285,12 @@ Future<void> _saveLivePhotoOnDroid(
   savedAsset = (await (PhotoManager.editor.saveVideo(
     video,
     title: videoTitle,
-  )).catchError((_) => throw Exception("Failed to save video of live photo")));
+  )).catchError(
+    (err) {
+      _logger.warning('Failed to save video $videoTitle of live photo');
+      throw Exception("Failed to save video of live photo: $err");
+    },
+  ));
 
   ignoreVideoFile = IgnoredFile(
     savedAsset.id,

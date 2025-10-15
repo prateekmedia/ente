@@ -186,6 +186,7 @@
   "@allowAddingPhotos": {
     "description": "Switch button to enable uploading photos to a public link"
   },
+  "allowJoiningAlbum": "Autoriser l'adhésion à l'album",
   "allowAddPhotosDescription": "Autorisez les personnes ayant le lien à ajouter des photos dans l'album partagé.",
   "passwordLock": "Verrouillage par mot de passe",
   "canNotOpenTitle": "Impossible d'ouvrir cet album",
@@ -198,6 +199,11 @@
   "@noDeviceLimit": {
     "description": "Text to indicate that there is limit on number of devices"
   },
+  "albumLayout": "Disposition de l'album",
+  "layoutGrouped": "Groupé",
+  "layoutContinuous": "En continu",
+  "layoutTrip": "Excursion",
+  "preview": "Aperçu",
   "linkExpiry": "Expiration du lien",
   "linkExpired": "Expiré",
   "linkEnabled": "Activé",
@@ -237,7 +243,9 @@
   "shareWithNonenteUsers": "Partager avec des utilisateurs non-Ente",
   "createPublicLink": "Créer un lien public",
   "sendLink": "Envoyer le lien",
+  "sendQrCode": "Envoyer le QR code",
   "copyLink": "Copier le lien",
+  "copyEmbedHtml": "Copier le code HTML intégré",
   "linkHasExpired": "Le lien a expiré",
   "publicLinkEnabled": "Lien public activé",
   "shareALink": "Partager le lien",
@@ -1169,8 +1177,8 @@
     "description": "Label for the map view"
   },
   "maps": "Carte",
+  "mapsPrivacyNotice": "Les coordonnées approximatives seront envoyées à des tiers soucieux de la vie privée comme OpenStreetMap pour afficher la carte et l'emplacement.",
   "enableMaps": "Activer la carte",
-  "enableMapsDesc": "Vos photos seront affichées sur une carte du monde.\n\nCette carte est hébergée par Open Street Map, et les emplacements exacts de vos photos ne sont jamais partagés.\n\nVous pouvez désactiver cette fonction à tout moment dans les Paramètres.",
   "quickLinks": "Liens rapides",
   "selectItemsToAdd": "Sélectionner les éléments à ajouter",
   "addSelected": "Ajouter la sélection",
@@ -1730,7 +1738,7 @@
   "food": "Plaisir culinaire",
   "pets": "Compagnons à quatre pattes",
   "curatedMemories": "Souvenirs conservés",
-  "widgets": "Gadgets",
+  "widgets": "Widgets",
   "memories": "Souvenirs",
   "peopleWidgetDesc": "Sélectionnez les personnes que vous souhaitez voir sur votre écran d'accueil.",
   "albumsWidgetDesc": "Sélectionnez les personnes que vous souhaitez voir sur votre écran d'accueil.",
@@ -1748,9 +1756,9 @@
   "sorryWeHadToPauseYourBackups": "Désolé, nous avons dû mettre en pause vos sauvegardes",
   "clickToInstallOurBestVersionYet": "Cliquez pour installer notre meilleure version",
   "onThisDayNotificationExplanation": "Recevoir des rappels sur les souvenirs de cette journée des années précédentes.",
-  "addMemoriesWidgetPrompt": "Ajoutez un gadget des souvenirs à votre écran d'accueil et revenez ici pour le personnaliser.",
-  "addAlbumWidgetPrompt": "Ajoutez un gadget d'album à votre écran d'accueil et revenez ici pour le personnaliser.",
-  "addPeopleWidgetPrompt": "Ajoutez un gadget des personnes à votre écran d'accueil et revenez ici pour le personnaliser.",
+  "addMemoriesWidgetPrompt": "Ajoutez un widget des souvenirs à votre écran d'accueil et revenez ici pour le personnaliser.",
+  "addAlbumWidgetPrompt": "Ajoutez un widget d'album à votre écran d'accueil et revenez ici pour le personnaliser.",
+  "addPeopleWidgetPrompt": "Ajoutez un widget des personnes à votre écran d'accueil et revenez ici pour le personnaliser.",
   "birthdayNotifications": "Notifications d’anniversaire",
   "receiveRemindersOnBirthdays": "Recevoir des rappels quand c'est l'anniversaire de quelqu'un. Appuyer sur la notification vous amènera à des photos de son anniversaire.",
   "happyBirthday": "Joyeux anniversaire ! 🥳",
@@ -1800,7 +1808,6 @@
   "automaticallyAnalyzeAndSplitGrouping": "Nous analyserons automatiquement le regroupement pour déterminer s'il y a plusieurs personnes présentes et nous les séparerons à nouveau si tel est le cas. Cela peut prendre quelques secondes.",
   "layout": "Disposition",
   "day": "Jour",
-  "peopleAutoAddDesc": "Sélectionnez les personnes que vous souhaitez ajouter automatiquement à l'album",
   "undo": "Annuler",
   "redo": "Rétablir",
   "filter": "Filtres",
@@ -1838,6 +1845,14 @@
   "findSimilarImages": "Rechercher des images similaires",
   "noSimilarImagesFound": "Aucune image similaire trouvée",
   "yourPhotosLookUnique": "Vos photos semblent uniques",
+  "similarGroupsFound": "{count, plural, one {}=1{{count} groupe trouvé} other{{count} groupes trouvés}}",
+  "@similarGroupsFound": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "reviewAndRemoveSimilarImages": "Examiner et supprimer les images similaires",
   "deletePhotosWithSize": "Supprimer {count} photos ({size})",
   "@deletePhotosWithSize": {
@@ -1909,6 +1924,11 @@
   },
   "size": "Taille",
   "similarity": "Similitude",
+  "analyzingPhotosLocally": "Analyse de vos photos en local ...",
+  "lookingForVisualSimilarities": "Recherche de ressemblances visuelles...",
+  "comparingImageDetails": "Comparaison des détails de l'image...",
+  "findingSimilarImages": "Recherche d'images similaires...",
+  "almostDone": "C'est presque terminé...",
   "processingLocally": "Traitement local",
   "useMLToFindSimilarImages": "Examinez et supprimez les images qui se ressemblent entre elles.",
   "all": "Toutes",
@@ -1918,10 +1938,23 @@
   "related": "Liés",
   "hoorayyyy": "Houraaa !",
   "nothingToTidyUpHere": "Rien à nettoyer ici",
-  "cLTitle1": "Images similaires",
-  "cLDesc1": "Nous introduisons un nouveau système basé sur l'IA pour détecter les images similaires, avec lequel vous pouvez nettoyer votre bibliothèque. Disponible dans Paramètres -> Sauvegarde -> Libérer de l'espace",
-  "cLTitle2": "Améliorations de la diffusion vidéo",
-  "cLDesc2": "Vous pouvez maintenant déclencher manuellement la génération de flux pour les vidéos directement depuis l'application. Nous avons également ajouté un nouvel écran de paramètres de diffusion vidéo qui vous montrera quel pourcentage de vos vidéos ont été traitées pour la diffusion",
-  "cLTitle3": "Améliorations des performances",
-  "cLDesc3": "Plusieurs améliorations internes, incluant une meilleure utilisation du cache et une expérience de défilement plus fluide"
+  "deletingDash": "Suppression - ",
+  "cLTitle1": "Vue de la carte de vos voyages",
+  "cLDesc1": "Choisissez entre des mises en page groupées, continues ou en voyage (basées sur la carte) lors du partage d'albums. Ente s'occupe de l'hébergement !",
+  "cLTitle2": "Intégrer les albums",
+  "cLDesc2": "Intégrez vos albums dans votre propre site web, blog, portfolio de photographies. Ente prend soin de l'hébergement !",
+  "cLTitle3": "Albums partagés dans les widgets",
+  "cLDesc3": "Les widgets de l'écran d'accueil prennent maintenant en charge les albums qui ont été partagés avec vous.",
+  "cLTitle4": "Gain en qualité de vie",
+  "cLDesc4": "Ajouter des photos aux albums depuis la visionneuse de fichiers. Option de vue invité au niveau de l'album.",
+  "cLTitle5": "Améliorations des partages",
+  "cLDesc5": "Partagez des liens publics en utilisant un code QR. Personnalisez la possibilité de rejoindre des albums à partir des liens que vous partagez.",
+  "closeBy": "Similaire",
+  "@closeBy": {
+    "description": "Appears in the similar images page, to indicate that the images are close in terms of appearance"
+  },
+  "peopleAutoAddDesc": "Ajouter automatiquement les photos des personnes sélectionnées à cet album",
+  "@peopleAutoAddDesc": {
+    "description": "The message the copy should convey is that photos or videos containing the selected people's faces will be automatically added to this album"
+  }
 }

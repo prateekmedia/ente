@@ -1170,7 +1170,6 @@
   },
   "maps": "Žemėlapiai",
   "enableMaps": "Įjungti žemėlapius",
-  "enableMapsDesc": "Tai parodys jūsų nuotraukas pasaulio žemėlapyje.\n\nŠį žemėlapį talpina „OpenStreetMap“, o tiksliomis nuotraukų vietovėmis niekada nebendrinama.\n\nŠią funkciją bet kada galite išjungti iš nustatymų.",
   "quickLinks": "Sparčios nuorodos",
   "selectItemsToAdd": "Pasirinkite elementus įtraukti",
   "addSelected": "Pridėti pasirinktus",
@@ -1800,7 +1799,6 @@
   "automaticallyAnalyzeAndSplitGrouping": "Mes automatiškai išanalizuosime grupavimą, kad nustatytume, ar yra keli asmenys, ir vėl juos atskirsime. Tai gali užtrukti keletą sekundžių.",
   "layout": "Išdėstymas",
   "day": "Diena",
-  "peopleAutoAddDesc": "Pasirinkite asmenis, kuriuos norite automatiškai įtraukti į albumą.",
   "undo": "Anuliuoti",
   "redo": "Grąžinti",
   "filter": "Filtruoti",
@@ -1811,15 +1809,49 @@
   "font": "Šriftas",
   "background": "Fonas",
   "align": "Lygiuoti",
+  "videosProcessed": "Vaizdo įrašai apdoroti",
+  "totalVideos": "Iš viso vaizdo įrašų",
+  "skippedVideos": "Praleisti vaizdo įrašai",
   "similarImages": "Panašūs vaizdai",
   "findSimilarImages": "Rasti panašų vaizdų",
   "noSimilarImagesFound": "Panašių vaizdų nerasta",
   "yourPhotosLookUnique": "Jūsų nuotraukos atrodo ypatingos",
   "selectionOptions": "Pasirinkimo parinktys",
+  "selectAllWithCount": "Visi panašumai ({count})",
+  "@selectAllWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chooseSimilarImagesToSelect": "Pasirinkite vaizdus pagal jų vizualinį panašumą.",
   "deleteFiles": "Ištrinti failus",
   "areYouSureDeleteFiles": "Ar tikrai norite ištrinti šiuos failus?",
   "greatJob": "Puiku!",
+  "cleanedUpSimilarImages": "Atlaisvinote {size} vietos.",
+  "@cleanedUpSimilarImages": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "size": "Dydis",
   "similarity": "Panašumas",
-  "processingLocally": "Apdorojama vietoje"
+  "analyzingPhotosLocally": "Analizuojamos jūsų nuotraukos vietoje...",
+  "lookingForVisualSimilarities": "Ieškoma vizualių panašumų...",
+  "comparingImageDetails": "Lyginama vaizdo išsami informacija...",
+  "findingSimilarImages": "Randama panašių vaizdų...",
+  "almostDone": "Beveik baigta...",
+  "processingLocally": "Apdorojama vietoje",
+  "useMLToFindSimilarImages": "Peržiūrėkite ir pašalinkite vaizdus, kurie atrodo panašūs vienas į kitą.",
+  "all": "Visi",
+  "similar": "Panašūs",
+  "identical": "Vienodi",
+  "nothingHereTryAnotherFilter": "Čia nieko nėra. Bandykite kitą filtrą. 👀",
+  "related": "Susiję",
+  "hoorayyyy": "Puiiiiku!",
+  "nothingToTidyUpHere": "Čia nėra ko tvarkyti.",
+  "deletingDash": "Ištrinama - "
 }

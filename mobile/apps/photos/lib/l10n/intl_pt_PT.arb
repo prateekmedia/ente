@@ -1170,7 +1170,6 @@
   },
   "maps": "Mapas",
   "enableMaps": "Ativar mapas",
-  "enableMapsDesc": "Esta opção mostra as suas fotografias num mapa do mundo.\n\n\nEste mapa é alojado pelo Open Street Map e as localizações exactas das suas fotografias nunca são partilhadas.\n\n\nPode desativar esta funcionalidade em qualquer altura nas Definições.",
   "quickLinks": "Links rápidos",
   "selectItemsToAdd": "Selecionar itens para adicionar",
   "addSelected": "Adicionar selecionados",
@@ -1800,7 +1799,6 @@
   "automaticallyAnalyzeAndSplitGrouping": "Nós iremos analisar automaticamente o agrupamento para determinar se há várias pessoas presentes, e separá-las de novo. Isto levará alguns instantes.",
   "layout": "Layout",
   "day": "Dia",
-  "peopleAutoAddDesc": "Selecione as pessoas que quer auto adicionar ao álbum",
   "undo": " Desfazer ",
   "redo": "Refazer",
   "filter": "Filtrar",
@@ -1819,11 +1817,5 @@
         "type": "int"
       }
     }
-  },
-  "cLTitle1": "Imagens similares",
-  "cLDesc1": "Estamos a introduzir um novo sistema baseado em ML para detectar imagens similares, com o qual pode limpar a sua biblioteca. Disponível em Definições -> Cópia de segurança -> Libertar espaço",
-  "cLTitle2": "Melhorias do streaming de vídeo",
-  "cLDesc2": "Agora pode accionar manualmente a geração de stream para vídeos directamente da aplicação. Também adicionámos um novo ecrã de definições de streaming de vídeo que mostrará que percentagem dos seus vídeos foram processados para streaming",
-  "cLTitle3": "Melhorias de desempenho",
-  "cLDesc3": "Múltiplas melhorias internas, incluindo melhor uso de cache e uma experiência de deslocação mais suave"
+  }
 }

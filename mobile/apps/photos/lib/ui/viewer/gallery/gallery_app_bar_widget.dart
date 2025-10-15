@@ -5,6 +5,8 @@ import 'dart:math' as math;
 import "package:flutter/cupertino.dart";
 import "package:flutter/foundation.dart";
 import 'package:flutter/material.dart';
+import "package:flutter_svg/flutter_svg.dart";
+import "package:local_auth/local_auth.dart";
 import 'package:logging/logging.dart';
 import 'package:photos/core/configuration.dart';
 import "package:photos/core/constants.dart";
@@ -12,6 +14,7 @@ import 'package:photos/core/event_bus.dart';
 import "package:photos/core/network/network.dart";
 import "package:photos/db/files_db.dart";
 import "package:photos/events/collection_meta_event.dart";
+import "package:photos/events/guest_view_event.dart";
 import "package:photos/events/magic_sort_change_event.dart";
 import 'package:photos/events/subscription_purchased_event.dart';
 import "package:photos/gateways/cast_gw.dart";
@@ -42,13 +45,13 @@ import "package:photos/ui/common/web_page.dart";
 import 'package:photos/ui/components/action_sheet_widget.dart';
 import 'package:photos/ui/components/buttons/button_widget.dart';
 import 'package:photos/ui/components/models/button_type.dart';
-import "package:photos/ui/map/enable_map.dart";
 import "package:photos/ui/map/map_screen.dart";
 import 'package:photos/ui/notification/toast.dart';
 import 'package:photos/ui/sharing/album_participants_page.dart';
 import "package:photos/ui/sharing/manage_links_widget.dart";
 import 'package:photos/ui/sharing/share_collection_page.dart';
 import 'package:photos/ui/tools/free_space_page.dart';
+import "package:photos/ui/viewer/file/detail_page.dart";
 import "package:photos/ui/viewer/gallery/hooks/add_photos_sheet.dart";
 import 'package:photos/ui/viewer/gallery/hooks/pick_cover_photo.dart';
 import "package:photos/ui/viewer/gallery/state/inherited_search_filter_data.dart";
@@ -108,6 +111,7 @@ enum AlbumPopupAction {
   sortByMostRelevant,
   editLocation,
   deleteLocation,
+  galleryGuestView,
 }
 
 class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
@@ -166,6 +170,7 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
         InheritedSearchFilterData.maybeOf(context);
     final isHierarchicalSearchable =
         inheritedSearchFilterData?.isHierarchicalSearchable ?? false;
+
     return galleryType == GalleryType.homepage
         ? const SizedBox.shrink()
         : isHierarchicalSearchable
@@ -546,6 +551,21 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
               ? Icons.visibility_outlined
               : Icons.visibility_off_outlined,
         ),
+      // Gallery Guest View option
+      if (widget.collection != null)
+        EntePopupMenuItem(
+          AppLocalizations.of(context).guestView,
+          value: AlbumPopupAction.galleryGuestView,
+          iconWidget: SvgPicture.asset(
+            "assets/icons/guest_view_icon.svg",
+            width: 20,
+            height: 20,
+            colorFilter: ColorFilter.mode(
+              getEnteColorScheme(context).textBase,
+              BlendMode.srcIn,
+            ),
+          ),
+        ),
       if (widget.collection != null)
         EntePopupMenuItem(
           value: AlbumPopupAction.playOnTv,
@@ -685,6 +705,8 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
             editLocation();
           } else if (value == AlbumPopupAction.deleteLocation) {
             await deleteLocation();
+          } else if (value == AlbumPopupAction.galleryGuestView) {
+            await _onGalleryGuestViewClick();
           } else {
             showToast(context, AppLocalizations.of(context).somethingWentWrong);
           }
@@ -766,22 +788,30 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
   }
 
   Future<void> showOnMap() async {
-    final bool result = await requestForMapEnable(context);
-    if (result) {
-      unawaited(
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => MapScreen(
-              filesFutureFn: () async {
-                return FilesDB.instance.getAllFilesCollection(
-                  widget.collection!.id,
-                );
-              },
-            ),
+    if (!flagService.mapEnabled) {
+      try {
+        await flagService.setMapEnabled(true);
+      } catch (e) {
+        showShortToast(
+          context,
+          AppLocalizations.of(context).somethingWentWrong,
+        );
+        return;
+      }
+    }
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => MapScreen(
+            filesFutureFn: () async {
+              return FilesDB.instance.getAllFilesCollection(
+                widget.collection!.id,
+              );
+            },
           ),
         ),
-      );
-    }
+      ),
+    );
   }
 
   Future<void> _showSortOption(BuildContext bContext) async {
@@ -1136,5 +1166,56 @@ class _GalleryAppBarWidgetState extends State<GalleryAppBarWidget> {
         );
       },
     );
+  }
+
+  Future<void> _onGalleryGuestViewClick() async {
+    if (await LocalAuthentication().isDeviceSupported()) {
+      // Get all files from the collection with proper sort order
+      late final List<EnteFile> collectionFiles;
+      if (widget.files != null) {
+        // If files are already provided, use them
+        collectionFiles = widget.files!;
+      } else if (widget.collection != null) {
+        // Fetch all files from the collection
+        final filesResult = await FilesDB.instance.getFilesInCollection(
+          widget.collection!.id,
+          galleryLoadStartTime,
+          galleryLoadEndTime,
+          asc: widget.collection!.pubMagicMetadata.asc ?? false,
+        );
+        collectionFiles = filesResult.files;
+      } else {
+        showToast(context, AppLocalizations.of(context).somethingWentWrong);
+        return;
+      }
+
+      if (collectionFiles.isEmpty) {
+        showToast(
+          context,
+          AppLocalizations.of(context).nothingToSeeHere,
+        );
+        return;
+      }
+
+      // Use the same logic as selected files guest view
+      final page = DetailPage(
+        DetailPageConfiguration(
+          collectionFiles,
+          0,
+          "guest_view",
+        ),
+      );
+      await localSettings.setOnGuestView(true);
+      routeToPage(context, page, forceCustomPageRoute: true).ignore();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Bus.instance.fire(GuestViewEvent(true, false));
+      });
+    } else {
+      await showErrorDialog(
+        context,
+        AppLocalizations.of(context).noSystemLockFound,
+        AppLocalizations.of(context).guestViewEnablePreSteps,
+      );
+    }
   }
 }

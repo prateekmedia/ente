@@ -5,9 +5,10 @@ import 'dart:io';
 
 import "package:dio/dio.dart";
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:log_viewer/log_viewer.dart';
 import 'package:logging/logging.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart';
@@ -15,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:photos/core/error-reporting/tunneled_transport.dart';
 import "package:photos/core/errors.dart";
 import 'package:photos/models/typedefs.dart';
+import "package:photos/services/machine_learning/ml_exceptions.dart";
 import "package:photos/utils/device_info.dart";
 import "package:photos/utils/ram_check_util.dart";
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -188,6 +190,15 @@ class SuperLogging {
     Logger.root.level = kDebugMode ? Level.ALL : Level.INFO;
     Logger.root.onRecord.listen(onLogRecord);
 
+    if (_preferences.getBool("enable_db_logging") ?? kDebugMode) {
+      try {
+        await LogViewer.initialize(prefix: appConfig.prefix);
+        $.info("Log viewer initialized successfully");
+      } catch (e) {
+        $.warning("Failed to initialize log viewer: $e");
+      }
+    }
+
     if (isFDroidClient) {
       assert(
         sentryIsEnabled == false,
@@ -229,6 +240,15 @@ class SuperLogging {
             options.transport =
                 TunneledTransport(Uri.parse(appConfig.tunnel!), options);
           }
+          // Filter out errors that should not be sent to Sentry
+          options.beforeSend = (SentryEvent event, Hint hint) async {
+            // Check if the error should be skipped
+            final dynamic error = event.throwable;
+            if (error != null && _shouldSkipSentry(error)) {
+              return null; // Returning null drops the event
+            }
+            return event;
+          };
         },
         appRunner: () => appConfig!.body!(),
       );
@@ -255,29 +275,64 @@ class SuperLogging {
     final bool result = error is StorageLimitExceededError ||
         error is WiFiUnavailableError ||
         error is InvalidFileError ||
-        error is NoActiveSubscriptionError;
+        error is NoActiveSubscriptionError ||
+        error is CouldNotRetrieveAnyFileData;
     if (kDebugMode && result) {
       $.info('Not sending error to sentry: $error');
     }
     return result;
   }
 
+  /// Send an error to sentry, if enabled.
+  /// // note: stack is not reported currently
   static Future<void> _sendErrorToSentry(
     Object error,
-    StackTrace? stack,
-  ) async {
+    StackTrace? stack, {
+    LogRecord? rec,
+  }) async {
     try {
       if (_shouldSkipSentry(error)) {
         return;
       }
-      await Sentry.captureException(
-        error,
-        stackTrace: stack,
-      );
+
+      // Determine execution context from prefix
+      final executionContext = _getExecutionContext();
+
+      if (rec != null) {
+        await Sentry.captureException(
+          error,
+          stackTrace: stack,
+          withScope: (scope) {
+            scope.setContexts('log_details', {
+              'message': rec.message,
+            });
+            scope.setTag('logger', rec.loggerName);
+            scope.setTag('level', rec.level.name);
+            scope.setTag('execution_context', executionContext);
+          },
+        );
+      } else {
+        await Sentry.captureException(
+          error,
+          stackTrace: stack,
+          withScope: (scope) {
+            scope.setTag('execution_context', executionContext);
+          },
+        );
+      }
     } catch (e) {
       $.info('Sending report to sentry failed: $e');
       $.info('Original error: $error');
     }
+  }
+
+  /// Determine execution context from prefix
+  static String _getExecutionContext() {
+    final prefix = config.prefix.trim();
+    if (prefix.isEmpty) return 'foreground';
+    if (prefix.contains('[bg]')) return 'background';
+    if (prefix.contains('[fbg]')) return 'firebase_background';
+    return 'unknown';
   }
 
   static String _lastExtraLines = '';
@@ -296,10 +351,10 @@ class SuperLogging {
     // write to stdout
     printLog(str);
 
-    saveLogString(str, rec.error);
+    saveLogString(str, rec.error, rec: rec);
   }
 
-  static void saveLogString(String str, Object? error) {
+  static void saveLogString(String str, Object? error, {LogRecord? rec}) {
     // push to log queue
     if (fileIsEnabled) {
       fileQueueEntries.add(str + '\n');
@@ -310,7 +365,7 @@ class SuperLogging {
 
     // add error to sentry queue
     if (sentryIsEnabled && error != null) {
-      _sendErrorToSentry(error, null).ignore();
+      _sendErrorToSentry(error, null, rec: rec).ignore();
     }
   }
 
@@ -454,5 +509,16 @@ class SuperLogging {
     }
     final pkgName = (await PackageInfo.fromPlatform()).packageName;
     return pkgName.startsWith("io.ente.photos.fdroid");
+  }
+
+  /// Show the log viewer page
+  /// This is the main integration point for accessing the log viewer
+  static void showLogViewer(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LogViewerPage(),
+      ),
+    );
   }
 }

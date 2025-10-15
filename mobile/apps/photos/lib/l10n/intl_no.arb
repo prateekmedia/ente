@@ -1170,7 +1170,6 @@
   },
   "maps": "Kart",
   "enableMaps": "Aktiver kart",
-  "enableMapsDesc": "Dette viser dine bilder på et verdenskart.\n\nDette kartet er hostet av Open Street Map, og de nøyaktige stedene for dine bilder blir aldri delt.\n\nDu kan deaktivere denne funksjonen når som helst fra Innstillinger.",
   "quickLinks": "Hurtiglenker",
   "selectItemsToAdd": "Velg produkter å legge til",
   "addSelected": "Legg til valgte",
@@ -1736,11 +1735,5 @@
   "albumsWidgetDesc": "Velg albumene du ønsker å se på din hjemskjerm.",
   "memoriesWidgetDesc": "Velg typen minner du ønsker å se på din hjemskjerm.",
   "smartMemories": "Smarte minner",
-  "pastYearsMemories": "Tidligere års minner",
-  "cLTitle1": "Lignende bilder",
-  "cLDesc1": "Vi introduserer et nytt ML-basert system for å oppdage lignende bilder, som du kan bruke til å rydde opp i biblioteket ditt. Tilgjengelig i Innstillinger -> Sikkerhetskopi -> Frigjør plass",
-  "cLTitle2": "Video streaming forbedringer",
-  "cLDesc2": "Du kan nå manuelt utløse stream generering for videoer direkte fra appen. Vi har også lagt til en ny video streaming innstillinger skjerm som viser deg hvor mange prosent av videoene dine som er behandlet for streaming",
-  "cLTitle3": "Ytelsesforbedringer",
-  "cLDesc3": "Flere forbedringer under panseret, inkludert bedre cache bruk og en jevnere rullingsopplevelse"
+  "pastYearsMemories": "Tidligere års minner"
 }
