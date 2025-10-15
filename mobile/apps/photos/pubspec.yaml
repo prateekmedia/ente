@@ -109,7 +109,9 @@ dependencies:
   flutter_svg: ^2.0.10+1
   flutter_timezone: ^4.1.0
   flutter_to_airplay:
-    path: /Users/prateek/Documents/gits/flutter_to_airplay
+    git:
+      url: https://github.com/MrJai/flutter_to_airplay.git
+      ref: 756d6a0
   fluttertoast: ^8.0.6
   fraction: ^5.0.2
   freezed_annotation: ^3.0.0
