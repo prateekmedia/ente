@@ -289,14 +289,10 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
 
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
 
-        let originalTransform = videoTrack.preferredTransform
-        let cropTransform = CGAffineTransform(translationX: CGFloat(-x), y: CGFloat(-y))
-        let finalTransform = originalTransform.concatenating(cropTransform)
+        let transform = videoTrack.preferredTransform
+            .concatenating(CGAffineTransform(translationX: CGFloat(-x), y: CGFloat(-y)))
 
-        layerInstruction.setTransform(finalTransform, at: .zero)
-        // Note: setCropRectangle is deprecated in iOS 15.0+, but we continue to use it for backward compatibility
-        // TODO: Migrate to using CIFilter-based cropping when minimum iOS version allows
-        layerInstruction.setCropRectangle(CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)), at: .zero)
+        layerInstruction.setTransform(transform, at: .zero)
 
         instruction.layerInstructions = [layerInstruction]
         videoComposition.instructions = [instruction]
