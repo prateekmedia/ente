@@ -298,19 +298,32 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
 
         print("[NativeVideoEditor] cropVideo - naturalSize: \(naturalSize.width)x\(naturalSize.height)")
         print("[NativeVideoEditor] cropVideo - rotation: \(normalizedDegrees)°")
-        print("[NativeVideoEditor] cropVideo - crop input: x=\(x), y=\(y), w=\(width), h=\(height)")
+        print("[NativeVideoEditor] cropVideo - crop input (display space): x=\(x), y=\(y), w=\(width), h=\(height)")
 
-        // Flutter sends coordinates in display space (after rotation)
-        // For 90/270 rotations, we need to swap coordinates to match naturalSize space
-        var cropX = x
-        var cropY = y
+        // Flutter sends coordinates in display space (after rotation).
+        // We need to inverse-transform them to naturalSize space before applying the translation.
+        var cropX = CGFloat(x)
+        var cropY = CGFloat(y)
 
-        if normalizedDegrees == 90 || normalizedDegrees == 270 {
-            // Swap X and Y because display dimensions are swapped
-            let temp = cropX
-            cropX = cropY
-            cropY = temp
-            print("[NativeVideoEditor] cropVideo - swapped coords for 90/270: x=\(cropX), y=\(cropY)")
+        if normalizedDegrees == 90 {
+            // 90° CCW rotation: display(dx, dy) -> naturalSize(dy, naturalHeight - dx)
+            let naturalX = CGFloat(y)
+            let naturalY = naturalSize.height - CGFloat(x) - CGFloat(width)
+            cropX = naturalX
+            cropY = naturalY
+            print("[NativeVideoEditor] cropVideo - 90° inverse transform: naturalSize crop x=\(cropX), y=\(cropY)")
+        } else if normalizedDegrees == 270 || normalizedDegrees == -90 {
+            // 270° CCW (90° CW) rotation: display(dx, dy) -> naturalSize(naturalWidth - dy, dx)
+            let naturalX = naturalSize.width - CGFloat(y) - CGFloat(height)
+            let naturalY = CGFloat(x)
+            cropX = naturalX
+            cropY = naturalY
+            print("[NativeVideoEditor] cropVideo - 270° inverse transform: naturalSize crop x=\(cropX), y=\(cropY)")
+        } else if abs(normalizedDegrees) == 180 {
+            // 180° rotation: display(dx, dy) -> naturalSize(naturalWidth - dx - width, naturalHeight - dy - height)
+            cropX = naturalSize.width - CGFloat(x) - CGFloat(width)
+            cropY = naturalSize.height - CGFloat(y) - CGFloat(height)
+            print("[NativeVideoEditor] cropVideo - 180° inverse transform: naturalSize crop x=\(cropX), y=\(cropY)")
         }
 
         // Apply the same bounds compensation logic as processVideo
@@ -328,9 +341,9 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
             translateY = -transformedBounds.minY
         }
 
-        // Apply crop offset
-        translateX -= CGFloat(cropX)
-        translateY -= CGFloat(cropY)
+        // Apply crop offset in naturalSize space
+        translateX -= cropX
+        translateY -= cropY
 
         print("[NativeVideoEditor] cropVideo - final translation: x=\(translateX), y=\(translateY)")
 
