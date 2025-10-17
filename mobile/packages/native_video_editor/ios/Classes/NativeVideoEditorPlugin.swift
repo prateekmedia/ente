@@ -294,13 +294,26 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
         let preferredTransform = videoTrack.preferredTransform
         let angle = atan2(preferredTransform.b, preferredTransform.a)
         let rotationDegrees = Int(round(angle * 180 / .pi))
+        let normalizedDegrees = (rotationDegrees % 360 + 360) % 360
 
         print("[NativeVideoEditor] cropVideo - naturalSize: \(naturalSize.width)x\(naturalSize.height)")
-        print("[NativeVideoEditor] cropVideo - rotation: \(rotationDegrees)°")
+        print("[NativeVideoEditor] cropVideo - rotation: \(normalizedDegrees)°")
         print("[NativeVideoEditor] cropVideo - crop input: x=\(x), y=\(y), w=\(width), h=\(height)")
-        print("[NativeVideoEditor] cropVideo - preferredTransform: [\(preferredTransform.a), \(preferredTransform.b), \(preferredTransform.c), \(preferredTransform.d), \(preferredTransform.tx), \(preferredTransform.ty)]")
 
-        // Apply the same logic as processVideo for consistency
+        // Flutter sends coordinates in display space (after rotation)
+        // For 90/270 rotations, we need to swap coordinates to match naturalSize space
+        var cropX = x
+        var cropY = y
+
+        if normalizedDegrees == 90 || normalizedDegrees == 270 {
+            // Swap X and Y because display dimensions are swapped
+            let temp = cropX
+            cropX = cropY
+            cropY = temp
+            print("[NativeVideoEditor] cropVideo - swapped coords for 90/270: x=\(cropX), y=\(cropY)")
+        }
+
+        // Apply the same bounds compensation logic as processVideo
         let transformedBounds = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
         print("[NativeVideoEditor] cropVideo - transformedBounds: \(transformedBounds)")
 
@@ -316,8 +329,8 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
         }
 
         // Apply crop offset
-        translateX -= CGFloat(x)
-        translateY -= CGFloat(y)
+        translateX -= CGFloat(cropX)
+        translateY -= CGFloat(cropY)
 
         print("[NativeVideoEditor] cropVideo - final translation: x=\(translateX), y=\(translateY)")
 
