@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photos/core/constants.dart';
+import 'package:photos/core/errors.dart';
 import 'package:photos/models/file/file_type.dart';
 import 'package:photos/models/location/location.dart';
 import "package:photos/models/metadata/file_magic.dart";
@@ -62,11 +63,32 @@ class EnteFile {
 
   // in Version 1, live photo hash is stored as zip's hash.
   // in V2: LivePhoto hash is stored as imgHash:vidHash
-  static const kCurrentMetadataVersion = 2;
+  // in V3: Safeguard for concurrent multipart uploads
+  static const kCurrentMetadataVersion = 3;
+  static const kMetadataSimplifiedEncVersion = 4;
 
   static final _logger = Logger('File');
 
   EnteFile();
+
+  /// Safely extracts microsecondsSinceEpoch from DateTime, throwing InvalidDateTimeError if invalid
+  static int _safeGetMicroseconds(
+    DateTime dateTime,
+    String assetId,
+    String? assetTitle,
+    String label,
+  ) {
+    try {
+      return dateTime.microsecondsSinceEpoch;
+    } on RangeError catch (e) {
+      throw InvalidDateTimeError(
+        assetId: assetId,
+        assetTitle: assetTitle,
+        field: label,
+        originalError: e.message ?? e.toString(),
+      );
+    }
+  }
 
   static Future<EnteFile> fromAsset(String pathName, AssetEntity asset) async {
     final EnteFile file = EnteFile();
@@ -77,15 +99,30 @@ class EnteFile {
         Location(latitude: asset.latitude, longitude: asset.longitude);
     file.fileType = fileTypeFromAsset(asset);
     file.creationTime = parseFileCreationTime(file.title, asset);
-    file.modificationTime = asset.modifiedDateTime.microsecondsSinceEpoch;
+    file.modificationTime = _safeGetMicroseconds(
+      asset.modifiedDateTime,
+      asset.id,
+      asset.title,
+      'modificationTime',
+    );
     file.fileSubType = asset.subtype;
     file.metadataVersion = kCurrentMetadataVersion;
     return file;
   }
 
   static int parseFileCreationTime(String? fileTitle, AssetEntity asset) {
-    int creationTime = asset.createDateTime.microsecondsSinceEpoch;
-    final int modificationTime = asset.modifiedDateTime.microsecondsSinceEpoch;
+    int creationTime = _safeGetMicroseconds(
+      asset.createDateTime,
+      asset.id,
+      asset.title,
+      'createDateTime',
+    );
+    final int modificationTime = _safeGetMicroseconds(
+      asset.modifiedDateTime,
+      asset.id,
+      asset.title,
+      'modificationTime',
+    );
     if (creationTime >= jan011981Time) {
       // assuming that fileSystem is returning correct creationTime.
       // During upload, this might get overridden with exif Creation time

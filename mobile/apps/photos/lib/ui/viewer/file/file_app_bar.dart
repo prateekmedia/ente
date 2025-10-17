@@ -220,13 +220,11 @@ class FileAppBarState extends State<FileAppBar> {
         ),
       );
     }
-    // Add to album option for uploaded files (behind feature flag)
-    if (flagService.addToAlbumFeature &&
-        widget.file.isUploaded &&
-        !isFileHidden) {
+
+    if (widget.file.isUploaded && !isFileHidden) {
       items.add(
         EntePopupMenuItem(
-          "+ (i)",
+          AppLocalizations.of(context).addToAlbum,
           value: 10,
           icon: Icons.add,
           iconColor: Theme.of(context).iconTheme.color,
@@ -340,6 +338,7 @@ class FileAppBarState extends State<FileAppBar> {
     if (items.isNotEmpty) {
       _actions.add(
         PopupMenuButton(
+          tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
           itemBuilder: (context) {
             return items;
           },

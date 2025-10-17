@@ -20,8 +20,10 @@ import "package:photos/ui/components/models/button_type.dart";
 import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/viewer/actions/file_selection_overlay_bar.dart";
 import "package:photos/ui/viewer/gallery/collection_page.dart";
+import "package:photos/ui/viewer/gallery/component/group/type.dart";
 import "package:photos/ui/viewer/gallery/gallery.dart";
 import "package:photos/ui/viewer/gallery/gallery_app_bar_widget.dart";
+import "package:photos/ui/viewer/gallery/state/gallery_boundaries_provider.dart";
 import "package:photos/ui/viewer/gallery/state/gallery_files_inherited_widget.dart";
 import "package:photos/ui/viewer/gallery/state/selection_state.dart";
 import "package:photos/utils/dialog_util.dart";
@@ -69,6 +71,20 @@ class _SharedPublicCollectionPageState
     logger.info("Building SharedPublicCollectionPage");
     final List<EnteFile>? initialFiles =
         widget.c.thumbnail != null ? [widget.c.thumbnail!] : null;
+
+    // Determine groupType based on collection layout
+    GroupType groupType;
+    final layout = widget.c.collection.pubMagicMetadata.layout ?? "grouped";
+    switch (layout) {
+      case "continuous":
+        groupType = GroupType.none;
+        break;
+      case "grouped":
+      default:
+        groupType = GroupType.day;
+        break;
+    }
+
     final gallery = Gallery(
       asyncLoader: (creationStartTime, creationEndTime, {limit, asc}) async {
         widget.files!.sort(
@@ -96,6 +112,7 @@ class _SharedPublicCollectionPageState
       selectedFiles: _selectedFiles,
       initialFiles: initialFiles,
       albumName: widget.c.collection.displayName,
+      groupType: groupType,
       header: widget.c.collection.isJoinEnabled &&
               Configuration.instance.isLoggedIn()
           ? Padding(
@@ -120,30 +137,32 @@ class _SharedPublicCollectionPageState
       sortAsyncFn: () => widget.c.collection.pubMagicMetadata.asc ?? false,
     );
 
-    return GalleryFilesState(
-      child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(50.0),
-          child: GalleryAppBarWidget(
-            galleryType,
-            widget.c.collection.displayName,
-            _selectedFiles,
-            collection: widget.c.collection,
-            files: widget.files,
+    return GalleryBoundariesProvider(
+      child: GalleryFilesState(
+        child: Scaffold(
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(50.0),
+            child: GalleryAppBarWidget(
+              galleryType,
+              widget.c.collection.displayName,
+              _selectedFiles,
+              collection: widget.c.collection,
+              files: widget.files,
+            ),
           ),
-        ),
-        body: SelectionState(
-          selectedFiles: _selectedFiles,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              gallery,
-              FileSelectionOverlayBar(
-                galleryType,
-                _selectedFiles,
-                collection: widget.c.collection,
-              ),
-            ],
+          body: SelectionState(
+            selectedFiles: _selectedFiles,
+            child: Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                gallery,
+                FileSelectionOverlayBar(
+                  galleryType,
+                  _selectedFiles,
+                  collection: widget.c.collection,
+                ),
+              ],
+            ),
           ),
         ),
       ),

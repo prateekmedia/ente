@@ -1170,7 +1170,6 @@
   },
   "maps": "Mapy",
   "enableMaps": "Włącz mapy",
-  "enableMapsDesc": "To pokaże Twoje zdjęcia na mapie świata.\n\nTa mapa jest hostowana przez Open Street Map, a dokładne lokalizacje Twoich zdjęć nigdy nie są udostępniane.\n\nMożesz wyłączyć tę funkcję w każdej chwili w ustawieniach.",
   "quickLinks": "Szybkie linki",
   "selectItemsToAdd": "Wybierz elementy do dodania",
   "addSelected": "Dodaj zaznaczone",
@@ -1800,7 +1799,6 @@
   "automaticallyAnalyzeAndSplitGrouping": "Automatycznie przeanalizujemy grupę, aby ustalić, czy jest wiele osób i oddzielimy ich ponownie. Może to potrwać kilka sekund.",
   "layout": "Układ",
   "day": "Dzień",
-  "peopleAutoAddDesc": "Wybierz osoby, które chcesz automatycznie dodać do albumu",
   "undo": "Cofnij",
   "redo": "Ponów",
   "filter": "Filtruj",
@@ -1848,9 +1846,5 @@
   "related": "Powiązane",
   "hoorayyyy": "Huuraaaa!",
   "nothingToTidyUpHere": "Nie ma nic do uporządkowania",
-  "deletingDash": "Usuwanie - ",
-  "cLTitle1": "Podobne zdjęcia",
-  "cLDesc1": "Wprowadzamy nowy system ML, aby wykrywać podobne obrazy, za pomocą którego można oczyścić bibliotekę. Dostępne w Ustawieniach -> Kopia zapasowa -> Zwolnij miejsce",
-  "cLTitle3": "Ulepszenia wydajności",
-  "cLDesc3": "Wiele usprawnień pod maską, w tym lepsze wykorzystanie pamięci podręcznej i płynniejsze przewijanie"
+  "deletingDash": "Usuwanie - "
 }
