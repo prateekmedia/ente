@@ -289,8 +289,39 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
 
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
 
-        let transform = videoTrack.preferredTransform
-            .concatenating(CGAffineTransform(translationX: CGFloat(-x), y: CGFloat(-y)))
+        // Get video rotation from preferredTransform
+        let naturalSize = videoTrack.naturalSize
+        let preferredTransform = videoTrack.preferredTransform
+        let angle = atan2(preferredTransform.b, preferredTransform.a)
+        let rotationDegrees = Int(round(angle * 180 / .pi))
+
+        print("[NativeVideoEditor] cropVideo - naturalSize: \(naturalSize.width)x\(naturalSize.height)")
+        print("[NativeVideoEditor] cropVideo - rotation: \(rotationDegrees)°")
+        print("[NativeVideoEditor] cropVideo - crop input: x=\(x), y=\(y), w=\(width), h=\(height)")
+        print("[NativeVideoEditor] cropVideo - preferredTransform: [\(preferredTransform.a), \(preferredTransform.b), \(preferredTransform.c), \(preferredTransform.d), \(preferredTransform.tx), \(preferredTransform.ty)]")
+
+        // Apply the same logic as processVideo for consistency
+        let transformedBounds = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
+        print("[NativeVideoEditor] cropVideo - transformedBounds: \(transformedBounds)")
+
+        var translateX: CGFloat = 0
+        var translateY: CGFloat = 0
+
+        // Compensate for negative origins from rotation metadata
+        if transformedBounds.minX < 0 {
+            translateX = -transformedBounds.minX
+        }
+        if transformedBounds.minY < 0 {
+            translateY = -transformedBounds.minY
+        }
+
+        // Apply crop offset
+        translateX -= CGFloat(x)
+        translateY -= CGFloat(y)
+
+        print("[NativeVideoEditor] cropVideo - final translation: x=\(translateX), y=\(translateY)")
+
+        let transform = preferredTransform.concatenating(CGAffineTransform(translationX: translateX, y: translateY))
 
         layerInstruction.setTransform(transform, at: .zero)
 
