@@ -289,14 +289,11 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
 
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
 
-        let originalTransform = videoTrack.preferredTransform
-        let cropTransform = CGAffineTransform(translationX: CGFloat(-x), y: CGFloat(-y))
-        let finalTransform = originalTransform.concatenating(cropTransform)
+        // Apply crop via translation only (no deprecated setCropRectangle)
+        let cropTransform = CGAffineTransform(translationX: -CGFloat(x), y: -CGFloat(y))
+        let finalTransform = videoTrack.preferredTransform.concatenating(cropTransform)
 
         layerInstruction.setTransform(finalTransform, at: .zero)
-        // Note: setCropRectangle is deprecated in iOS 15.0+, but we continue to use it for backward compatibility
-        // TODO: Migrate to using CIFilter-based cropping when minimum iOS version allows
-        layerInstruction.setCropRectangle(CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)), at: .zero)
 
         instruction.layerInstructions = [layerInstruction]
         videoComposition.instructions = [instruction]
@@ -387,113 +384,30 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
         var finalTransform = preferredTransform
         var renderSize = naturalSize
 
+        // Handle crop
         if let cropX = args["cropX"] as? Int,
            let cropY = args["cropY"] as? Int,
            let cropWidth = args["cropWidth"] as? Int,
            let cropHeight = args["cropHeight"] as? Int {
             isReEncoded = true
 
-            renderSize = CGSize(width: CGFloat(cropWidth), height: CGFloat(cropHeight))
+            // Apply crop translation
+            let cropTranslation = CGAffineTransform(
+                translationX: -CGFloat(cropX),
+                y: -CGFloat(cropY)
+            )
+            finalTransform = preferredTransform.concatenating(cropTranslation)
+            renderSize = CGSize(width: cropWidth, height: cropHeight)
+        }
 
-            let transformedBounds = CGRect(origin: .zero, size: naturalSize).applying(preferredTransform)
-            var transform = preferredTransform
-
-            var translateX: CGFloat = 0
-            var translateY: CGFloat = 0
-
-            if transformedBounds.minX < 0 {
-                translateX = -transformedBounds.minX
-            }
-            if transformedBounds.minY < 0 {
-                translateY = -transformedBounds.minY
-            }
-
-            translateX -= CGFloat(cropX)
-            translateY -= CGFloat(cropY)
-
-            transform = transform.concatenating(CGAffineTransform(translationX: translateX, y: translateY))
-
-            if let rotateDegrees = args["rotateDegrees"] as? Int, rotateDegrees != 0 {
-                // iOS CGAffineTransform rotates counter-clockwise for positive angles
-                // To match Android behavior (positive = clockwise), we negate the radians
-                let radians = CGFloat(rotateDegrees) * .pi / 180
-                let clockwiseRadians = -radians
-
-                let oldCenterX = renderSize.width / 2
-                let oldCenterY = renderSize.height / 2
-
-                if abs(rotateDegrees) == 90 || abs(rotateDegrees) == 270 {
-                    renderSize = CGSize(width: renderSize.height, height: renderSize.width)
-                }
-
-                let rotationTransform = CGAffineTransform(translationX: oldCenterX, y: oldCenterY)
-                    .rotated(by: clockwiseRadians)
-                    .translatedBy(x: -oldCenterX, y: -oldCenterY)
-
-                transform = transform.concatenating(rotationTransform)
-
-                let testRect = CGRect(origin: .zero, size: CGSize(width: cropWidth, height: cropHeight))
-                let finalBounds = testRect.applying(transform)
-
-                var additionalTranslateX: CGFloat = 0
-                var additionalTranslateY: CGFloat = 0
-
-                if finalBounds.minX < 0 {
-                    additionalTranslateX = -finalBounds.minX
-                }
-                if finalBounds.minY < 0 {
-                    additionalTranslateY = -finalBounds.minY
-                }
-
-                if additionalTranslateX != 0 || additionalTranslateY != 0 {
-                    transform = transform.concatenating(CGAffineTransform(translationX: additionalTranslateX, y: additionalTranslateY))
-                }
-            }
-
-            finalTransform = transform
-
-        } else if let rotateDegrees = args["rotateDegrees"] as? Int, rotateDegrees != 0 {
+        // Handle rotation
+        if let rotateDegrees = args["rotateDegrees"] as? Int, rotateDegrees != 0 {
             isReEncoded = true
-
-            var orientedSize = naturalSize.applying(preferredTransform)
-            orientedSize = CGSize(width: abs(orientedSize.width), height: abs(orientedSize.height))
-
-            var transform = preferredTransform
-
-            // iOS CGAffineTransform rotates counter-clockwise for positive angles
-            // To match Android behavior (positive = clockwise), we negate the radians
-            let radians = CGFloat(rotateDegrees) * .pi / 180
-            let clockwiseRadians = -radians
-
-            // Rotate around the center of the input video
-            let centerX = orientedSize.width / 2
-            let centerY = orientedSize.height / 2
-
-            transform = transform.translatedBy(x: centerX, y: centerY)
-            transform = transform.rotated(by: clockwiseRadians)
-            transform = transform.translatedBy(x: -centerX, y: -centerY)
-
-            // Set renderSize based on rotation
-            if abs(rotateDegrees) == 90 || abs(rotateDegrees) == 270 {
-                renderSize = CGSize(width: orientedSize.height, height: orientedSize.width)
-            } else {
-                renderSize = orientedSize
-            }
-
-            // Use bounds testing to calculate the necessary translation to center the video
-            let testRect = CGRect(origin: .zero, size: orientedSize)
-            let finalBounds = testRect.applying(transform)
-
-            // Center the video in the renderSize
-            let targetMinX: CGFloat = (renderSize.width - finalBounds.width) / 2
-            let additionalTranslateX = targetMinX - finalBounds.minX
-
-            let targetMinY: CGFloat = (renderSize.height - finalBounds.height) / 2
-            let additionalTranslateY = targetMinY - finalBounds.minY
-
-            transform = transform.concatenating(CGAffineTransform(translationX: additionalTranslateX, y: additionalTranslateY))
-
-            finalTransform = transform
+            finalTransform = applyRotation(
+                degrees: rotateDegrees,
+                to: finalTransform,
+                renderSize: &renderSize
+            )
         }
 
         if isReEncoded {
@@ -552,6 +466,42 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
                 self.currentExportSession = nil
             }
         }
+    }
+
+    private func applyRotation(
+        degrees: Int,
+        to transform: CGAffineTransform,
+        renderSize: inout CGSize
+    ) -> CGAffineTransform {
+        let radians = CGFloat(degrees) * .pi / 180
+        var result = transform
+
+        switch degrees {
+        case 90:
+            result = result.concatenating(
+                CGAffineTransform(rotationAngle: .pi / 2)
+                    .translatedBy(x: 0, y: -renderSize.width)
+            )
+            renderSize = CGSize(width: renderSize.height, height: renderSize.width)
+
+        case 180:
+            result = result.concatenating(
+                CGAffineTransform(rotationAngle: .pi)
+                    .translatedBy(x: -renderSize.width, y: -renderSize.height)
+            )
+
+        case 270:
+            result = result.concatenating(
+                CGAffineTransform(rotationAngle: -.pi / 2)
+                    .translatedBy(x: -renderSize.height, y: 0)
+            )
+            renderSize = CGSize(width: renderSize.height, height: renderSize.width)
+
+        default:
+            break
+        }
+
+        return result
     }
 
     private func frameDuration(for track: AVAssetTrack) -> CMTime {
