@@ -410,21 +410,28 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
             transform = transform.concatenating(CGAffineTransform(translationX: translateX, y: translateY))
 
             if let rotateDegrees = args["rotateDegrees"] as? Int, rotateDegrees != 0 {
-                // iOS CGAffineTransform rotates counter-clockwise for positive angles
-                // To match Android behavior (positive = clockwise), we negate the radians
-                let radians = CGFloat(rotateDegrees) * .pi / 180
-                let clockwiseRadians = -radians
+                // Use corner-based rotation (rotate around origin) to avoid center calculation issues
+                // iOS uses counter-clockwise, so negate for clockwise Android behavior
+                let rotationTransform: CGAffineTransform
 
-                let oldCenterX = renderSize.width / 2
-                let oldCenterY = renderSize.height / 2
-
-                if abs(rotateDegrees) == 90 || abs(rotateDegrees) == 270 {
+                switch rotateDegrees {
+                case 90:
+                    rotationTransform = CGAffineTransform(rotationAngle: -.pi / 2)
+                        .translatedBy(x: -renderSize.height, y: 0)
                     renderSize = CGSize(width: renderSize.height, height: renderSize.width)
-                }
 
-                let rotationTransform = CGAffineTransform(translationX: oldCenterX, y: oldCenterY)
-                    .rotated(by: clockwiseRadians)
-                    .translatedBy(x: -oldCenterX, y: -oldCenterY)
+                case 180:
+                    rotationTransform = CGAffineTransform(rotationAngle: -.pi)
+                        .translatedBy(x: -renderSize.width, y: -renderSize.height)
+
+                case 270:
+                    rotationTransform = CGAffineTransform(rotationAngle: .pi / 2)
+                        .translatedBy(x: 0, y: -renderSize.width)
+                    renderSize = CGSize(width: renderSize.height, height: renderSize.width)
+
+                default:
+                    rotationTransform = .identity
+                }
 
                 transform = transform.concatenating(rotationTransform)
 
@@ -454,42 +461,32 @@ public class NativeVideoEditorPlugin: NSObject, FlutterPlugin {
             var orientedSize = naturalSize.applying(preferredTransform)
             orientedSize = CGSize(width: abs(orientedSize.width), height: abs(orientedSize.height))
 
-            var transform = preferredTransform
+            renderSize = orientedSize
 
-            // iOS CGAffineTransform rotates counter-clockwise for positive angles
-            // To match Android behavior (positive = clockwise), we negate the radians
-            let radians = CGFloat(rotateDegrees) * .pi / 180
-            let clockwiseRadians = -radians
+            // Use corner-based rotation (rotate around origin) to avoid center calculation issues
+            // iOS uses counter-clockwise, so negate for clockwise Android behavior
+            let rotationTransform: CGAffineTransform
 
-            // Rotate around the center of the input video
-            let centerX = orientedSize.width / 2
-            let centerY = orientedSize.height / 2
+            switch rotateDegrees {
+            case 90:
+                rotationTransform = CGAffineTransform(rotationAngle: -.pi / 2)
+                    .translatedBy(x: -renderSize.height, y: 0)
+                renderSize = CGSize(width: renderSize.height, height: renderSize.width)
 
-            transform = transform.translatedBy(x: centerX, y: centerY)
-            transform = transform.rotated(by: clockwiseRadians)
-            transform = transform.translatedBy(x: -centerX, y: -centerY)
+            case 180:
+                rotationTransform = CGAffineTransform(rotationAngle: -.pi)
+                    .translatedBy(x: -renderSize.width, y: -renderSize.height)
 
-            // Set renderSize based on rotation
-            if abs(rotateDegrees) == 90 || abs(rotateDegrees) == 270 {
-                renderSize = CGSize(width: orientedSize.height, height: orientedSize.width)
-            } else {
-                renderSize = orientedSize
+            case 270:
+                rotationTransform = CGAffineTransform(rotationAngle: .pi / 2)
+                    .translatedBy(x: 0, y: -renderSize.width)
+                renderSize = CGSize(width: renderSize.height, height: renderSize.width)
+
+            default:
+                rotationTransform = .identity
             }
 
-            // Use bounds testing to calculate the necessary translation to center the video
-            let testRect = CGRect(origin: .zero, size: orientedSize)
-            let finalBounds = testRect.applying(transform)
-
-            // Center the video in the renderSize
-            let targetMinX: CGFloat = (renderSize.width - finalBounds.width) / 2
-            let additionalTranslateX = targetMinX - finalBounds.minX
-
-            let targetMinY: CGFloat = (renderSize.height - finalBounds.height) / 2
-            let additionalTranslateY = targetMinY - finalBounds.minY
-
-            transform = transform.concatenating(CGAffineTransform(translationX: additionalTranslateX, y: additionalTranslateY))
-
-            finalTransform = transform
+            finalTransform = preferredTransform.concatenating(rotationTransform)
         }
 
         if isReEncoded {
