@@ -77,6 +77,28 @@ class _DebugSectionWidgetState extends State<DebugSectionWidget> {
           ),
         ),
         sectionOptionSpacing,
+        sectionOptionSpacing,
+        MenuItemWidget(
+          captionedTextWidget: const CaptionedTextWidget(
+            title: "Debug tweaks for video editor",
+          ),
+          pressedColor: getEnteColorScheme(context).fillFaint,
+          trailingWidget: ToggleSwitchWidget(
+            value: () => localSettings.debugVideoEditorTweaks,
+            onChanged: () async {
+              await localSettings.setDebugVideoEditorTweaks(
+                !localSettings.debugVideoEditorTweaks,
+              );
+              setState(() {});
+              showShortToast(
+                context,
+                localSettings.debugVideoEditorTweaks
+                    ? "Video editor debug tweaks enabled"
+                    : "Video editor debug tweaks disabled",
+              );
+            },
+          ),
+        ),
         MenuItemWidget(
           captionedTextWidget: const CaptionedTextWidget(
             title: "Key attributes",

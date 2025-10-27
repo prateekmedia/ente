@@ -4,6 +4,7 @@ import "dart:io";
 import "package:flutter/material.dart";
 import "package:fluttertoast/fluttertoast.dart";
 import "package:logging/logging.dart";
+import "package:path/path.dart" as path;
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/stream_switched_event.dart";
 import "package:photos/events/use_media_kit_for_video.dart";
@@ -51,6 +52,7 @@ class _VideoWidgetState extends State<VideoWidget> {
   final mediaKitKey = GlobalKey();
 
   bool isPreviewLoadable = false;
+  bool _editSummaryToastShown = false;
 
   @override
   void initState() {
@@ -75,6 +77,10 @@ class _VideoWidgetState extends State<VideoWidget> {
       }
       _checkForPreview();
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowDebugEditToast();
+    });
   }
 
   @override
@@ -110,6 +116,7 @@ class _VideoWidgetState extends State<VideoWidget> {
     if (!mounted) return;
     if (data != null) {
       if (flagService.internalUser &&
+          !localSettings.debugVideoEditorTweaks &&
           data.size != null &&
           widget.file.fileSize != null) {
         final size = formatBytes(widget.file.fileSize!);
@@ -119,11 +126,52 @@ class _VideoWidgetState extends State<VideoWidget> {
           "[i] Preview OG Size ($size), previewSize: ${formatBytes(data.size!)}",
         );
       }
+      _maybeShowDebugEditToast();
       playlistData = data;
     } else {
       isPreviewLoadable = false;
     }
     setState(() {});
+  }
+
+  void _maybeShowDebugEditToast() {
+    if (_editSummaryToastShown ||
+        !flagService.internalUser ||
+        !localSettings.debugVideoEditorTweaks) {
+      return;
+    }
+    if (!mounted) return;
+    final title = widget.file.title;
+    if (title == null || !title.toLowerCase().endsWith(".mp4")) {
+      return;
+    }
+    final baseName = path.basenameWithoutExtension(title);
+    if (baseName.length < 3 || baseName[baseName.length - 3] != "_") {
+      return;
+    }
+
+    final trimmed = RegExp(r"_t(?=_|$)").hasMatch(baseName);
+    final cropMatch = RegExp(r"_c_([0-9]+x[0-9]+)").firstMatch(baseName);
+    final rotationMatch = RegExp(r"_r_(-?[0-9]+)").firstMatch(baseName);
+
+    if (!trimmed && cropMatch == null && rotationMatch == null) {
+      return;
+    }
+
+    const check = "✓";
+    final rotationLine = rotationMatch != null
+        ? "Rotation $check ${rotationMatch.group(1)}°"
+        : "Rotation —";
+    final cropLine =
+        cropMatch != null ? "Crop: ${cropMatch.group(1)} $check" : "Crop: —";
+    final trimLine = trimmed ? "Trim $check" : "Trim —";
+
+    showToast(
+      context,
+      "Edited:\n$rotationLine\n$cropLine\n$trimLine",
+      gravity: ToastGravity.TOP,
+    );
+    _editSummaryToastShown = true;
   }
 
   @override

@@ -45,6 +45,7 @@ class LocalSettings {
   static const kCollectionSortDirection = "collection_sort_direction";
   static const kShowLocalIDOverThumbnails = "show_local_id_over_thumbnails";
   static const kEnableDatabaseLogging = "enable_db_logging";
+  static const kDebugVideoEditorTweaks = "debug_video_editor_tweaks";
 
   final SharedPreferences _prefs;
 
@@ -234,5 +235,12 @@ class LocalSettings {
 
   Future<void> setEnableDatabaseLogging(bool value) async {
     await _prefs.setBool(kEnableDatabaseLogging, value);
+  }
+
+  bool get debugVideoEditorTweaks =>
+      _prefs.getBool(kDebugVideoEditorTweaks) ?? false;
+
+  Future<void> setDebugVideoEditorTweaks(bool value) async {
+    await _prefs.setBool(kDebugVideoEditorTweaks, value);
   }
 }

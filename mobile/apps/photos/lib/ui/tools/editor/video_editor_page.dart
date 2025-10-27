@@ -22,6 +22,7 @@ import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/tools/editor/export_video_service.dart";
 import "package:photos/ui/tools/editor/native_video_export_service.dart";
 import 'package:photos/ui/tools/editor/video_crop_page.dart';
+import 'package:photos/ui/tools/editor/video_crop_util.dart';
 import "package:photos/ui/tools/editor/video_editor/video_editor_app_bar.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_bottom_action.dart";
 import "package:photos/ui/tools/editor/video_editor/video_editor_main_actions.dart";
@@ -422,10 +423,12 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
         return;
       }
 
-      final fileName = path.basenameWithoutExtension(widget.file.title!) +
-          "_edited_" +
-          DateTime.now().microsecondsSinceEpoch.toString() +
-          ".mp4";
+      final fileName = localSettings.debugVideoEditorTweaks
+          ? _buildDebugFileName()
+          : path.basenameWithoutExtension(widget.file.title!) +
+              "_edited_" +
+              DateTime.now().microsecondsSinceEpoch.toString() +
+              ".mp4";
 
       //Disabling notifications for assets changing to insert the file into
       //files db before triggering a sync.
@@ -444,7 +447,22 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
           newAsset,
         );
 
-        newFile.creationTime = widget.file.creationTime;
+        if (localSettings.debugVideoEditorTweaks) {
+          // Set creation time to original file's month/day but year 1999
+          final originalDate =
+              DateTime.fromMicrosecondsSinceEpoch(widget.file.creationTime!);
+          final date1999 = DateTime(
+            1999,
+            originalDate.month,
+            originalDate.day,
+            originalDate.hour,
+            originalDate.minute,
+            originalDate.second,
+          );
+          newFile.creationTime = date1999.microsecondsSinceEpoch;
+        } else {
+          newFile.creationTime = widget.file.creationTime;
+        }
         newFile.collectionID = widget.file.collectionID;
         newFile.location = widget.file.location;
         if (!newFile.hasLocation && widget.file.localID != null) {
@@ -467,28 +485,35 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
         SyncService.instance.sync().ignore();
 
         showShortToast(context, AppLocalizations.of(context).editsSaved);
-        final files = widget.detailPageConfig.files;
-
-        // the index could be -1 if the files fetched doesn't contain the newly
-        // edited files
-        int selectionIndex = files.indexWhere(
-          (file) => file.generatedID == newFile.generatedID,
-        );
-        if (selectionIndex == -1) {
-          files.add(newFile);
-          selectionIndex = files.length - 1;
-        }
         Navigator.of(dialogKey.currentContext!).pop('dialog');
 
-        replacePage(
-          context,
-          DetailPage(
-            widget.detailPageConfig.copyWith(
-              files: files,
-              selectedIndex: min(selectionIndex, files.length - 1),
+        if (localSettings.debugVideoEditorTweaks) {
+          // In debug mode, just pop back instead of navigating to new video
+          Navigator.of(context).pop();
+        } else {
+          // Normal flow: navigate to the newly edited video
+          final files = widget.detailPageConfig.files;
+
+          // the index could be -1 if the files fetched doesn't contain the newly
+          // edited files
+          int selectionIndex = files.indexWhere(
+            (file) => file.generatedID == newFile.generatedID,
+          );
+          if (selectionIndex == -1) {
+            files.add(newFile);
+            selectionIndex = files.length - 1;
+          }
+
+          replacePage(
+            context,
+            DetailPage(
+              widget.detailPageConfig.copyWith(
+                files: files,
+                selectedIndex: min(selectionIndex, files.length - 1),
+              ),
             ),
-          ),
-        );
+          );
+        }
       } catch (e, s) {
         _logger.severe("Error in post-processing", e, s);
         Navigator.of(dialogKey.currentContext!).pop('dialog');
@@ -496,6 +521,56 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
     } finally {
       await PhotoManager.startChangeNotify();
     }
+  }
+
+  String _buildDebugFileName() {
+    // Build vars string based on applied transformations
+    final now = DateTime.now();
+    String vars = '';
+
+    // Check if trim is applied
+    final isTrimmed = _controller!.isTrimmed;
+    if (isTrimmed) {
+      vars += '_t';
+    }
+
+    // Check if crop is applied
+    final isCropped = _controller!.minCrop != Offset.zero ||
+        _controller!.maxCrop != const Offset(1.0, 1.0);
+    if (isCropped) {
+      final cropRect = VideoCropUtil.calculateDisplaySpaceCropRect(
+        controller: _controller!,
+      );
+      final cropValue = '${cropRect.width.toInt()}x${cropRect.height.toInt()}';
+      vars += '_c_$cropValue';
+    }
+
+    // Check if rotation is applied
+    final rotation = _controller!.rotation;
+    if (rotation != 0) {
+      final double rawRotation = rotation.toDouble();
+      double resolvedDegrees;
+      if (rawRotation % 90 == 0) {
+        resolvedDegrees = rawRotation;
+      } else if (rawRotation % 1 == 0 && rawRotation.abs() <= 4) {
+        resolvedDegrees = rawRotation * 90;
+      } else {
+        resolvedDegrees = rawRotation;
+      }
+      int rotationDegrees = resolvedDegrees.round();
+      rotationDegrees = ((rotationDegrees % 360) + 360) % 360;
+      if (rotationDegrees == 360) {
+        rotationDegrees = 0;
+      }
+      vars += '_r_$rotationDegrees';
+    }
+
+    // Add hours and minutes
+    final hours = now.hour.toString().padLeft(2, '0');
+    final minutes = now.minute.toString().padLeft(2, '0');
+    vars += '_${hours}_$minutes';
+
+    return path.basenameWithoutExtension(widget.file.title!) + vars + '.mp4';
   }
 
   Future<void> _openSubEditor(Widget child) {
