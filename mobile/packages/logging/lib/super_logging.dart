@@ -396,7 +396,20 @@ class SuperLogging {
     if (!Platform.isAndroid) {
       return false;
     }
-    final pkgName = (await PackageInfo.fromPlatform()).packageName;
+    final packageInfo = await PackageInfo.fromPlatform();
+    String pkgName = packageInfo.packageName;
+
+    // Normalize package name for auth app on Windows/Linux
+    // (though this check is only for Android, keeping consistency)
+    // On Linux, packageInfo returns "ente_auth" from pubspec.yaml
+    // On Windows, packageInfo returns "Ente Auth" from Runner.rc InternalName field
+    // We need to normalize both to "io.ente.auth" to match Android/iOS/macOS
+    if (Platform.isWindows || Platform.isLinux) {
+      if (pkgName == 'ente_auth' || pkgName == 'Ente Auth') {
+        pkgName = 'io.ente.auth';
+      }
+    }
+
     return pkgName.endsWith("fdroid");
   }
 }

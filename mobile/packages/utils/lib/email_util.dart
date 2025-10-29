@@ -272,11 +272,23 @@ Future<void> sendEmail(
 
 Future<String> _clientInfo(BaseConfiguration? configuration) async {
   final packageInfo = await PackageInfo.fromPlatform();
+  String packageName = packageInfo.packageName;
+
+  // Normalize package name for auth app on Windows/Linux
+  // On Linux, packageInfo returns "ente_auth" from pubspec.yaml
+  // On Windows, packageInfo returns "Ente Auth" from Runner.rc InternalName field
+  // We need to normalize both to "io.ente.auth" to match Android/iOS/macOS
+  if (Platform.isWindows || Platform.isLinux) {
+    if (packageName == 'ente_auth' || packageName == 'Ente Auth') {
+      packageName = 'io.ente.auth';
+    }
+  }
+
   final String debugInfo =
       '\n\n\n\n ------------------- \nFollowing information can '
       'help us in debugging if you are facing any issue '
       '\nRegistered email: ${configuration?.getEmail() ?? 'N/A'}'
-      '\nClient: ${packageInfo.packageName}'
+      '\nClient: $packageName'
       '\nVersion : ${packageInfo.version}';
   return debugInfo;
 }
