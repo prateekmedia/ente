@@ -2,45 +2,39 @@ import 'package:flutter/material.dart';
 
 enum ProgressDialogType { normal, download }
 
-String _dialogMessage = "Loading...";
-double _progress = 0.0, _maxProgress = 100.0;
-
-Widget? _customBody;
-
-TextAlign _textAlign = TextAlign.left;
-Alignment _progressWidgetAlignment = Alignment.centerLeft;
-
-TextDirection _direction = TextDirection.ltr;
-
-bool _isShowing = false;
-BuildContext? _context, _dismissingContext;
-ProgressDialogType? _progressDialogType;
-bool _barrierDismissible = true, _showLogs = false;
-Color? _barrierColor;
-
-TextStyle _progressTextStyle = const TextStyle(
-      color: Colors.black,
-      fontSize: 12.0,
-      fontWeight: FontWeight.w400,
-    ),
-    _messageStyle = const TextStyle(
-      color: Colors.black,
-      fontSize: 18.0,
-      fontWeight: FontWeight.w600,
-    );
-
-double _dialogElevation = 8.0, _borderRadius = 8.0;
-Color _backgroundColor = Colors.white;
-Curve _insetAnimCurve = Curves.easeInOut;
-EdgeInsets _dialogPadding = const EdgeInsets.all(8.0);
-
-Widget _progressWidget = Image.asset(
-  'assets/double_ring_loading_io.gif',
-  package: 'progress_dialog',
-);
-
 class ProgressDialog {
   _Body? _dialog;
+
+  // Instance variables instead of global state
+  String _dialogMessage = "Loading...";
+  double _progress = 0.0, _maxProgress = 100.0;
+  Widget? _customBody;
+  TextAlign _textAlign = TextAlign.left;
+  Alignment _progressWidgetAlignment = Alignment.centerLeft;
+  TextDirection _direction = TextDirection.ltr;
+  bool _isShowing = false;
+  BuildContext? _context, _dismissingContext;
+  ProgressDialogType? _progressDialogType;
+  bool _barrierDismissible = true, _showLogs = false;
+  Color? _barrierColor;
+  TextStyle _progressTextStyle = const TextStyle(
+    color: Colors.black,
+    fontSize: 12.0,
+    fontWeight: FontWeight.w400,
+  );
+  TextStyle _messageStyle = const TextStyle(
+    color: Colors.black,
+    fontSize: 18.0,
+    fontWeight: FontWeight.w600,
+  );
+  double _dialogElevation = 8.0, _borderRadius = 8.0;
+  Color _backgroundColor = Colors.white;
+  Curve _insetAnimCurve = Curves.easeInOut;
+  EdgeInsets _dialogPadding = const EdgeInsets.all(8.0);
+  Widget _progressWidget = Image.asset(
+    'assets/double_ring_loading_io.gif',
+    package: 'progress_dialog',
+  );
 
   ProgressDialog(
     BuildContext context, {
@@ -115,7 +109,9 @@ class ProgressDialog {
     _messageStyle = messageTextStyle ?? _messageStyle;
     _progressTextStyle = progressTextStyle ?? _progressTextStyle;
 
-    if (_isShowing) _dialog!.update();
+    if (_isShowing && _dialog != null) {
+      _dialog!.update();
+    }
   }
 
   bool isShowing() {
@@ -127,10 +123,30 @@ class ProgressDialog {
       if (_isShowing) {
         _isShowing = false;
         if (_dismissingContext != null) {
-          Navigator.of(_dismissingContext!).pop();
+          // Check if the context is still valid before popping
+          if (_dismissingContext is Element) {
+            final element = _dismissingContext as Element;
+            if (element.mounted) {
+              Navigator.of(_dismissingContext!).pop();
+              if (_showLogs) debugPrint('ProgressDialog dismissed');
+              return Future.value(true);
+            } else {
+              if (_showLogs) {
+                debugPrint('ProgressDialog context no longer mounted');
+              }
+              return Future.value(false);
+            }
+          } else {
+            Navigator.of(_dismissingContext!).pop();
+            if (_showLogs) debugPrint('ProgressDialog dismissed');
+            return Future.value(true);
+          }
+        } else {
+          if (_showLogs) {
+            debugPrint('ProgressDialog dismissing context is null');
+          }
+          return Future.value(false);
         }
-        if (_showLogs) debugPrint('ProgressDialog dismissed');
-        return Future.value(true);
       } else {
         if (_showLogs) debugPrint('ProgressDialog already dismissed');
         return Future.value(false);
@@ -145,7 +161,7 @@ class ProgressDialog {
   Future<bool> show() async {
     try {
       if (!_isShowing) {
-        _dialog = _Body();
+        _dialog = _Body(this);
         // ignore: unawaited_futures
         showDialog<dynamic>(
           context: _context!,
@@ -190,7 +206,10 @@ class ProgressDialog {
 
 // ignore: must_be_immutable
 class _Body extends StatefulWidget {
-  final _BodyState _dialog = _BodyState();
+  final _BodyState _dialog;
+  final ProgressDialog _progressDialog;
+
+  _Body(this._progressDialog) : _dialog = _BodyState(_progressDialog);
 
   update() {
     _dialog.update();
@@ -204,35 +223,41 @@ class _Body extends StatefulWidget {
 }
 
 class _BodyState extends State<_Body> {
+  final ProgressDialog _progressDialog;
+
+  _BodyState(this._progressDialog);
+
   update() {
     setState(() {});
   }
 
   @override
   void dispose() {
-    _isShowing = false;
-    if (_showLogs) debugPrint('ProgressDialog dismissed by back button');
+    _progressDialog._isShowing = false;
+    if (_progressDialog._showLogs) {
+      debugPrint('ProgressDialog dismissed by back button');
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final loader = Align(
-      alignment: _progressWidgetAlignment,
+      alignment: _progressDialog._progressWidgetAlignment,
       child: SizedBox(
         width: 60.0,
         height: 60.0,
-        child: _progressWidget,
+        child: _progressDialog._progressWidget,
       ),
     );
 
     final text = Expanded(
-      child: _progressDialogType == ProgressDialogType.normal
+      child: _progressDialog._progressDialogType == ProgressDialogType.normal
           ? Text(
-              _dialogMessage,
-              textAlign: _textAlign,
-              style: _messageStyle,
-              textDirection: _direction,
+              _progressDialog._dialogMessage,
+              textAlign: _progressDialog._textAlign,
+              style: _progressDialog._messageStyle,
+              textDirection: _progressDialog._direction,
             )
           : Padding(
               padding: const EdgeInsets.all(8.0),
@@ -244,9 +269,9 @@ class _BodyState extends State<_Body> {
                     children: <Widget>[
                       Expanded(
                         child: Text(
-                          _dialogMessage,
-                          style: _messageStyle,
-                          textDirection: _direction,
+                          _progressDialog._dialogMessage,
+                          style: _progressDialog._messageStyle,
+                          textDirection: _progressDialog._direction,
                         ),
                       ),
                     ],
@@ -255,9 +280,9 @@ class _BodyState extends State<_Body> {
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Text(
-                      "$_progress/$_maxProgress",
-                      style: _progressTextStyle,
-                      textDirection: _direction,
+                      "${_progressDialog._progress}/${_progressDialog._maxProgress}",
+                      style: _progressDialog._progressTextStyle,
+                      textDirection: _progressDialog._direction,
                     ),
                   ),
                 ],
@@ -265,9 +290,9 @@ class _BodyState extends State<_Body> {
             ),
     );
 
-    return _customBody ??
+    return _progressDialog._customBody ??
         Container(
-          padding: _dialogPadding,
+          padding: _progressDialog._dialogPadding,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -276,9 +301,13 @@ class _BodyState extends State<_Body> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   const SizedBox(width: 8.0),
-                  _direction == TextDirection.ltr ? loader : text,
+                  _progressDialog._direction == TextDirection.ltr
+                      ? loader
+                      : text,
                   const SizedBox(width: 8.0),
-                  _direction == TextDirection.rtl ? loader : text,
+                  _progressDialog._direction == TextDirection.rtl
+                      ? loader
+                      : text,
                   const SizedBox(width: 8.0),
                 ],
               ),
