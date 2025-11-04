@@ -427,6 +427,7 @@ class _HomePageState extends State<HomePage> {
     LockScreenSettings.instance
         .setLightMode(getEnteColorScheme(context).isLightTheme);
     final l10n = context.l10n;
+    final isKeypadOpen = MediaQuery.of(context).viewInsets.bottom > 100;
     isCompactMode = PreferenceService.instance.isCompactMode();
 
     return PopScope(
@@ -457,7 +458,7 @@ class _HomePageState extends State<HomePage> {
             },
           ),
         ),
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: isKeypadOpen,
         appBar: AppBar(
           title: !_showSearchBox
               ? const Text('Ente Auth', style: brandStyleMedium)
