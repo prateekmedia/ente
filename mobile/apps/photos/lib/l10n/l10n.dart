@@ -44,10 +44,14 @@ Locale localResolutionCallBack(deviceLocales, supportedLocales) {
       autoDetectedLocale = locale;
       return locale;
     }
-    // check if language code is supported, if yes, return it
+    // check if language code is supported, if yes, find and return the matching supported locale
     if (languageSupport.contains(locale.languageCode)) {
-      autoDetectedLocale = locale;
-      return locale;
+      // Find the matching supported locale with the same language code
+      final matchedLocale = appSupportedLocales.firstWhere(
+        (supportedLocale) => supportedLocale.languageCode == locale.languageCode,
+      );
+      autoDetectedLocale = matchedLocale;
+      return matchedLocale;
     }
   }
   // Return the first language code match or default to 'en'
