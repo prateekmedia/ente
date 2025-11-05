@@ -221,15 +221,16 @@ class SmartAlbumsService {
   Future<void> saveConfig(SmartAlbumConfig config) async {
     final userId = Configuration.instance.getUserID()!;
 
-    if (config.personIDs.isNotEmpty) {
-      await _addOrUpdateEntity(
-        EntityType.smartAlbum,
-        config.toJson(),
-        collectionId: config.collectionId,
-        addWithCustomID: config.id == null,
-        userId: userId,
-      );
-    }
+    // Always save the config, even when personIDs is empty
+    // This ensures the UI correctly reflects deselection on subsequent opens
+    // The UI handles empty personIDs by not showing any selections
+    await _addOrUpdateEntity(
+      EntityType.smartAlbum,
+      config.toJson(),
+      collectionId: config.collectionId,
+      addWithCustomID: config.id == null,
+      userId: userId,
+    );
   }
 
   Future<SmartAlbumConfig?> getConfig(int collectionId) async {
