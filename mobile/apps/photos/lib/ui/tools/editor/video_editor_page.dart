@@ -568,6 +568,7 @@ class _VideoEditorPageState extends State<VideoEditorPage> {
         newFile.creationTime = widget.file.creationTime;
         newFile.collectionID = widget.file.collectionID;
         newFile.location = widget.file.location;
+        newFile.magicMetadata = widget.file.magicMetadata;
         if (!newFile.hasLocation && widget.file.localID != null) {
           final assetEntity = await widget.file.getAsset;
           if (assetEntity != null) {

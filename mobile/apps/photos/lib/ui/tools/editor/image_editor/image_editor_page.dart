@@ -97,6 +97,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
       newFile.creationTime = widget.originalFile.creationTime;
       newFile.collectionID = widget.originalFile.collectionID;
       newFile.location = widget.originalFile.location;
+      newFile.magicMetadata = widget.originalFile.magicMetadata;
       if (!newFile.hasLocation && widget.originalFile.localID != null) {
         final assetEntity = await widget.originalFile.getAsset;
         if (assetEntity != null) {
