@@ -82,6 +82,8 @@
 		<string>Please allow ente to lock itself with FaceID or TouchID</string>
 		<key>NSCameraUsageDescription</key>
 		<string>Please allow access to your camera so that you can take photos within ente</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Required by media playback framework. ente does not access your microphone.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Please allow access to your photos so that ente can encrypt and back them up.</string>
 		<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
