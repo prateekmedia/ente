@@ -69,8 +69,8 @@ Locale localResolutionCallBack(onDeviceLocales, supportedLocales) {
 Future<Locale?> getLocale({
   bool noFallback = false,
 }) async {
-  final String? savedValue =
-      (await SharedPreferences.getInstance()).getString('locale');
+  final prefs = await SharedPreferences.getInstance();
+  final String? savedValue = prefs.getString('locale');
   // if savedLocale is not null and is supported by the app, return it
   if (savedValue != null) {
     late Locale savedLocale;
@@ -83,6 +83,8 @@ Future<Locale?> getLocale({
     if (appSupportedLocales.contains(savedLocale)) {
       return savedLocale;
     }
+    // Clear invalid saved locale and use auto-detected one
+    await prefs.remove('locale');
   }
   if (autoDetectedLocale != null) {
     return autoDetectedLocale!;
