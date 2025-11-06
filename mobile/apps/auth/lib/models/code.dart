@@ -305,8 +305,7 @@ class Code {
         other.period == period &&
         other.secret == secret &&
         other.counter == counter &&
-        other.type == type &&
-        other.rawData == rawData;
+        other.type == type;
   }
 
   @override
@@ -317,8 +316,7 @@ class Code {
         period.hashCode ^
         secret.hashCode ^
         type.hashCode ^
-        counter.hashCode ^
-        rawData.hashCode;
+        counter.hashCode;
   }
 }
 
