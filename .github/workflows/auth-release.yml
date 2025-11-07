@@ -204,8 +204,23 @@ jobs:
                   export PATH="/root/flutter/bin:$PATH"
                   flutter config --enable-linux-desktop
 
+                  echo "Thorough cleanup of host cache files..."
+                  cd /workspace/mobile/apps/auth
+                  # Remove ALL cache and generated files
+                  rm -rf .dart_tool
+                  rm -rf build
+                  rm -rf .flutter-plugins
+                  rm -rf .flutter-plugins-dependencies
+                  rm -rf .packages
+                  rm -rf linux/.plugin_symlinks
+                  rm -rf linux/flutter/ephemeral
+                  # Run flutter clean for extra safety
+                  flutter clean
+
+                  echo "Getting dependencies fresh..."
+                  flutter pub get
+
                   echo "Building RPM..."
-                  cd /workspace
                   dart pub global activate --source git https://github.com/ente-io/flutter_distributor_fork --git-ref develop --git-path packages/flutter_distributor
                   export PATH="$PATH:/root/.pub-cache/bin"
                   flutter_distributor package --platform=linux --targets=rpm --skip-clean
@@ -216,11 +231,11 @@ jobs:
 
                   chmod +x build_rpm.sh
 
-                  # Run build in Fedora container
+                  # Run build in Fedora container (mount entire repo)
                   docker run --rm \
-                      -v ${{ github.workspace }}/mobile/apps/auth:/workspace \
+                      -v ${{ github.workspace }}:/workspace \
                       -v $PWD/build_rpm.sh:/build_rpm.sh \
-                      -w /workspace \
+                      -w /workspace/mobile/apps/auth \
                       fedora:latest \
                       /build_rpm.sh
 
