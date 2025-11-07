@@ -199,6 +199,8 @@ jobs:
                   cd /root
                   wget -q https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${{ env.FLUTTER_VERSION }}-stable.tar.xz
                   tar xf flutter_linux_${{ env.FLUTTER_VERSION }}-stable.tar.xz
+                  git config --global --add safe.directory /root/flutter
+                  git config --global --add safe.directory /workspace
                   export PATH="/root/flutter/bin:$PATH"
                   flutter config --enable-linux-desktop
 
