@@ -152,19 +152,75 @@ jobs:
                   chmod +x appimagetool
                   mv appimagetool /usr/local/bin/
 
-            - name: Build desktop app
+            - name: Build desktop app (AppImage and DEB)
               run: |
                   flutter config --enable-linux-desktop
                   dart pub global activate --source git https://github.com/ente-io/flutter_distributor_fork --git-ref develop --git-path packages/flutter_distributor
-                  # RPM
-                  flutter_distributor package --platform=linux --targets=rpm --skip-clean
-                  mv dist/**/*-*-linux.rpm artifacts/ente-${{ github.ref_name }}-x86_64.rpm
                   # APPIMAGE
                   flutter_distributor package --platform=linux --targets=appimage --skip-clean
                   mv dist/**/*-*-linux.AppImage artifacts/ente-${{ github.ref_name }}-x86_64.AppImage
                   # DEB
                   flutter_distributor package --platform=linux --targets=deb --skip-clean
                   mv dist/**/*-*-linux.deb artifacts/ente-${{ github.ref_name }}-x86_64.deb
+
+            - name: Build RPM in Fedora container
+              run: |
+                  # Create a build script for the container
+                  cat > build_rpm.sh << 'EOF'
+                  #!/bin/bash
+                  set -e
+
+                  echo "Installing dependencies..."
+                  dnf install -y \
+                      git \
+                      wget \
+                      curl \
+                      unzip \
+                      which \
+                      clang \
+                      cmake \
+                      ninja-build \
+                      pkg-config \
+                      gtk3-devel \
+                      libsecret-devel \
+                      libsodium-devel \
+                      sqlite-devel \
+                      libayatana-appindicator-gtk3-devel \
+                      libffi-devel \
+                      libtiff \
+                      xz \
+                      libarchive \
+                      libcurl-devel \
+                      rpm-build \
+                      patchelf \
+                      file
+
+                  echo "Installing Flutter..."
+                  cd /root
+                  wget -q https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${{ env.FLUTTER_VERSION }}-stable.tar.xz
+                  tar xf flutter_linux_${{ env.FLUTTER_VERSION }}-stable.tar.xz
+                  export PATH="/root/flutter/bin:$PATH"
+                  flutter config --enable-linux-desktop
+
+                  echo "Building RPM..."
+                  cd /workspace
+                  dart pub global activate --source git https://github.com/ente-io/flutter_distributor_fork --git-ref develop --git-path packages/flutter_distributor
+                  export PATH="$PATH:/root/.pub-cache/bin"
+                  flutter_distributor package --platform=linux --targets=rpm --skip-clean
+
+                  echo "Moving RPM to artifacts..."
+                  mv dist/**/*-*-linux.rpm artifacts/ente-${{ github.ref_name }}-x86_64.rpm
+                  EOF
+
+                  chmod +x build_rpm.sh
+
+                  # Run build in Fedora container
+                  docker run --rm \
+                      -v ${{ github.workspace }}/mobile/apps/auth:/workspace \
+                      -v $PWD/build_rpm.sh:/build_rpm.sh \
+                      -w /workspace \
+                      fedora:latest \
+                      /build_rpm.sh
 
             - name: Generate checksums
               run: |
