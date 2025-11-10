@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:ente_auth/models/all_icon_data.dart';
 import 'package:ente_auth/models/code_display.dart';
 import 'package:ente_auth/utils/totp_util.dart';
 import 'package:logging/logging.dart';
@@ -29,6 +30,12 @@ class Code {
 
   bool get isTrashed => display.trashed;
   String get note => display.note;
+
+  /// Returns the icon identifier - either the custom iconID or the issuer
+  String get iconData => display.isCustomIcon ? display.iconID : issuer;
+
+  /// Returns the icon type hint for proper icon resolution
+  IconType? get iconTypeHint => display.isCustomIcon ? display.iconType : null;
 
   final Object? err;
   bool get hasError => err != null;

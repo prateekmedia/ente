@@ -156,23 +156,26 @@ class _AddTagSheetState extends State<AddTagSheet> {
               separatorBuilder: (_, __) => const SizedBox(width: 16),
               itemBuilder: (context, index) {
                 final code = widget.selectedCodes[index];
-                final iconData =
-                    code.display.isCustomIcon ? code.display.iconID : code.issuer;
-                
+
                 return SizedBox(
   width: 60,
   child: Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
       Container(
-        width: 50,   
-        height: 50,   
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           color: colorScheme.fillFaint.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Center(  
-          child: IconUtils.instance.getIcon(context, iconData.trim(), width: 28),
+        child: Center(
+          child: IconUtils.instance.getIcon(
+            context,
+            code.iconData.trim(),
+            width: 28,
+            typeHint: code.iconTypeHint,
+          ),
         ),
     ),
       const SizedBox(height: 8),

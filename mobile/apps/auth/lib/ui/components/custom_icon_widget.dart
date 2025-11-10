@@ -1,3 +1,4 @@
+import 'package:ente_auth/models/all_icon_data.dart';
 import 'package:ente_auth/theme/ente_theme.dart';
 import 'package:ente_auth/ui/utils/icon_utils.dart';
 import 'package:ente_auth/utils/totp_util.dart';
@@ -6,10 +7,12 @@ import 'package:flutter/material.dart';
 
 class CustomIconWidget extends StatelessWidget {
   final String iconData;
+  final IconType? iconType;
 
-  CustomIconWidget({
+  const CustomIconWidget({
     super.key,
     required this.iconData,
+    this.iconType,
   });
 
   @override
@@ -46,6 +49,7 @@ class CustomIconWidget extends StatelessWidget {
                 context,
                 safeDecode(iconData).trim(),
                 width: 50,
+                typeHint: iconType,
               ),
             ),
           ),

@@ -792,22 +792,17 @@ class _CodeWidgetState extends State<CodeWidget> {
   }
 
   Widget _getIcon() {
-    final String iconData;
-    if (widget.code.display.isCustomIcon) {
-      iconData = widget.code.display.iconID;
-    } else {
-      iconData = widget.code.issuer;
-    }
     return Padding(
       padding: _shouldShowLargeIcon
           ? EdgeInsets.only(left: widget.isCompactMode ? 12 : 16)
           : const EdgeInsets.all(0),
       child: IconUtils.instance.getIcon(
         context,
-        safeDecode(iconData).trim(),
+        safeDecode(widget.code.iconData).trim(),
         width: widget.isCompactMode
             ? (_shouldShowLargeIcon ? 32 : 24)
             : (_shouldShowLargeIcon ? 42 : 24),
+        typeHint: widget.code.iconTypeHint,
       ),
     );
   }

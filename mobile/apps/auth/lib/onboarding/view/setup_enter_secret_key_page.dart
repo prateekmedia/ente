@@ -172,7 +172,10 @@ class _SetupEnterSecretKeyPageState extends State<SetupEnterSecretKeyPage> {
                   onTap: () async {
                     await navigateToCustomIconPage();
                   },
-                  child: CustomIconWidget(iconData: _customIconID),
+                  child: CustomIconWidget(
+                    iconData: _customIconID,
+                    iconType: _iconSrc,
+                  ),
                 ),
               const SizedBox(height: 20),
               Column(

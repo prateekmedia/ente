@@ -103,6 +103,7 @@ class IconUtils {
     BuildContext context,
     String provider, {
     double width = 24,
+    IconType? typeHint,
   }) {
     final providerTitle = _getProviderTitle(provider);
     final List<String> titlesList = [providerTitle];
@@ -112,24 +113,11 @@ class IconUtils {
           .map((char) => providerTitle.split(char)[0]),
     );
     for (final title in titlesList) {
-      if (_customIcons.containsKey(title)) {
-        return getSVGIcon(
-          "assets/custom-icons/icons/${_customIcons[title]!.slug ?? title}.svg",
-          title,
-          _customIcons[title]!.color,
-          width,
-          context,
-        );
-      } else if (_simpleIcons.containsKey(title)) {
-        final simpleIconPath = normalizeSimpleIconName(title);
-        return getSVGIcon(
-          "assets/simple-icons/icons/$simpleIconPath.svg",
-          title,
-          _simpleIcons[title],
-          width,
-          context,
-        );
-      }
+      // Prefer simpleIcon if hinted, otherwise prefer customIcon
+      final icon = typeHint == IconType.simpleIcon
+          ? (_getSimpleIcon(title, width, context) ?? _getCustomIcon(title, width, context))
+          : (_getCustomIcon(title, width, context) ?? _getSimpleIcon(title, width, context));
+      if (icon != null) return icon;
     }
     if (providerTitle.isNotEmpty) {
       bool showLargeIcon = width > 24;
@@ -155,6 +143,31 @@ class IconUtils {
     } else {
       return const SizedBox.shrink();
     }
+  }
+
+  Widget? _getCustomIcon(String title, double width, BuildContext context) {
+    final customIcon = _customIcons[title];
+    if (customIcon == null) return null;
+    return getSVGIcon(
+      "assets/custom-icons/icons/${customIcon.slug ?? title}.svg",
+      title,
+      customIcon.color,
+      width,
+      context,
+    );
+  }
+
+  Widget? _getSimpleIcon(String title, double width, BuildContext context) {
+    final simpleIconColor = _simpleIcons[title];
+    if (simpleIconColor == null) return null;
+    final simpleIconPath = normalizeSimpleIconName(title);
+    return getSVGIcon(
+      "assets/simple-icons/icons/$simpleIconPath.svg",
+      title,
+      simpleIconColor,
+      width,
+      context,
+    );
   }
 
   Widget getSVGIcon(

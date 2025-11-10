@@ -891,17 +891,15 @@ class _HomePageState extends State<HomePage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               ...codesToShow.map((code) {
-                                final iconData = code.display.isCustomIcon
-                                    ? code.display.iconID
-                                    : code.issuer;
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 4.0,
                                   ),
                                   child: IconUtils.instance.getIcon(
                                     context,
-                                    iconData.trim(),
+                                    code.iconData.trim(),
                                     width: 17,
+                                    typeHint: code.iconTypeHint,
                                   ),
                                 );
                               }),
