@@ -38,7 +38,9 @@ class IconUtils {
     String simpleIconPath, customIconPath;
 
     while (simpleEntry != null && customEntry != null) {
-      if (simpleEntry.key.compareTo(customEntry.key) <= 0) {
+      final comparison = simpleEntry.key.compareTo(customEntry.key);
+      if (comparison < 0) {
+        // Simple icon comes first alphabetically
         simpleIconPath = "assets/simple-icons/icons/${simpleEntry.key}.svg";
         if (!processedIconPaths.contains(simpleIconPath)) {
           allIcons[simpleEntry.key] = AllIconData(
@@ -49,7 +51,8 @@ class IconUtils {
           processedIconPaths.add(simpleIconPath);
         }
         simpleEntry = simpleIterator.moveNext() ? simpleIterator.current : null;
-      } else {
+      } else if (comparison > 0) {
+        // Custom icon comes first alphabetically
         customIconPath =
             "assets/custom-icons/icons/${customEntry.value.slug ?? customEntry.key}.svg";
 
@@ -62,6 +65,23 @@ class IconUtils {
           );
           processedIconPaths.add(customIconPath);
         }
+        customEntry = customIterator.moveNext() ? customIterator.current : null;
+      } else {
+        // Keys are equal - prioritize custom icon over simple icon
+        customIconPath =
+            "assets/custom-icons/icons/${customEntry.value.slug ?? customEntry.key}.svg";
+
+        if (!processedIconPaths.contains(customIconPath)) {
+          allIcons[customEntry.key] = AllIconData(
+            title: customEntry.key,
+            type: IconType.customIcon,
+            color: customEntry.value.color,
+            slug: customEntry.value.slug,
+          );
+          processedIconPaths.add(customIconPath);
+        }
+        // Advance both iterators since both have the same key
+        simpleEntry = simpleIterator.moveNext() ? simpleIterator.current : null;
         customEntry = customIterator.moveNext() ? customIterator.current : null;
       }
     }
