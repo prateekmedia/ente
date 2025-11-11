@@ -9,7 +9,8 @@ import WidgetKit
 private let widgetGroupId = "group.io.ente.frame.EnteMemoryWidget"
 
 struct Provider: TimelineProvider {
-    let minutes = 15
+    let minutes = 1 // Update every minute for faster slideshow
+    let maxEntries = 15 // Create more timeline entries for more variety
     let data = UserDefaults(suiteName: widgetGroupId)
 
     func placeholder(in _: Context) -> FileEntry {
@@ -29,7 +30,7 @@ struct Provider: TimelineProvider {
     func getTimeline(in _: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         var entries: [FileEntry] = []
 
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
+        // Generate timeline entries for slideshow effect with faster updates
         let currentDate = Calendar.current.nextDate(
             after: Date(), matching: DateComponents(second: 0), matchingPolicy: .nextTime,
             direction: .backward
@@ -39,8 +40,9 @@ struct Provider: TimelineProvider {
             data?.integer(forKey: "totalPeople")
 
         if totalPeople != nil && totalPeople! > 0 {
-            let count = totalPeople! > 5 ? 5 : totalPeople
-            for offset in 0..<count! {
+            // Create up to maxEntries timeline entries, cycling through photos
+            let count = min(maxEntries, totalPeople!)
+            for offset in 0..<count {
                 let randomInt = Int.random(in: 0..<totalPeople!)
                 let entryDate = Calendar.current.date(
                     byAdding: .minute, value: minutes * offset, to: currentDate

@@ -1,12 +1,16 @@
 package io.ente.photos
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -27,6 +31,10 @@ data class AlbumsFileData(
 )
 
 class EnteAlbumsWidgetProvider : HomeWidgetProvider() {
+        companion object {
+                private const val SLIDESHOW_UPDATE_INTERVAL = 30000L // 30 seconds
+        }
+
         override fun onUpdate(
                 context: Context,
                 appWidgetManager: AppWidgetManager,
@@ -39,18 +47,27 @@ class EnteAlbumsWidgetProvider : HomeWidgetProvider() {
                                         .apply {
                                                 val totalAlbums =
                                                         widgetData.getInt("totalAlbums", 0)
-                                                var randomNumber = -1
+
+                                                // Get or initialize current index for slideshow
+                                                val currentIndex = widgetData.getInt("albums_current_index", 0)
+                                                var photoIndex = -1
                                                 var imagePath: String? = null
+
                                                 if (totalAlbums > 0) {
-                                                        randomNumber =
-                                                                (0 until totalAlbums!!).random()
+                                                        // Cycle through photos sequentially
+                                                        photoIndex = currentIndex % totalAlbums
                                                         imagePath =
                                                                 widgetData.getString(
-                                                                        "albums_widget_" +
-                                                                                randomNumber,
+                                                                        "albums_widget_$photoIndex",
                                                                         null
                                                                 )
+
+                                                        // Save next index for next update
+                                                        widgetData.edit()
+                                                                .putInt("albums_current_index", currentIndex + 1)
+                                                                .apply()
                                                 }
+
                                                 var imageExists: Boolean = false
                                                 if (imagePath != null) {
                                                         val imageFile = File(imagePath)
@@ -59,7 +76,7 @@ class EnteAlbumsWidgetProvider : HomeWidgetProvider() {
                                                 if (imageExists) {
                                                         val data =
                                                                 widgetData.getString(
-                                                                        "albums_widget_${randomNumber}_data",
+                                                                        "albums_widget_${photoIndex}_data",
                                                                         null
                                                                 )
                                                         val decoded: AlbumsFileData? =
@@ -190,6 +207,71 @@ class EnteAlbumsWidgetProvider : HomeWidgetProvider() {
                                         }
 
                         appWidgetManager.updateAppWidget(widgetId, views)
+
+                        // Schedule automatic slideshow updates
+                        scheduleSlideshowUpdate(context, widgetId)
                 }
+        }
+
+        override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+                super.onDeleted(context, appWidgetIds)
+                appWidgetIds.forEach { widgetId ->
+                        cancelSlideshowUpdate(context, widgetId)
+                }
+        }
+
+        override fun onDisabled(context: Context) {
+                super.onDisabled(context)
+                // Cancel all slideshow updates when all widgets are removed
+                val appWidgetManager = AppWidgetManager.getInstance(context)
+                val appWidgetIds = appWidgetManager.getAppWidgetIds(
+                        android.content.ComponentName(context, EnteAlbumsWidgetProvider::class.java)
+                )
+                appWidgetIds.forEach { widgetId ->
+                        cancelSlideshowUpdate(context, widgetId)
+                }
+        }
+
+        private fun scheduleSlideshowUpdate(context: Context, widgetId: Int) {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(context, EnteAlbumsWidgetProvider::class.java).apply {
+                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(widgetId))
+                }
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        widgetId,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                // Schedule repeating alarm for slideshow
+                alarmManager.setRepeating(
+                        AlarmManager.ELAPSED_REALTIME,
+                        SystemClock.elapsedRealtime() + SLIDESHOW_UPDATE_INTERVAL,
+                        SLIDESHOW_UPDATE_INTERVAL,
+                        pendingIntent
+                )
+
+                Log.d("EnteAlbumsWidgetProvider", "Scheduled slideshow update for widget $widgetId")
+        }
+
+        private fun cancelSlideshowUpdate(context: Context, widgetId: Int) {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(context, EnteAlbumsWidgetProvider::class.java).apply {
+                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(widgetId))
+                }
+
+                val pendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        widgetId,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                alarmManager.cancel(pendingIntent)
+                Log.d("EnteAlbumsWidgetProvider", "Cancelled slideshow update for widget $widgetId")
         }
 }
