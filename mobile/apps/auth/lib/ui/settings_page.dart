@@ -121,9 +121,13 @@ class SettingsPage extends StatelessWidget {
                     return;
                   }
                 }
-                await routeToPage(
-                  context,
-                  const OnboardingPage(),
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (BuildContext context) {
+                      return const OnboardingPage();
+                    },
+                  ),
+                  (route) => false,
                 );
               }
             }
