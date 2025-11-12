@@ -3,8 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:clipboard/clipboard.dart';
 import 'package:ente_auth/core/configuration.dart';
+import 'package:flutter/services.dart';
 import 'package:ente_auth/ente_theme_data.dart';
 import 'package:ente_auth/events/multi_select_action_requested_event.dart';
 import 'package:ente_auth/l10n/l10n.dart';
@@ -854,7 +854,7 @@ class _CodeWidgetState extends State<CodeWidget> {
     final shouldMinimizeOnCopy =
         PreferenceService.instance.shouldMinimizeOnCopy();
 
-    await FlutterClipboard.copy(content);
+    await Clipboard.setData(ClipboardData(text: content));
     showToast(context, confirmationMessage);
     if (Platform.isAndroid && shouldMinimizeOnCopy) {
       // ignore: unawaited_futures
