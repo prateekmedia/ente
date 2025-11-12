@@ -826,7 +826,30 @@ class CollectionsService {
 
   String getPublicUrl(Collection c) {
     final PublicURL url = c.publicURLs.firstOrNull!;
+
+    // Validate that we have a proper URL from the backend
+    if (url.url.isEmpty) {
+      _logger.severe("getPublicUrl: Empty URL from backend for collection ${c.id}");
+      throw AssertionError("Empty public URL from backend");
+    }
+
     Uri publicUrl = Uri.parse(url.url);
+
+    // Validate that the URL has a scheme and host
+    if (!publicUrl.hasScheme || !publicUrl.hasAuthority) {
+      _logger.severe(
+        "getPublicUrl: Invalid URL from backend - "
+        "url='${url.url}', hasScheme=${publicUrl.hasScheme}, "
+        "hasAuthority=${publicUrl.hasAuthority}, collection=${c.id}",
+      );
+      throw AssertionError("Invalid public URL from backend: missing scheme or host");
+    }
+
+    // Remove any existing fragment to avoid conflicts when we append the collection key
+    if (publicUrl.hasFragment) {
+      _logger.info("getPublicUrl: Removing existing fragment from URL for collection ${c.id}");
+      publicUrl = publicUrl.replace(fragment: '');
+    }
 
     // Replace with custom domain if configured
     final String customDomain = flagService.customDomain;
@@ -843,22 +866,84 @@ class CollectionsService {
       CollectionsService.instance.getCollectionKey(c.id),
     );
 
-    // Build the final URL
-    String finalUrl = publicUrl.toString();
+    // Build the final URL - use Uri.replace to set fragment properly
+    // instead of string concatenation
+    final Uri finalUri = publicUrl.replace(fragment: collectionKey);
+
+    // Convert to string, handling IDN domains if needed
+    String finalUrl = finalUri.toString();
 
     // Handle IDN domains - if the host was percent-encoded by Uri.replace,
-    // decode it for user-friendly display
-    if (customDomain.isNotEmpty && publicUrl.host.contains('%')) {
-      final decodedHost = Uri.decodeComponent(publicUrl.host);
-      finalUrl = finalUrl.replaceFirst(publicUrl.host, decodedHost);
+    // decode it for user-friendly display. We need to be careful here to only
+    // decode the host portion, not other parts of the URL.
+    if (customDomain.isNotEmpty && finalUri.host.contains('%')) {
+      try {
+        final decodedHost = Uri.decodeComponent(finalUri.host);
+        // Build URL manually to avoid corrupting other parts
+        final buffer = StringBuffer();
+        buffer.write(finalUri.scheme);
+        buffer.write('://');
+        buffer.write(decodedHost);
+        if (finalUri.hasPort &&
+            !((finalUri.scheme == 'https' && finalUri.port == 443) ||
+              (finalUri.scheme == 'http' && finalUri.port == 80))) {
+          buffer.write(':');
+          buffer.write(finalUri.port);
+        }
+        buffer.write(finalUri.path);
+        if (finalUri.hasQuery) {
+          buffer.write('?');
+          buffer.write(finalUri.query);
+        }
+        if (finalUri.hasFragment) {
+          buffer.write('#');
+          buffer.write(finalUri.fragment);
+        }
+        finalUrl = buffer.toString();
+      } catch (e) {
+        _logger.warning("getPublicUrl: Failed to decode IDN host, using original: $e");
+        // Fall back to the original URL if decoding fails
+      }
     }
 
-    return "$finalUrl#$collectionKey";
+    // Final validation
+    if (finalUrl.isEmpty || !finalUrl.contains('#')) {
+      _logger.severe(
+        "getPublicUrl: Generated invalid URL - "
+        "finalUrl='$finalUrl', collection=${c.id}",
+      );
+      throw AssertionError("Generated invalid public URL");
+    }
+
+    return finalUrl;
   }
 
   String getEmbedHtml(Collection c) {
     final PublicURL url = c.publicURLs.firstOrNull!;
+
+    // Validate that we have a proper URL from the backend
+    if (url.url.isEmpty) {
+      _logger.severe("getEmbedHtml: Empty URL from backend for collection ${c.id}");
+      throw AssertionError("Empty public URL from backend");
+    }
+
     Uri publicUrl = Uri.parse(url.url);
+
+    // Validate that the URL has a scheme and host
+    if (!publicUrl.hasScheme || !publicUrl.hasAuthority) {
+      _logger.severe(
+        "getEmbedHtml: Invalid URL from backend - "
+        "url='${url.url}', hasScheme=${publicUrl.hasScheme}, "
+        "hasAuthority=${publicUrl.hasAuthority}, collection=${c.id}",
+      );
+      throw AssertionError("Invalid public URL from backend: missing scheme or host");
+    }
+
+    // Remove any existing fragment to avoid conflicts when we append the collection key
+    if (publicUrl.hasFragment) {
+      _logger.info("getEmbedHtml: Removing existing fragment from URL for collection ${c.id}");
+      publicUrl = publicUrl.replace(fragment: '');
+    }
 
     // Replace with embed URL if configured
     final String embedUrl = flagService.embedUrl;
@@ -878,18 +963,53 @@ class CollectionsService {
       CollectionsService.instance.getCollectionKey(c.id),
     );
 
-    // Build the final URL
-    String finalUrl = publicUrl.toString();
+    // Build the final URL - use Uri.replace to set fragment properly
+    final Uri finalUri = publicUrl.replace(fragment: collectionKey);
+
+    // Convert to string, handling IDN domains if needed
+    String finalUrl = finalUri.toString();
 
     // Handle IDN domains - if the host was percent-encoded by Uri.replace,
     // decode it for user-friendly display
-    if (embedUrl.isNotEmpty && publicUrl.host.contains('%')) {
-      final decodedHost = Uri.decodeComponent(publicUrl.host);
-      finalUrl = finalUrl.replaceFirst(publicUrl.host, decodedHost);
+    if (embedUrl.isNotEmpty && finalUri.host.contains('%')) {
+      try {
+        final decodedHost = Uri.decodeComponent(finalUri.host);
+        // Build URL manually to avoid corrupting other parts
+        final buffer = StringBuffer();
+        buffer.write(finalUri.scheme);
+        buffer.write('://');
+        buffer.write(decodedHost);
+        if (finalUri.hasPort &&
+            !((finalUri.scheme == 'https' && finalUri.port == 443) ||
+              (finalUri.scheme == 'http' && finalUri.port == 80))) {
+          buffer.write(':');
+          buffer.write(finalUri.port);
+        }
+        buffer.write(finalUri.path);
+        if (finalUri.hasQuery) {
+          buffer.write('?');
+          buffer.write(finalUri.query);
+        }
+        if (finalUri.hasFragment) {
+          buffer.write('#');
+          buffer.write(finalUri.fragment);
+        }
+        finalUrl = buffer.toString();
+      } catch (e) {
+        _logger.warning("getEmbedHtml: Failed to decode IDN host, using original: $e");
+      }
     }
 
-    final String embedHtmlUrl = "$finalUrl#$collectionKey";
-    return '<iframe src="$embedHtmlUrl" width="800" height="600" frameborder="0" allowfullscreen></iframe>';
+    // Final validation
+    if (finalUrl.isEmpty || !finalUrl.contains('#')) {
+      _logger.severe(
+        "getEmbedHtml: Generated invalid URL - "
+        "finalUrl='$finalUrl', collection=${c.id}",
+      );
+      throw AssertionError("Generated invalid embed URL");
+    }
+
+    return '<iframe src="$finalUrl" width="800" height="600" frameborder="0" allowfullscreen></iframe>';
   }
 
   Uint8List _getAndCacheDecryptedKey(
