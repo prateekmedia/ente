@@ -76,7 +76,7 @@ class CodeDisplay {
       tags: List<String>.from(json['tags'] ?? []),
       note: json['note'] ?? '',
       position: json['position'] ?? 0,
-      iconSrc: json['iconSrc'] ?? 'ente',
+      iconSrc: json['iconSrc'] ?? '',
       iconID: json['iconID'] ?? '',
     );
   }
