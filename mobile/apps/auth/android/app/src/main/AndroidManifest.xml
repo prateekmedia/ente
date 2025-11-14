@@ -82,6 +82,9 @@
             android:name="android.permission.WRITE_EXTERNAL_STORAGE"
             android:maxSdkVersion="29"
             tools:ignore="ScopedStorage"/>
+    <!-- Required for Android 11+ to write to custom user-selected directories -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+            tools:ignore="ScopedStorage"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 
 </manifest>

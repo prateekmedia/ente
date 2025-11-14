@@ -102,13 +102,22 @@ class LocalBackupService {
 
       final filePath = '$backupPath/$fileName';
       final backupFile = File(filePath);
-      
-      await backupFile.writeAsString(encryptedJson);
-      await _manageOldBackups(backupPath);
 
-      _logger.info('Automatic encrypted backup successful! Saved to: $filePath');
+      try {
+        await backupFile.writeAsString(encryptedJson);
+        _logger.info('Automatic encrypted backup successful! Saved to: $filePath');
+        await _manageOldBackups(backupPath);
+      } catch (writeError, writeStack) {
+        _logger.severe(
+          'Failed to write backup file. This may be due to insufficient permissions. '
+          'Path: $filePath',
+          writeError,
+          writeStack,
+        );
+        rethrow;
+      }
     } catch (e, s) {
-      _logger.severe('Silent error during automatic backup', e, s);
+      _logger.severe('Error during automatic backup', e, s);
     }
   }
 

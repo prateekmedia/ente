@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalBackupSettingsPage extends StatefulWidget {
@@ -40,6 +41,61 @@ class _LocalBackupSettingsPageState extends State<LocalBackupSettingsPage> {
       _isBackupEnabled = prefs.getBool('isAutoBackupEnabled') ?? false;
       _backupPath = prefs.getString('autoBackupPath');
     });
+  }
+
+  // Request storage permissions for Android 11+ or macOS
+  Future<bool> _requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      // For Android 11+ (API 30+), we need MANAGE_EXTERNAL_STORAGE permission
+      if (await Permission.manageExternalStorage.isGranted) {
+        return true;
+      }
+
+      final status = await Permission.manageExternalStorage.request();
+
+      if (status.isGranted) {
+        return true;
+      } else if (status.isPermanentlyDenied) {
+        // Show dialog to open app settings
+        if (!mounted) return false;
+        final l10n = context.l10n;
+        final shouldOpenSettings = await showDialogWidget(
+          context: context,
+          title: l10n.storagePermissionRequired,
+          body: l10n.storagePermissionDeniedMessage,
+          buttons: [
+            ButtonWidget(
+              buttonType: ButtonType.primary,
+              labelText: l10n.openSettings,
+              isInAlert: true,
+              buttonSize: ButtonSize.large,
+              buttonAction: ButtonAction.first,
+            ),
+            ButtonWidget(
+              buttonType: ButtonType.secondary,
+              labelText: l10n.cancel,
+              isInAlert: true,
+              buttonSize: ButtonSize.large,
+              buttonAction: ButtonAction.cancel,
+            ),
+          ],
+        );
+
+        if (shouldOpenSettings?.action == ButtonAction.first) {
+          await openAppSettings();
+        }
+        return false;
+      } else {
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.storagePermissionRequired)),
+        );
+        return false;
+      }
+    }
+
+    // For other platforms (macOS, etc.), return true as permissions are handled by the OS
+    return true;
   }
 
   Future<String?> _showCustomPasswordDialog() async {
@@ -147,7 +203,6 @@ class _LocalBackupSettingsPageState extends State<LocalBackupSettingsPage> {
   }
 
   Future<bool> _handleLocationSetup() async {
-
     String currentPath = _backupPath ?? await _getDefaultBackupPath();
 
     while (true) {
@@ -156,32 +211,47 @@ class _LocalBackupSettingsPageState extends State<LocalBackupSettingsPage> {
       if (result?.action == ButtonAction.first) {
         final prefs = await SharedPreferences.getInstance();
         try {
+          // Request permission before creating directory
+          final hasPermission = await _requestStoragePermission();
+          if (!hasPermission) {
+            return false;
+          }
+
           await Directory(currentPath).create(recursive: true);
+
+          // Verify we can write to the directory
+          final testFile = File('$currentPath/.ente_test');
+          await testFile.writeAsString('test');
+          await testFile.delete();
+
           await prefs.setString('autoBackupPath', currentPath);
           setState(() {
             _backupPath = currentPath;
           });
+          if (!mounted) return true;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(context.l10n.initialBackupCreated)),
           );
-          return true; 
+          return true;
         } catch (e) {
+          if (!mounted) return false;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(context.l10n.noDefaultBackupFolder)),
           );
-          return false; 
+          return false;
         }
-      }
+      } else if (result?.action == ButtonAction.second) {
+        // Request permission before opening file picker
+        final hasPermission = await _requestStoragePermission();
+        if (!hasPermission) {
+          continue; // Show the dialog again
+        }
 
-      else if (result?.action == ButtonAction.second) {
         final newPath = await FilePicker.platform.getDirectoryPath();
         if (newPath != null) {
           currentPath = newPath;
         }
-        
-      }
-      
-      else {
+      } else {
         return false;
       }
     }
@@ -214,24 +284,45 @@ class _LocalBackupSettingsPageState extends State<LocalBackupSettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     final l10n = context.l10n;
 
+    // Request storage permission before opening file picker
+    final hasPermission = await _requestStoragePermission();
+    if (!hasPermission) {
+      return false;
+    }
+
     String? directoryPath = await FilePicker.platform.getDirectoryPath();
 
     if (directoryPath != null) {
+      // Verify we can write to the directory
+      try {
+        final testFile = File('$directoryPath/.ente_test');
+        await testFile.writeAsString('test');
+        await testFile.delete();
+      } catch (e) {
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.cannotWriteToSelectedFolder),
+          ),
+        );
+        return false;
+      }
 
       await prefs.setString('autoBackupPath', directoryPath);
-      
+
       // we only set the state and create the backup if a path was chosen
       setState(() {
         _backupPath = directoryPath;
       });
       await LocalBackupService.instance.triggerAutomaticBackup();
 
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(successMessage ?? l10n.locationUpdatedAndBackupCreated),  
+          content: Text(successMessage ?? l10n.locationUpdatedAndBackupCreated),
         ),
       );
-      return true; 
+      return true;
     }
     return false; //user cancelled the file picker
   }
