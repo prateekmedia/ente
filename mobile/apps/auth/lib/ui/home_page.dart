@@ -24,6 +24,7 @@ import 'package:ente_auth/theme/ente_theme.dart';
 import 'package:ente_auth/theme/text_style.dart';
 import 'package:ente_auth/ui/account/logout_dialog.dart';
 import 'package:ente_auth/ui/code_error_widget.dart';
+import 'package:ente_auth/ui/code_render_error_widget.dart';
 import 'package:ente_auth/ui/code_widget.dart';
 import 'package:ente_auth/ui/common/loading_widget.dart';
 import 'package:ente_auth/ui/components/buttons/button_widget.dart';
@@ -1609,18 +1610,33 @@ class _HomePageState extends State<HomePage> {
 
                       final code = _filteredCodes[newIndex];
 
-                      return ClipRect(
-                        child: CodeWidget(
-                          key: ValueKey(
-                            '${code.hashCode}_${newIndex}_$_codeSortKey',
+                      // Wrap CodeWidget rendering in try-catch to prevent
+                      // individual code failures from crashing the entire grid
+                      try {
+                        return ClipRect(
+                          child: CodeWidget(
+                            key: ValueKey(
+                              '${code.hashCode}_${newIndex}_$_codeSortKey',
+                            ),
+                            code,
+                            isCompactMode: isCompactMode,
+                            sortKey: _codeSortKey,
+                            enableDesktopContextActions: PlatformUtil.isDesktop(),
+                            selectedCodesBuilder: _selectedCodesForContextMenu,
                           ),
-                          code,
-                          isCompactMode: isCompactMode,
-                          sortKey: _codeSortKey,
-                          enableDesktopContextActions: PlatformUtil.isDesktop(),
-                          selectedCodesBuilder: _selectedCodesForContextMenu,
-                        ),
-                      );
+                        );
+                      } catch (e, s) {
+                        _logger.severe(
+                          'Grid render failed for code: ${code.issuer} (${code.account})',
+                          e,
+                          s,
+                        );
+                        return CodeRenderErrorWidget(
+                          issuer: code.issuer,
+                          account: code.account,
+                          errorMessage: e.toString(),
+                        );
+                      }
                     }),
                     itemCount: _filteredCodes.length + indexOffset,
                   );
@@ -1662,15 +1678,30 @@ class _HomePageState extends State<HomePage> {
                         padding: const EdgeInsets.only(bottom: 80),
                         itemBuilder: ((context, index) {
                           final codeState = _filteredCodes[index];
-                          return CodeWidget(
-                            key: ValueKey('${codeState.hashCode}_$index'),
-                            codeState,
-                            isCompactMode: isCompactMode,
-                            sortKey: _codeSortKey,
-                            enableDesktopContextActions:
-                                PlatformUtil.isDesktop(),
-                            selectedCodesBuilder: _selectedCodesForContextMenu,
-                          );
+                          // Wrap CodeWidget rendering in try-catch to prevent
+                          // individual code failures from crashing the search results
+                          try {
+                            return CodeWidget(
+                              key: ValueKey('${codeState.hashCode}_$index'),
+                              codeState,
+                              isCompactMode: isCompactMode,
+                              sortKey: _codeSortKey,
+                              enableDesktopContextActions:
+                                  PlatformUtil.isDesktop(),
+                              selectedCodesBuilder: _selectedCodesForContextMenu,
+                            );
+                          } catch (e, s) {
+                            _logger.severe(
+                              'Search grid render failed for code: ${codeState.issuer} (${codeState.account})',
+                              e,
+                              s,
+                            );
+                            return CodeRenderErrorWidget(
+                              issuer: codeState.issuer,
+                              account: codeState.account,
+                              errorMessage: e.toString(),
+                            );
+                          }
                         }),
                         itemCount: _filteredCodes.length,
                       )

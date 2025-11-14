@@ -220,6 +220,7 @@
   "copiedToClipboard": "Copied to clipboard",
   "copiedNextToClipboard": "Copied next code to clipboard",
   "error": "Error",
+  "couldNotLoadCode": "Could not load this code",
   "recoveryKeyCopiedToClipboard": "Recovery key copied to clipboard",
   "recoveryKeyOnForgotPassword": "If you forget your password, the only way you can recover your data is with this key.",
   "recoveryKeySaveDescription": "We don't store this key, please save this 24 word key in a safe place.",
