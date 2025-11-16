@@ -233,6 +233,9 @@ class _CodeWidgetState extends State<CodeWidget> {
               AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeInOut,
+                constraints: BoxConstraints(
+                  maxHeight: widget.isCompactMode ? 100 : 180,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: isSelected
