@@ -16,6 +16,7 @@ import 'package:ente_auth/services/preference_service.dart';
 import 'package:ente_auth/store/code_display_store.dart';
 import 'package:ente_auth/store/code_store.dart';
 import 'package:ente_auth/theme/ente_theme.dart';
+import 'package:ente_auth/ui/code_error_widget.dart';
 import 'package:ente_auth/ui/code_timer_progress.dart';
 import 'package:ente_auth/ui/components/models/button_type.dart';
 import 'package:ente_auth/ui/share/code_share.dart';
@@ -111,6 +112,19 @@ class _CodeWidgetState extends State<CodeWidget> {
 
   @override
   Widget build(BuildContext context) {
+    try {
+      return _buildCodeCard(context);
+    } catch (e, s) {
+      logger.severe(
+        'Failed to render CodeWidget for ${widget.code.selectionKey}',
+        e,
+        s,
+      );
+      return _buildErrorFallback(context, e);
+    }
+  }
+
+  Widget _buildCodeCard(BuildContext context) {
     ignorePin = widget.sortKey != null && widget.sortKey == CodeSortKey.manual;
     if (isMaskingEnabled != PreferenceService.instance.shouldHideCodes()) {
       isMaskingEnabled = PreferenceService.instance.shouldHideCodes();
@@ -302,10 +316,10 @@ class _CodeWidgetState extends State<CodeWidget> {
       );
     }
 
-    return Container(
-      margin: widget.isCompactMode
-          ? const EdgeInsets.only(left: 16, right: 16, bottom: 6, top: 6)
-          : const EdgeInsets.only(left: 16, right: 16, bottom: 8, top: 8),
+  return Container(
+    margin: widget.isCompactMode
+        ? const EdgeInsets.only(left: 16, right: 16, bottom: 6, top: 6)
+        : const EdgeInsets.only(left: 16, right: 16, bottom: 8, top: 8),
       child: Builder(
         builder: (context) {
           if (PlatformUtil.isDesktop()) {
@@ -424,6 +438,30 @@ class _CodeWidgetState extends State<CodeWidget> {
                 ),
         ],
       ),
+    );
+  }
+
+  Widget _buildErrorFallback(BuildContext context, Object error) {
+    final erroredCode = Code(
+      widget.code.account,
+      widget.code.issuer,
+      widget.code.digits,
+      widget.code.period,
+      widget.code.secret,
+      widget.code.algorithm,
+      widget.code.type,
+      widget.code.counter,
+      widget.code.rawData,
+      generatedID: widget.code.generatedID,
+      display: widget.code.display,
+      err: error,
+    );
+
+    return Container(
+      margin: widget.isCompactMode
+          ? const EdgeInsets.only(left: 16, right: 16, bottom: 6, top: 6)
+          : const EdgeInsets.only(left: 16, right: 16, bottom: 8, top: 8),
+      child: CodeErrorWidget(errors: [erroredCode]),
     );
   }
 
