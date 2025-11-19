@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:animated_list_plus/animated_list_plus.dart';
@@ -13,6 +14,7 @@ import 'package:photos/generated/l10n.dart';
 import 'package:photos/models/device_collection.dart';
 import 'package:photos/models/file/file.dart';
 import 'package:photos/services/sync/remote_sync_service.dart';
+import 'package:photos/services/sync/sync_service.dart';
 import "package:photos/theme/ente_theme.dart";
 import 'package:photos/ui/common/loading_widget.dart';
 import 'package:photos/ui/viewer/file/thumbnail_widget.dart';
@@ -221,6 +223,15 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
     );
     await dialog.show();
     try {
+      // Stop existing sync before updating folder settings since queue might have changed
+      SyncService.instance.stopSync();
+
+      // Wait for existing sync to complete if one is in progress
+      if (SyncService.instance.isSyncInProgress()) {
+        _logger.info("Waiting for existing sync to stop");
+        await SyncService.instance.existingSync();
+      }
+
       final Map<String, bool> syncStatus = {};
       for (String pathID in _allDevicePathIDs) {
         syncStatus[pathID] = _selectedDevicePathIDs.contains(pathID);
@@ -232,6 +243,11 @@ class _BackupFolderSelectionPageState extends State<BackupFolderSelectionPage> {
         _allDevicePathIDs.length == _selectedDevicePathIDs.length,
       );
       await RemoteSyncService.instance.updateDeviceFolderSyncStatus(syncStatus);
+
+      // Restart sync with updated folder configuration
+      _logger.info("Restarting sync after folder selection update");
+      unawaited(SyncService.instance.sync());
+
       await dialog.hide();
       Navigator.of(context).pop();
     } catch (e, s) {
