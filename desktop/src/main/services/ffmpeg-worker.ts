@@ -451,11 +451,11 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
                                 // dimension divisible by 2 (some of the other
                                 // operations require an even pixel count).
                                 "scale=-2:'min(720,ih)'",
-                                // Convert the video to a constant 30 fps,
-                                // duplicating or dropping frames as necessary.
-                                "fps=30",
                             ]
                           : [],
+                      // Always convert the video to a constant 30 fps,
+                      // duplicating or dropping frames as necessary.
+                      "fps=30",
                       // Convert the colorspace if the video is HDR. Before
                       // conversion, tone map colors so that they work the same
                       // across the change in the dyamic range.
@@ -497,11 +497,11 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
               //
               // - `-c:v libx264` converts the video stream to the H.264 codec.
               //
-              // - We don't supply a bitrate, instead it uses the default CRF
-              //   ("23") as recommended in the ffmpeg trac.
+              // - Use a maximum bitrate of 2000 kbps for consistent quality
+              //   and predictable file sizes.
               //
               // - We don't supply a preset, it'll use the default ("medium").
-              ["-c:v", "libx264"]
+              ["-c:v", "libx264", "-b:v", "2000k", "-maxrate", "2000k", "-bufsize", "4000k"]
             : // Keep the video stream unchanged
               ["-c:v", "copy"],
         // Audio codec AAC

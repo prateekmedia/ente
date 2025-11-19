@@ -422,7 +422,6 @@ class VideoPreviewService {
           !(isH264 && bitrate != null && bitrate <= 4000 * 1000);
       final rescaleVideo = !(bitrate != null && bitrate <= 2000 * 1000);
       final needsTonemap = isHDR;
-      final applyFPS = (double.tryParse(props?.fps ?? "") ?? 100) > 30;
 
       String filters = "";
 
@@ -432,10 +431,10 @@ class VideoPreviewService {
         if (rescaleVideo || needsTonemap) {
           // scale video to 720p or keep original height if less than 720p
           videoFilters.add("scale=-2:'min(720,ih)'");
-
-          // reduce fps to 30 if it is more than 30
-          if (applyFPS) videoFilters.add("fps=30");
         }
+
+        // Always convert video to 30 fps for consistent streaming
+        videoFilters.add("fps=30");
 
         if (needsTonemap) {
           // apply tonemapping for HDR videos
@@ -454,8 +453,8 @@ class VideoPreviewService {
       final command =
           // scaling, fps, tonemapping
           '$filters'
-          // video encoding
-          '${reencodeVideo ? '-c:v libx264 -crf 23 -preset medium ' : '-c:v copy '}'
+          // video encoding - use 2000kbps bitrate for consistent quality
+          '${reencodeVideo ? '-c:v libx264 -b:v 2000k -maxrate 2000k -bufsize 4000k -preset medium ' : '-c:v copy '}'
           // audio encoding
           '-c:a aac -b:a 128k '
           // hls options
