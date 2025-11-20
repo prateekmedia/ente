@@ -1760,8 +1760,12 @@ class FileUploader {
     }
     Future.delayed(kBlockedUploadsPollFrequency, () async {
       await _pollBackgroundUploadStatus();
-    });
-  }
+     });
+    }
+
+    /// Check if any file uploads are currently active (in progress or in background)
+    bool hasActiveUploads() {
+      return _uploadCounter > 0 || _videoUploadCounter > 0;
 }
 
 class FileUploadItem {
