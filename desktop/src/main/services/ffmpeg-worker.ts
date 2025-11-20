@@ -297,10 +297,10 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
         }
     }
 
-    // If the video is already H.264 with a bitrate less than 4000 kbps, then we
+    // If the video is already H.264 with a bitrate less than 2000 kbps, then we
     // do not need to reencode the video stream (by _far_ the costliest part of
     // the HLS stream generation).
-    const reencodeVideo = !(isH264 && bitrate && bitrate <= 4000 * 1000);
+    const reencodeVideo = !(isH264 && bitrate && bitrate <= 2000 * 1000);
 
     // If the bitrate is not too high, then we don't need to rescale the video
     // when generating the video stream. This is not a performance optimization,
@@ -497,11 +497,11 @@ const ffmpegGenerateHLSPlaylistAndSegments = async (
               //
               // - `-c:v libx264` converts the video stream to the H.264 codec.
               //
-              // - We don't supply a bitrate, instead it uses the default CRF
-              //   ("23") as recommended in the ffmpeg trac.
+              // - `-b:v 2000k` sets the maximum bitrate to 2000kbps to ensure
+              //   it doesn't override the CRF setting and preserves smaller bitrates.
               //
               // - We don't supply a preset, it'll use the default ("medium").
-              ["-c:v", "libx264"]
+              ["-c:v", "libx264", "-b:v", "2000k"]
             : // Keep the video stream unchanged
               ["-c:v", "copy"],
         // Audio codec AAC

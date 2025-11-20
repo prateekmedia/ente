@@ -39,6 +39,7 @@ import "package:photos/utils/file_key.dart";
 import "package:photos/utils/file_util.dart";
 import "package:photos/utils/gzip.dart";
 import "package:photos/utils/network_util.dart";
+import "package:photos/utils/file_uploader.dart";
 
 const _maxRetryCount = 3;
 
@@ -293,6 +294,16 @@ class VideoPreviewService {
       return;
     }
 
+    // Check if file upload is happening, if yes then stop streaming and release resources
+    if (FileUploader.instance.hasActiveUploads()) {
+      _logger.info(
+        "Stopping video streaming because file upload is in progress - isManual: $isManual",
+      );
+      computeController.releaseCompute(stream: true);
+      clearQueue();
+      return;
+    }
+
     Object? error;
     bool removeFile = false;
     try {
@@ -419,7 +430,7 @@ class VideoPreviewService {
       );
 
       final reencodeVideo =
-          !(isH264 && bitrate != null && bitrate <= 4000 * 1000);
+          !(isH264 && bitrate != null && bitrate <= 2000 * 1000);
       final rescaleVideo = !(bitrate != null && bitrate <= 2000 * 1000);
       final needsTonemap = isHDR;
       final applyFPS = (double.tryParse(props?.fps ?? "") ?? 100) > 30;
@@ -455,7 +466,7 @@ class VideoPreviewService {
           // scaling, fps, tonemapping
           '$filters'
           // video encoding
-          '${reencodeVideo ? '-c:v libx264 -crf 23 -preset medium ' : '-c:v copy '}'
+          '${reencodeVideo ? '-c:v libx264 -crf 23 -preset medium -b:v 2000k ' : '-c:v copy '}'
           // audio encoding
           '-c:a aac -b:a 128k '
           // hls options
@@ -1242,6 +1253,14 @@ class VideoPreviewService {
 
       final isStreamAllowed = isManual ? _allowManualStream() : _allowStream();
       if (!isStreamAllowed) return;
+
+      // Check if file upload is happening, if yes then don't start streaming
+      if (FileUploader.instance.hasActiveUploads()) {
+        _logger.info(
+          "Not starting video streaming because file upload is in progress - isManual: $isManual",
+        );
+        return;
+      }
 
       await _ensurePreviewIdsInitialized();
       final result = await _putFilesForPreviewCreation();
