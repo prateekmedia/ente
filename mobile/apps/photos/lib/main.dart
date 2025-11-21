@@ -158,6 +158,11 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await _scheduleHeartBeat(prefs, true);
 
+    _logger.info("(for debugging) Locale init $tlog");
+    final locale = await getLocale();
+    await initializeDateFormatting(locale?.languageCode ?? "en");
+    _logger.info("(for debugging) Locale init done $tlog");
+
     _logger.info("(for debugging) Configuration init $tlog");
     await Configuration.instance.init();
     _logger.info("(for debugging) Configuration done $tlog");
@@ -205,9 +210,6 @@ Future<void> _runMinimally(String taskId, TimeLogger tlog) async {
     await _sync('bgTaskActiveProcess');
     _logger.info("[BG TASK] sync completed");
 
-    _logger.info("[BG TASK] locale fetch");
-    final locale = await getLocale();
-    await initializeDateFormatting(locale?.languageCode ?? "en");
     // only runs for android
     _logger.info("[BG TASK] home widget sync");
     await _homeWidgetSync(true);
