@@ -88,8 +88,9 @@ Future<void> _runInForeground(AdaptiveThemeMode? savedThemeMode) async {
   return await runWithLogs(() async {
     _logger.info("Starting app in foreground");
     isProcessBg = false;
-    await _init(false, via: 'mainMethod');
     final Locale? locale = await getLocale(noFallback: true);
+    await initializeDateFormatting(locale?.languageCode ?? "en");
+    await _init(false, via: 'mainMethod');
     runApp(
       AppLock(
         builder: (args) => EnteApp(locale, savedThemeMode),
