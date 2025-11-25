@@ -10,6 +10,11 @@ import app_links
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
 
+    // Register iCloud backup handler
+    if let controller = window?.rootViewController as? FlutterViewController {
+      ICloudBackupHandler.register(with: controller.registrar(forPlugin: "ICloudBackupHandler")!)
+    }
+
     super.application(application, didFinishLaunchingWithOptions: launchOptions)
 
     if let url = AppLinks.shared.getLink(launchOptions: launchOptions) {

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ente_auth/models/export/ente.dart';
+import 'package:ente_auth/services/icloud_backup_service.dart';
 import 'package:ente_auth/store/code_store.dart';
 import 'package:ente_crypto_dart/ente_crypto_dart.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -21,6 +22,7 @@ class LocalBackupService {
 
   static const int _maxBackups = 5;
   static const _lastBackupDayKey = 'lastBackupDay';
+  static const _useICloudKey = 'useICloudBackup';
 
   Future<bool> triggerAutomaticBackup({bool isManual = false}) async {
     try {
@@ -74,6 +76,11 @@ class LocalBackupService {
     required String content,
   }) async {
     try {
+      // Handle iCloud backup on iOS
+      if (target.isICloud) {
+        return _writeBackupToICloud(fileName, content);
+      }
+
       if (target.treeUri != null) {
         await _writeBackupWithSaf(target.treeUri!, fileName, content);
         await _pruneSafBackups(target.treeUri!, limit: _maxBackups);
@@ -108,6 +115,50 @@ class LocalBackupService {
     } catch (e, s) {
       _logger.severe('Failed to write backup', e, s);
       return false;
+    }
+  }
+
+  Future<bool> _writeBackupToICloud(String fileName, String content) async {
+    try {
+      final icloudPath =
+          await ICloudBackupService.instance.getICloudDocumentsPath();
+      if (icloudPath == null) {
+        _logger.warning('iCloud Documents path not available');
+        return false;
+      }
+
+      final filePath = '$icloudPath/$fileName';
+      final success =
+          await ICloudBackupService.instance.writeFile(filePath, content);
+
+      if (success) {
+        await _pruneICloudBackups(icloudPath);
+        _logger.info('Backup saved to iCloud: $fileName');
+      }
+
+      return success;
+    } catch (e, s) {
+      _logger.severe('Failed to write backup to iCloud', e, s);
+      return false;
+    }
+  }
+
+  Future<void> _pruneICloudBackups(String icloudPath) async {
+    try {
+      final files = await ICloudBackupService.instance.listFiles(icloudPath);
+      final backupFiles =
+          files.where((file) => _isBackupFile(file.name)).toList();
+
+      // Sort by creation date (oldest first)
+      backupFiles.sort((a, b) => a.creationDate.compareTo(b.creationDate));
+
+      while (backupFiles.length > _maxBackups) {
+        final fileToDelete = backupFiles.removeAt(0);
+        await ICloudBackupService.instance.deleteFile(fileToDelete.path);
+        _logger.info('Deleted old iCloud backup: ${fileToDelete.name}');
+      }
+    } catch (e, s) {
+      _logger.severe('Error pruning iCloud backups', e, s);
     }
   }
 
@@ -234,6 +285,12 @@ class LocalBackupService {
       prefs.getBool('isAutoBackupEnabled') ?? false;
 
   _BackupTarget? _resolveTarget(SharedPreferences prefs) {
+    // Check if iCloud backup is enabled (iOS only)
+    final useICloud = prefs.getBool(_useICloudKey) ?? false;
+    if (Platform.isIOS && useICloud) {
+      return const _BackupTarget.iCloud();
+    }
+
     final path = prefs.getString('autoBackupPath');
     final treeUri = prefs.getString('autoBackupTreeUri');
 
@@ -330,11 +387,21 @@ class LocalBackupService {
 }
 
 class _BackupTarget {
-  const _BackupTarget.file(this.path) : treeUri = null;
-  const _BackupTarget.saf(this.treeUri) : path = null;
+  const _BackupTarget.file(this.path)
+      : treeUri = null,
+        _isICloud = false;
+  const _BackupTarget.saf(this.treeUri)
+      : path = null,
+        _isICloud = false;
+  const _BackupTarget.iCloud()
+      : path = null,
+        treeUri = null,
+        _isICloud = true;
 
   final String? path;
   final String? treeUri;
+  final bool _isICloud;
 
   bool get isSaf => treeUri != null;
+  bool get isICloud => _isICloud;
 }

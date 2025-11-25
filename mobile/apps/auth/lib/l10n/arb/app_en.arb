@@ -623,5 +623,10 @@
   "customOrder": "Custom order",
   "selectAnOption": "Select an option",
   "todaysLogs": "Today's logs",
-  "iCloudNotSupported": "iCloud Drive folder selection is not supported. Please select a local folder instead."
+  "iCloudNotSupported": "iCloud Drive folder selection is not supported. Please select a local folder instead.",
+  "iCloudBackupDescription": "Back up your codes to iCloud for automatic sync across your Apple devices, or choose a local folder on this device.",
+  "useICloud": "Use iCloud",
+  "selectLocalFolder": "Select local folder",
+  "iCloudNotAvailable": "iCloud is not available. Please sign in to iCloud in Settings.",
+  "iCloudBackupEnabled": "iCloud backup enabled"
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:ente_auth/l10n/l10n.dart';
+import 'package:ente_auth/services/icloud_backup_service.dart';
 import 'package:ente_auth/services/local_backup_service.dart';
 import 'package:ente_auth/theme/ente_theme.dart';
 import 'package:ente_auth/ui/components/buttons/button_widget.dart';
@@ -40,6 +41,7 @@ class LocalBackupExperienceController {
   bool get isBackupEnabled => _state._isBackupEnabled;
   String? get backupPath => _state._backupPath;
   String? get backupTreeUri => _state._backupTreeUri;
+  bool get useICloud => _state._useICloud;
 
   Future<void> toggleBackup(bool shouldEnable) =>
       _state._handleToggle(shouldEnable);
@@ -72,10 +74,12 @@ class _LocalBackupExperienceState extends State<LocalBackupExperience> {
   static const _passwordKey = 'autoBackupPassword';
   static const _locationConfiguredKey = 'hasConfiguredBackupLocation';
   static const _treeUriKey = 'autoBackupTreeUri';
+  static const _useICloudKey = 'useICloudBackup';
 
   bool _isBackupEnabled = false;
   String? _backupPath;
   String? _backupTreeUri;
+  bool _useICloud = false;
   bool _isBusy = false;
   bool _isManualBackupRunning = false;
   bool _shouldShowBusyOverlay = true;
@@ -99,11 +103,13 @@ class _LocalBackupExperienceState extends State<LocalBackupExperience> {
     final prefs = await SharedPreferences.getInstance();
     final storedPath = prefs.getString('autoBackupPath');
     final storedTreeUri = prefs.getString(_treeUriKey);
+    final storedUseICloud = prefs.getBool(_useICloudKey) ?? false;
     if (!mounted) return;
     setState(() {
       _isBackupEnabled = prefs.getBool('isAutoBackupEnabled') ?? false;
       _backupPath = storedPath;
       _backupTreeUri = storedTreeUri;
+      _useICloud = storedUseICloud;
       _hasLoaded = true;
     });
   }
@@ -220,16 +226,34 @@ class _LocalBackupExperienceState extends State<LocalBackupExperience> {
       return true;
     }
 
+    // On iOS, check if iCloud is already enabled
+    if (Platform.isIOS && _useICloud) {
+      return true;
+    }
+
     var resolvedPath = _backupPath;
     if (resolvedPath == null || resolvedPath.isEmpty) {
-      final saved = await _pickAndSaveBackupLocation(
-        requireSelection: true,
-        shouldTriggerBackup: false,
-      );
-      if (!saved) {
-        return false;
+      // On iOS, show the iCloud/local folder selection dialog
+      if (Platform.isIOS) {
+        final success = await _handleIosLocationSetup();
+        if (!success) {
+          return false;
+        }
+        // If iCloud was enabled, we're done
+        if (_useICloud) {
+          return true;
+        }
+        resolvedPath = _backupPath;
+      } else {
+        final saved = await _pickAndSaveBackupLocation(
+          requireSelection: true,
+          shouldTriggerBackup: false,
+        );
+        if (!saved) {
+          return false;
+        }
+        resolvedPath = _backupPath;
       }
-      resolvedPath = _backupPath;
     }
     if (resolvedPath != null && resolvedPath.isNotEmpty) {
       await Directory(resolvedPath).create(recursive: true);
@@ -356,10 +380,12 @@ class _LocalBackupExperienceState extends State<LocalBackupExperience> {
     await prefs.remove('autoBackupPath');
     await prefs.remove(_treeUriKey);
     await prefs.remove(_locationConfiguredKey);
+    await prefs.remove(_useICloudKey);
     if (!mounted) return false;
     setState(() {
       _backupPath = null;
       _backupTreeUri = null;
+      _useICloud = false;
     });
     return true;
   }
@@ -483,61 +509,7 @@ class _LocalBackupExperienceState extends State<LocalBackupExperience> {
     }
 
     if (Platform.isIOS) {
-      final l10n = context.l10n;
-      final dialogBody = StringBuffer()
-        ..writeln(l10n.backupLocationChoiceDescription)
-        ..writeln()
-        ..writeln(
-          l10n.enableBackupsIosInstruction,
-        )
-        ..writeln()
-        ..writeAll(
-          _backupPath != null && _backupPath!.isNotEmpty
-              ? [
-                  l10n.currentBackupFolder,
-                  _simplifyPath(_backupPath!),
-                ]
-              : const [],
-          '\n',
-        );
-
-      final result = await showDialogWidget(
-        title: l10n.chooseBackupLocation,
-        context: context,
-        body: dialogBody.toString(),
-        buttons: [
-          ButtonWidget(
-            buttonType: ButtonType.primary,
-            labelText: l10n.selectFolder,
-            isInAlert: true,
-            buttonSize: ButtonSize.large,
-            buttonAction: ButtonAction.second,
-          ),
-          ButtonWidget(
-            buttonType: ButtonType.secondary,
-            labelText: l10n.cancel,
-            isInAlert: true,
-            buttonSize: ButtonSize.large,
-            buttonAction: ButtonAction.first,
-          ),
-        ],
-      );
-
-      if (result?.action == ButtonAction.second) {
-        final pickedPath = await FilePicker.platform.getDirectoryPath();
-        if (pickedPath != null) {
-          // Reject iCloud Drive paths on iOS
-          if (_isICloudPath(pickedPath)) {
-            _showSnackBar(context.l10n.iCloudNotSupported);
-            return false;
-          }
-          return _persistLocation(
-            pickedPath,
-            successMessage: context.l10n.initialBackupCreated,
-          );
-        }
-      }
-      return false;
+      return _handleIosLocationSetup();
     }
 
     final pickedPath = await FilePicker.platform.getDirectoryPath();
@@ -548,6 +520,93 @@ class _LocalBackupExperienceState extends State<LocalBackupExperience> {
       );
     }
     return false;
+  }
+
+  /// Show iOS-specific backup location setup with iCloud option
+  Future<bool> _handleIosLocationSetup() async {
+    final l10n = context.l10n;
+
+    // Check if iCloud is available
+    final isICloudAvailable =
+        await ICloudBackupService.instance.isICloudAvailable();
+
+    final result = await showDialogWidget(
+      title: l10n.chooseBackupLocation,
+      context: context,
+      body: l10n.iCloudBackupDescription,
+      buttons: [
+        if (isICloudAvailable)
+          ButtonWidget(
+            buttonType: ButtonType.primary,
+            labelText: l10n.useICloud,
+            isInAlert: true,
+            buttonSize: ButtonSize.large,
+            buttonAction: ButtonAction.first,
+          ),
+        ButtonWidget(
+          buttonType:
+              isICloudAvailable ? ButtonType.secondary : ButtonType.primary,
+          labelText: l10n.selectLocalFolder,
+          isInAlert: true,
+          buttonSize: ButtonSize.large,
+          buttonAction: ButtonAction.second,
+        ),
+        ButtonWidget(
+          buttonType: ButtonType.secondary,
+          labelText: l10n.cancel,
+          isInAlert: true,
+          buttonSize: ButtonSize.large,
+          buttonAction: ButtonAction.cancel,
+        ),
+      ],
+    );
+
+    if (result?.action == ButtonAction.first && isICloudAvailable) {
+      // Enable iCloud backup
+      return _enableICloudBackup();
+    } else if (result?.action == ButtonAction.second) {
+      // Pick local folder
+      final pickedPath = await FilePicker.platform.getDirectoryPath();
+      if (pickedPath != null) {
+        // Reject iCloud Drive paths
+        if (_isICloudPath(pickedPath)) {
+          _showSnackBar(l10n.iCloudNotSupported);
+          return false;
+        }
+        // Disable iCloud if it was previously enabled
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_useICloudKey, false);
+        if (mounted) {
+          setState(() {
+            _useICloud = false;
+          });
+        }
+        return _persistLocation(
+          pickedPath,
+          successMessage: l10n.initialBackupCreated,
+        );
+      }
+    }
+    return false;
+  }
+
+  /// Enable iCloud backup on iOS
+  Future<bool> _enableICloudBackup() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_useICloudKey, true);
+    await prefs.remove('autoBackupPath');
+    await prefs.remove(_treeUriKey);
+    await prefs.setBool(_locationConfiguredKey, true);
+
+    if (!mounted) return false;
+    setState(() {
+      _useICloud = true;
+      _backupPath = null;
+      _backupTreeUri = null;
+    });
+
+    _showSnackBar(context.l10n.iCloudBackupEnabled);
+    return true;
   }
 
   String _simplifyPath(String fullPath) {
