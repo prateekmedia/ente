@@ -293,14 +293,17 @@ class _TextInputWidgetState extends State<TextInputWidget> {
         }
       }
       if (executionState == ExecutionState.error) {
+        // Don't close dialog for incorrect password - let user retry
+        final isIncorrectPassword =
+            _exception?.toString().contains("Incorrect password") ?? false;
         setState(() {
           executionState = ExecutionState.idle;
-          widget.popNavAfterSubmission
-              ? Future.delayed(
-                  const Duration(seconds: 0),
-                  () => _popNavigatorStack(context, e: _exception),
-                )
-              : null;
+          if (!isIncorrectPassword && widget.popNavAfterSubmission) {
+            Future.delayed(
+              const Duration(seconds: 0),
+              () => _popNavigatorStack(context, e: _exception),
+            );
+          }
         });
       }
     } else {
