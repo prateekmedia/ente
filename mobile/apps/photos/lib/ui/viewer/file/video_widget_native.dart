@@ -2,6 +2,7 @@ import "dart:async";
 import "dart:io";
 
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:logging/logging.dart";
 import "package:native_video_player/native_video_player.dart";
 import "package:photos/core/constants.dart";
@@ -29,13 +30,19 @@ import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/viewer/file/native_video_player_controls/play_pause_button.dart";
 import "package:photos/ui/viewer/file/native_video_player_controls/seek_bar.dart";
 import "package:photos/ui/viewer/file/thumbnail_widget.dart";
+import "package:photos/ui/viewer/file/video_controls/double_tap_to_seek.dart";
+import "package:photos/ui/viewer/file/video_controls/lock_controls_button.dart";
+import "package:photos/ui/viewer/file/video_controls/mute_button.dart";
+import "package:photos/ui/viewer/file/video_controls/playback_speed_control.dart";
 import "package:photos/ui/viewer/file/video_stream_change.dart";
 import "package:photos/utils/dialog_util.dart";
 import "package:photos/utils/exif_util.dart";
 import "package:photos/utils/file_util.dart";
 import "package:photos/utils/standalone/date_time.dart";
 import "package:photos/utils/standalone/debouncer.dart";
+import "package:screen_brightness/screen_brightness.dart";
 import "package:visibility_detector/visibility_detector.dart";
+import "package:volume_controller/volume_controller.dart";
 
 class VideoWidgetNative extends StatefulWidget {
   final EnteFile file;
@@ -67,6 +74,7 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
     with WidgetsBindingObserver {
   final Logger _logger = Logger("VideoWidgetNative");
   static const verticalMargin = 64.0;
+  static const int _seekDuration = 10; // seconds for double-tap seek
   final _progressNotifier = ValueNotifier<double?>(null);
   late StreamSubscription<PauseVideoEvent> pauseVideoSubscription;
   bool _isGuestView = false;
@@ -89,6 +97,20 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
   late final StreamSubscription<FileCaptionUpdatedEvent>
       _captionUpdatedSubscription;
   int position = 0;
+
+  // New video player controls state
+  double _playbackSpeed = 1.0;
+  bool _isMuted = false;
+  bool _controlsLocked = false;
+  double _brightness = 0.5;
+  double _volume = 0.5;
+  bool _showBrightnessIndicator = false;
+  bool _showVolumeIndicator = false;
+  bool _showSeekIndicator = false;
+  double _seekPosition = 0;
+  bool _isLongPressing = false;
+  double _previousSpeed = 1.0;
+  Timer? _indicatorTimer;
 
   @override
   void initState() {
@@ -144,6 +166,23 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
 
     EnteWakeLockService.instance
         .updateWakeLock(enable: true, wakeLockFor: WakeLockFor.videoPlayback);
+
+    _initializeBrightnessAndVolume();
+  }
+
+  Future<void> _initializeBrightnessAndVolume() async {
+    try {
+      _brightness = await ScreenBrightness.instance.application;
+      VolumeController.instance.getVolume().then((value) {
+        if (mounted) {
+          setState(() {
+            _volume = value;
+          });
+        }
+      });
+    } catch (e) {
+      _logger.warning("Failed to initialize brightness/volume: $e");
+    }
   }
 
   Future<void> setVideoSource() async {
@@ -246,6 +285,13 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
     _isSeeking.dispose();
     _debouncer.cancelDebounceTimer();
     _captionUpdatedSubscription.cancel();
+    _indicatorTimer?.cancel();
+    // Reset brightness to system default
+    try {
+      ScreenBrightness.instance.resetApplicationScreenBrightness();
+    } catch (e) {
+      // Ignore
+    }
     EnteWakeLockService.instance
         .updateWakeLock(enable: false, wakeLockFor: WakeLockFor.videoPlayback);
     super.dispose();
@@ -296,41 +342,99 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                           ),
                         ),
                       ),
+                      // Main gesture handler
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: widget.isFromMemories
-                            ? null
-                            : () {
-                                _showControls.value = !_showControls.value;
-                                if (widget.playbackCallback != null) {
-                                  widget.playbackCallback!(
-                                    !_showControls.value,
-                                    FullScreenRequestReason.userInteraction,
-                                  );
-                                }
-                              },
-                        onLongPress: () {
-                          if (widget.isFromMemories) {
-                            widget.playbackCallback?.call(
-                              false,
-                              FullScreenRequestReason.userInteraction,
-                            );
-                            _controller?.pause();
-                          }
-                        },
-                        onLongPressUp: () {
-                          if (widget.isFromMemories) {
-                            widget.playbackCallback?.call(
-                              true,
-                              FullScreenRequestReason.userInteraction,
-                            );
-                            _controller?.play();
-                          }
-                        },
+                        onLongPress: widget.isFromMemories
+                            ? () {
+                                widget.playbackCallback?.call(
+                                  false,
+                                  FullScreenRequestReason.userInteraction,
+                                );
+                                _controller?.pause();
+                              }
+                            : _controlsLocked
+                                ? null
+                                : _onLongPressStart,
+                        onLongPressUp: widget.isFromMemories
+                            ? () {
+                                widget.playbackCallback?.call(
+                                  true,
+                                  FullScreenRequestReason.userInteraction,
+                                );
+                                _controller?.play();
+                              }
+                            : _controlsLocked
+                                ? null
+                                : _onLongPressEnd,
                         child: Container(
                           constraints: const BoxConstraints.expand(),
                         ),
                       ),
+                      // Double tap to seek overlay
+                      if (!widget.isFromMemories && !_controlsLocked)
+                        Positioned.fill(
+                          child: DoubleTapSeekOverlay(
+                            seekDuration: _seekDuration,
+                            onSeekForward: _seekForward,
+                            onSeekBackward: _seekBackward,
+                            showControls: _showControls.value,
+                            onSingleTap: () {
+                              _showControls.value = !_showControls.value;
+                              if (widget.playbackCallback != null) {
+                                widget.playbackCallback!(
+                                  !_showControls.value,
+                                  FullScreenRequestReason.userInteraction,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      // Brightness indicator (left side)
+                      if (_showBrightnessIndicator)
+                        Positioned(
+                          left: 40,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: _buildVerticalIndicator(
+                              icon: _brightness > 0.66
+                                  ? Icons.brightness_high
+                                  : _brightness > 0.33
+                                      ? Icons.brightness_medium
+                                      : Icons.brightness_low,
+                              value: _brightness,
+                            ),
+                          ),
+                        ),
+                      // Volume indicator (right side)
+                      if (_showVolumeIndicator)
+                        Positioned(
+                          right: 40,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(
+                            child: _buildVerticalIndicator(
+                              icon: _volume > 0.66
+                                  ? Icons.volume_up
+                                  : _volume > 0
+                                      ? Icons.volume_down
+                                      : Icons.volume_off,
+                              value: _volume,
+                            ),
+                          ),
+                        ),
+                      // Seek indicator
+                      if (_showSeekIndicator)
+                        Positioned.fill(
+                          child: Center(child: _buildSeekIndicator()),
+                        ),
+                      // Long press fast forward indicator
+                      if (_isLongPressing)
+                        Positioned.fill(
+                          child: Center(child: _buildFastForwardIndicator()),
+                        ),
+                      // Play/pause button
                       widget.isFromMemories
                           ? const SizedBox.shrink()
                           : Positioned.fill(
@@ -345,10 +449,14 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                                                 duration: const Duration(
                                                   milliseconds: 200,
                                                 ),
-                                                opacity: value ? 1 : 0,
+                                                opacity: value &&
+                                                        !_controlsLocked
+                                                    ? 1
+                                                    : 0,
                                                 curve: Curves.easeInOutQuad,
                                                 child: IgnorePointer(
-                                                  ignoring: !value,
+                                                  ignoring:
+                                                      !value || _controlsLocked,
                                                   child: PlayPauseButton(
                                                     _controller,
                                                   ),
@@ -363,6 +471,58 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                                 ),
                               ),
                             ),
+                      // Top control bar (speed, mute, lock)
+                      if (!widget.isFromMemories)
+                        ValueListenableBuilder(
+                          valueListenable: _showControls,
+                          builder: (context, showControls, _) {
+                            return AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: showControls ? 1 : 0,
+                              child: IgnorePointer(
+                                ignoring: !showControls,
+                                child: Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: SafeArea(
+                                    bottom: false,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          PlaybackSpeedButton(
+                                            currentSpeed: _playbackSpeed,
+                                            onSpeedChanged: _setPlaybackSpeed,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          MuteButton(
+                                            isMuted: _isMuted,
+                                            onToggle: _toggleMute,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          LockControlsButton(
+                                            isLocked: _controlsLocked,
+                                            onToggle: _toggleLock,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      // Locked controls overlay
+                      if (_controlsLocked)
+                        LockedControlsOverlay(onUnlock: _toggleLock),
+                      // Bottom controls
                       widget.isFromMemories
                           ? const SizedBox.shrink()
                           : Positioned(
@@ -385,7 +545,8 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                                         valueListenable: _showControls,
                                         builder: (context, value, _) {
                                           return VideoStreamChangeWidget(
-                                            showControls: value,
+                                            showControls:
+                                                value && !_controlsLocked,
                                             file: widget.file,
                                             isPreviewPlayer:
                                                 widget.selectedPreview,
@@ -409,6 +570,8 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
                                                   isSeeking: _isSeeking,
                                                   position: position,
                                                   file: widget.file,
+                                                  controlsLocked:
+                                                      _controlsLocked,
                                                 )
                                               : const SizedBox();
                                         },
@@ -425,6 +588,230 @@ class _VideoWidgetNativeState extends State<VideoWidgetNative>
       ),
     );
   }
+
+  // ===== New video control methods =====
+
+  void _seekForward() {
+    if (_controller == null) return;
+    final currentPos = position ~/ 1000;
+    final durationSeconds = durationToSeconds(duration) ?? 0;
+    final newPos = (currentPos + _seekDuration).clamp(0, durationSeconds);
+    _controller!.seekTo(Duration(seconds: newPos));
+    Bus.instance.fire(SeekbarTriggeredEvent(position: newPos));
+    HapticFeedback.lightImpact();
+  }
+
+  void _seekBackward() {
+    if (_controller == null) return;
+    final currentPos = position ~/ 1000;
+    final durationSeconds = durationToSeconds(duration) ?? 0;
+    final newPos = (currentPos - _seekDuration).clamp(0, durationSeconds);
+    _controller!.seekTo(Duration(seconds: newPos));
+    Bus.instance.fire(SeekbarTriggeredEvent(position: newPos));
+    HapticFeedback.lightImpact();
+  }
+
+  void _setPlaybackSpeed(double speed) {
+    setState(() {
+      _playbackSpeed = speed;
+    });
+    _controller?.setPlaybackSpeed(speed);
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _controller?.setVolume(_isMuted ? 0 : 1);
+    HapticFeedback.lightImpact();
+  }
+
+  void _toggleLock() {
+    setState(() {
+      _controlsLocked = !_controlsLocked;
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  void _onLongPressStart() {
+    if (_controller == null ||
+        _controller!.playbackStatus != PlaybackStatus.playing) return;
+
+    setState(() {
+      _isLongPressing = true;
+      _previousSpeed = _playbackSpeed;
+    });
+    _controller?.setPlaybackSpeed(2.0);
+    HapticFeedback.mediumImpact();
+  }
+
+  void _onLongPressEnd() {
+    if (!_isLongPressing) return;
+
+    setState(() {
+      _isLongPressing = false;
+    });
+    _controller?.setPlaybackSpeed(_previousSpeed);
+  }
+
+  void _hideIndicatorAfterDelay() {
+    _indicatorTimer?.cancel();
+    _indicatorTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() {
+          _showBrightnessIndicator = false;
+          _showVolumeIndicator = false;
+          _showSeekIndicator = false;
+        });
+      }
+    });
+  }
+
+  Widget _buildVerticalIndicator({
+    required IconData icon,
+    required double value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: strokeFaintDark,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: Colors.white,
+            size: 24,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 100,
+            width: 4,
+            child: RotatedBox(
+              quarterTurns: -1,
+              child: LinearProgressIndicator(
+                value: value,
+                backgroundColor: fillMutedDark,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "${(value * 100).toInt()}%",
+            style: getEnteTextTheme(context).mini.copyWith(
+                  color: textBaseDark,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeekIndicator() {
+    final durationSeconds = durationToSeconds(duration) ?? 0;
+    final currentPos = _formatDuration(_seekPosition.toInt());
+    final totalDuration = _formatDuration(durationSeconds);
+    final difference = (_seekPosition - position ~/ 1000).toInt();
+    final differenceStr = difference >= 0 ? "+$difference" : "$difference";
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: strokeFaintDark,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                currentPos,
+                style: getEnteTextTheme(context).body.copyWith(
+                      color: textBaseDark,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              Text(
+                " / $totalDuration",
+                style: getEnteTextTheme(context).body.copyWith(
+                      color: textMutedDark,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "[$differenceStr s]",
+            style: getEnteTextTheme(context).small.copyWith(
+                  color: difference >= 0
+                      ? const Color(0xFF00D09C)
+                      : const Color(0xFFFF6B6B),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFastForwardIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: strokeFaintDark,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.fast_forward,
+            color: Colors.white,
+            size: 24,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            "2x",
+            style: getEnteTextTheme(context).body.copyWith(
+                  color: textBaseDark,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    final secs = seconds % 60;
+
+    if (hours > 0) {
+      return '${hours.toString().padLeft(1, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes.toString().padLeft(1, '0')}:${secs.toString().padLeft(2, '0')}';
+    }
+  }
+
+  // ===== End new video control methods =====
 
   Future<void> _initializeController(
     NativeVideoPlayerController controller,
@@ -750,6 +1137,7 @@ class _SeekBarAndDuration extends StatelessWidget {
   final ValueNotifier<bool> isSeeking;
   final int position;
   final EnteFile file;
+  final bool controlsLocked;
 
   const _SeekBarAndDuration({
     required this.controller,
@@ -758,6 +1146,7 @@ class _SeekBarAndDuration extends StatelessWidget {
     required this.isSeeking,
     required this.position,
     required this.file,
+    this.controlsLocked = false,
   });
 
   @override
@@ -765,14 +1154,15 @@ class _SeekBarAndDuration extends StatelessWidget {
     return ValueListenableBuilder(
       valueListenable: showControls,
       builder: (BuildContext context, bool value, _) {
+        final shouldShow = value && !controlsLocked;
         return AnimatedOpacity(
           duration: const Duration(
             milliseconds: 200,
           ),
           curve: Curves.easeInQuad,
-          opacity: value ? 1 : 0,
+          opacity: shouldShow ? 1 : 0,
           child: IgnorePointer(
-            ignoring: !value,
+            ignoring: !shouldShow,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 8,

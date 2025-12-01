@@ -1,6 +1,7 @@
 import "dart:async";
 
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:media_kit_video/media_kit_video.dart";
 import "package:photos/models/file/file.dart";
 import "package:photos/states/detail_page_state.dart";
@@ -8,9 +9,15 @@ import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart";
 import "package:photos/ui/actions/file/file_actions.dart";
 import "package:photos/ui/common/loading_widget.dart";
+import "package:photos/ui/viewer/file/video_controls/double_tap_to_seek.dart";
+import "package:photos/ui/viewer/file/video_controls/lock_controls_button.dart";
+import "package:photos/ui/viewer/file/video_controls/mute_button.dart";
+import "package:photos/ui/viewer/file/video_controls/playback_speed_control.dart";
 import "package:photos/ui/viewer/file/video_stream_change.dart";
 import "package:photos/utils/standalone/date_time.dart";
 import "package:photos/utils/standalone/debouncer.dart";
+import "package:screen_brightness/screen_brightness.dart";
+import "package:volume_controller/volume_controller.dart";
 
 class VideoWidget extends StatefulWidget {
   final EnteFile file;
@@ -38,11 +45,20 @@ class VideoWidget extends StatefulWidget {
 class _VideoWidgetState extends State<VideoWidget> {
   final showControlsNotifier = ValueNotifier<bool>(true);
   static const double verticalMargin = 64;
+  static const int _seekDuration = 10; // seconds for double-tap seek
   final _hideControlsDebouncer = Debouncer(
     const Duration(milliseconds: 2000),
   );
   final _isSeekingNotifier = ValueNotifier<bool>(false);
   late final StreamSubscription<bool> _isPlayingStreamSubscription;
+
+  // New video player controls state
+  double _playbackSpeed = 1.0;
+  bool _isMuted = false;
+  bool _controlsLocked = false;
+  bool _isLongPressing = false;
+  double _previousSpeed = 1.0;
+  Timer? _indicatorTimer;
 
   @override
   void initState() {
@@ -70,6 +86,13 @@ class _VideoWidgetState extends State<VideoWidget> {
     _hideControlsDebouncer.cancelDebounceTimer();
     _isSeekingNotifier.removeListener(isSeekingListener);
     _isSeekingNotifier.dispose();
+    _indicatorTimer?.cancel();
+    // Reset brightness to system default
+    try {
+      ScreenBrightness.instance.resetApplicationScreenBrightness();
+    } catch (e) {
+      // Ignore
+    }
     super.dispose();
   }
 
@@ -89,6 +112,100 @@ class _VideoWidgetState extends State<VideoWidget> {
     }
   }
 
+  // ===== New video control methods =====
+
+  void _seekForward() {
+    final currentPos = widget.controller.player.state.position.inSeconds;
+    final durationSeconds = widget.controller.player.state.duration.inSeconds;
+    final newPos = (currentPos + _seekDuration).clamp(0, durationSeconds);
+    widget.controller.player.seek(Duration(seconds: newPos));
+    HapticFeedback.lightImpact();
+  }
+
+  void _seekBackward() {
+    final currentPos = widget.controller.player.state.position.inSeconds;
+    final durationSeconds = widget.controller.player.state.duration.inSeconds;
+    final newPos = (currentPos - _seekDuration).clamp(0, durationSeconds);
+    widget.controller.player.seek(Duration(seconds: newPos));
+    HapticFeedback.lightImpact();
+  }
+
+  void _setPlaybackSpeed(double speed) {
+    setState(() {
+      _playbackSpeed = speed;
+    });
+    widget.controller.player.setRate(speed);
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    widget.controller.player.setVolume(_isMuted ? 0 : 100);
+    HapticFeedback.lightImpact();
+  }
+
+  void _toggleLock() {
+    setState(() {
+      _controlsLocked = !_controlsLocked;
+    });
+    HapticFeedback.mediumImpact();
+  }
+
+  void _onLongPressStart() {
+    if (!widget.controller.player.state.playing) return;
+
+    setState(() {
+      _isLongPressing = true;
+      _previousSpeed = _playbackSpeed;
+    });
+    widget.controller.player.setRate(2.0);
+    HapticFeedback.mediumImpact();
+  }
+
+  void _onLongPressEnd() {
+    if (!_isLongPressing) return;
+
+    setState(() {
+      _isLongPressing = false;
+    });
+    widget.controller.player.setRate(_previousSpeed);
+  }
+
+  Widget _buildFastForwardIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: strokeFaintDark,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.fast_forward,
+            color: Colors.white,
+            size: 24,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            "2x",
+            style: getEnteTextTheme(context).body.copyWith(
+                  color: textBaseDark,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== End new video control methods =====
+
   @override
   Widget build(BuildContext context) {
     return Video(
@@ -97,67 +214,136 @@ class _VideoWidgetState extends State<VideoWidget> {
         return ValueListenableBuilder(
           valueListenable: showControlsNotifier,
           builder: (context, value, _) {
-            return AnimatedOpacity(
-              duration: const Duration(milliseconds: 200),
-              opacity: value ? 1 : 0,
-              curve: Curves.easeInOutQuad,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: widget.isFromMemories
-                        ? null
-                        : () {
-                            showControlsNotifier.value =
-                                !showControlsNotifier.value;
-                            if (widget.playbackCallback != null) {
-                              widget.playbackCallback!(
-                                !showControlsNotifier.value,
-                                FullScreenRequestReason.userInteraction,
-                              );
-                            }
-                          },
-                    onLongPress: () {
-                      if (widget.isFromMemories) {
-                        widget.playbackCallback?.call(
-                          false,
-                          FullScreenRequestReason.userInteraction,
-                        );
-                        if (widget.controller.player.state.playing) {
-                          widget.controller.player.pause();
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // Main gesture handler
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: widget.isFromMemories
+                      ? () {
+                          widget.playbackCallback?.call(
+                            false,
+                            FullScreenRequestReason.userInteraction,
+                          );
+                          if (widget.controller.player.state.playing) {
+                            widget.controller.player.pause();
+                          }
                         }
-                      }
-                    },
-                    onLongPressUp: () {
-                      if (widget.isFromMemories) {
-                        widget.playbackCallback?.call(
-                          true,
-                          FullScreenRequestReason.userInteraction,
-                        );
-                        if (!widget.controller.player.state.playing) {
-                          widget.controller.player.play();
+                      : _controlsLocked
+                          ? null
+                          : _onLongPressStart,
+                  onLongPressUp: widget.isFromMemories
+                      ? () {
+                          widget.playbackCallback?.call(
+                            true,
+                            FullScreenRequestReason.userInteraction,
+                          );
+                          if (!widget.controller.player.state.playing) {
+                            widget.controller.player.play();
+                          }
                         }
-                      }
-                    },
-                    child: Container(
-                      constraints: const BoxConstraints.expand(),
+                      : _controlsLocked
+                          ? null
+                          : _onLongPressEnd,
+                  child: Container(
+                    constraints: const BoxConstraints.expand(),
+                  ),
+                ),
+                // Double tap to seek overlay
+                if (!widget.isFromMemories && !_controlsLocked)
+                  Positioned.fill(
+                    child: DoubleTapSeekOverlay(
+                      seekDuration: _seekDuration,
+                      onSeekForward: _seekForward,
+                      onSeekBackward: _seekBackward,
+                      showControls: value,
+                      onSingleTap: () {
+                        showControlsNotifier.value = !showControlsNotifier.value;
+                        if (widget.playbackCallback != null) {
+                          widget.playbackCallback!(
+                            !showControlsNotifier.value,
+                            FullScreenRequestReason.userInteraction,
+                          );
+                        }
+                      },
                     ),
                   ),
-                  widget.isFromMemories
-                      ? const SizedBox.shrink()
-                      : IgnorePointer(
-                          ignoring: !value,
+                // Long press fast forward indicator
+                if (_isLongPressing)
+                  Positioned.fill(
+                    child: Center(child: _buildFastForwardIndicator()),
+                  ),
+                // Play/pause button
+                widget.isFromMemories
+                    ? const SizedBox.shrink()
+                    : AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: value && !_controlsLocked ? 1 : 0,
+                        curve: Curves.easeInOutQuad,
+                        child: IgnorePointer(
+                          ignoring: !value || _controlsLocked,
                           child: PlayPauseButtonMediaKit(widget.controller),
                         ),
-                  widget.isFromMemories
-                      ? const SizedBox.shrink()
-                      : Positioned(
-                          bottom: verticalMargin,
-                          right: 0,
-                          left: 0,
+                      ),
+                // Top control bar (speed, mute, lock)
+                if (!widget.isFromMemories)
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: value ? 1 : 0,
+                    child: IgnorePointer(
+                      ignoring: !value,
+                      child: Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                PlaybackSpeedButton(
+                                  currentSpeed: _playbackSpeed,
+                                  onSpeedChanged: _setPlaybackSpeed,
+                                ),
+                                const SizedBox(width: 8),
+                                MuteButton(
+                                  isMuted: _isMuted,
+                                  onToggle: _toggleMute,
+                                ),
+                                const SizedBox(width: 8),
+                                LockControlsButton(
+                                  isLocked: _controlsLocked,
+                                  onToggle: _toggleLock,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // Locked controls overlay
+                if (_controlsLocked)
+                  LockedControlsOverlay(onUnlock: _toggleLock),
+                // Bottom controls
+                widget.isFromMemories
+                    ? const SizedBox.shrink()
+                    : Positioned(
+                        bottom: verticalMargin,
+                        right: 0,
+                        left: 0,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: value && !_controlsLocked ? 1 : 0,
+                          curve: Curves.easeInOutQuad,
                           child: IgnorePointer(
-                            ignoring: !value,
+                            ignoring: !value || _controlsLocked,
                             child: SafeArea(
                               top: false,
                               left: false,
@@ -170,7 +356,7 @@ class _VideoWidgetState extends State<VideoWidget> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     VideoStreamChangeWidget(
-                                      showControls: value,
+                                      showControls: value && !_controlsLocked,
                                       file: widget.file,
                                       isPreviewPlayer: widget.isPreviewPlayer,
                                       onStreamChange: widget.onStreamChange,
@@ -186,8 +372,8 @@ class _VideoWidgetState extends State<VideoWidget> {
                             ),
                           ),
                         ),
-                ],
-              ),
+                      ),
+              ],
             );
           },
         );
