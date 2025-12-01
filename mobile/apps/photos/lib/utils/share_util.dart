@@ -136,6 +136,30 @@ Future<ShareResult> shareText(
   }
 }
 
+/// shareUrl shares a URL using the uri parameter of ShareParams.
+/// This is preferred over shareText for URLs because it ensures the URL
+/// (including the fragment/hash portion) is properly handled by the share
+/// intent on Android. Some apps may truncate URLs at the # when shared as
+/// plain text.
+Future<ShareResult> shareUrl(
+  String url, {
+  BuildContext? context,
+  GlobalKey? key,
+}) async {
+  try {
+    final sharePosOrigin = _sharePosOrigin(context, key);
+    return SharePlus.instance.share(
+      ShareParams(
+        uri: Uri.parse(url),
+        sharePositionOrigin: sharePosOrigin,
+      ),
+    );
+  } catch (e, s) {
+    _logger.severe("failed to share url", e, s);
+    return ShareResult.unavailable;
+  }
+}
+
 Future<List<EnteFile>> convertIncomingSharedMediaToFile(
   List<SharedMediaFile> sharedMedia,
   int collectionID,
@@ -275,12 +299,12 @@ Future<void> shareAlbumLinkWithPlaceholder(
 
   if (filesInCollection.isEmpty) {
     await dialog.hide();
-    await shareText(url);
+    await shareUrl(url);
     return;
   } else {
     await dialog.hide();
 
-    await shareText(
+    await shareUrl(
       url,
       context: context,
       key: key,

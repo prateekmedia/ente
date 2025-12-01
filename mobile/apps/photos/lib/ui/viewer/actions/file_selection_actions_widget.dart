@@ -968,7 +968,7 @@ class _FileSelectionActionsWidgetState
         _cachedCollectionForSharedLink!,
       );
       unawaited(Clipboard.setData(ClipboardData(text: url)));
-      await shareText(
+      await shareUrl(
         url,
         context: context,
         key: sendLinkButtonKey,
