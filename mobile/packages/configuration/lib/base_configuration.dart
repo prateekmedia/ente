@@ -72,8 +72,14 @@ class BaseConfiguration {
   Future<void> logout({bool autoLogout = false}) async {
     await _preferences.clear();
     await resetSecureStorage();
-    for (final db in _databases) {
-      await db.clearTable();
+    // Don't clear database on auto-logout (e.g., secure storage failure on Linux).
+    // The user's data is still on the server and will sync when they log back in.
+    // Clearing the database on auto-logout causes data loss when the keyring
+    // is temporarily unavailable.
+    if (!autoLogout) {
+      for (final db in _databases) {
+        await db.clearTable();
+      }
     }
     _key = null;
     _cachedToken = null;
