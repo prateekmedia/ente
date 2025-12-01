@@ -95,7 +95,6 @@ fpm -s dir -t rpm \
   --description "2FA app with free end-to-end encrypted backup and sync" \
   --category "Application/Utility" \
   --depends sqlite-libs \
-  --depends libsecret \
   --depends libappindicator \
   -C "$STAGING_DIR" \
   -p "$OUTPUT_DIR/enteauth-VERSION.ARCH.rpm" \

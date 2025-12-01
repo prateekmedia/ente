@@ -9,6 +9,8 @@ environment:
 
 dependencies:
   bip39: ^1.0.6
+  # Linux secure storage using D-Bus Secret Service (replaces libsecret)
+  dbus_secrets: ^0.0.2
   ente_base:
     path: ../../packages/base
   ente_crypto_dart:

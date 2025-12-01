@@ -15,8 +15,8 @@ import 'package:ente_events/models/endpoint_updated_event.dart';
 import 'package:ente_events/models/signed_in_event.dart';
 import 'package:ente_events/models/signed_out_event.dart';
 import 'package:ente_logging/logging.dart';
+import 'package:ente_configuration/secure_storage/secure_storage_service.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tuple/tuple.dart';
@@ -44,7 +44,7 @@ class BaseConfiguration {
   late SharedPreferences _preferences;
   String? _key;
   String? _secretKey;
-  late FlutterSecureStorage _secureStorage;
+  late SecureStorageService _secureStorage;
   late String _documentsDirectory;
   late String _cacheDirectory;
   late String _tempDocumentsDirPath;
@@ -60,11 +60,8 @@ class BaseConfiguration {
     _documentsDirectory = (await getApplicationDocumentsDirectory()).path;
     _tempDocumentsDirPath = "${(await getTemporaryDirectory()).path}/temp/";
     _preferences = await SharedPreferences.getInstance();
-    _secureStorage = const FlutterSecureStorage(
-      iOptions: IOSOptions(
-        accessibility: KeychainAccessibility.first_unlock_this_device,
-      ),
-    );
+    _secureStorage = SecureStorageService();
+    await _secureStorage.init();
     await _setupKeys();
     await _setupFolders();
   }

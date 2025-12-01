@@ -3,12 +3,12 @@ import "dart:io";
 import "dart:typed_data";
 
 import "package:ente_configuration/base_configuration.dart";
+import "package:ente_configuration/secure_storage/secure_storage_service.dart";
 import "package:ente_crypto_dart/ente_crypto_dart.dart";
 import "package:ente_events/event_bus.dart";
 import "package:ente_events/models/signed_out_event.dart";
 import "package:ente_utils/platform_util.dart";
 import "package:flutter/material.dart";
-import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:local_auth/local_auth.dart";
 import "package:privacy_screen/privacy_screen.dart";
 import "package:shared_preferences/shared_preferences.dart";
@@ -43,14 +43,15 @@ class LockScreenSettings {
 
   late BaseConfiguration _config;
   late SharedPreferences _preferences;
-  late FlutterSecureStorage _secureStorage;
+  late SecureStorageService _secureStorage;
 
   Future<void> init(
     BaseConfiguration config, {
     bool hasOptedForOfflineMode = false,
   }) async {
     _config = config;
-    _secureStorage = const FlutterSecureStorage();
+    _secureStorage = SecureStorageService();
+    await _secureStorage.init();
     _preferences = await SharedPreferences.getInstance();
 
     ///Workaround for privacyScreen not working when app is killed and opened.
