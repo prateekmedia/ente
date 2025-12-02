@@ -177,11 +177,9 @@ class AuthenticatorService {
       Bus.instance.fire(CodesUpdatedEvent());
       return true;
     } on UnauthorizedError {
-      if ((await _db.removeSyncedData()) > 0) {
-        Bus.instance.fire(CodesUpdatedEvent());
-      }
-      debugPrint("Firing logout event");
-
+      // Don't remove synced data here - it causes codes to disappear while
+      // user is still logged in. The data will be re-synced after re-login.
+      _logger.warning("UnauthorizedError during sync, triggering logout");
       Bus.instance.fire(TriggerLogoutEvent());
       return false;
     } catch (e) {
