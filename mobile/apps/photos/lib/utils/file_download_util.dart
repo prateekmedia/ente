@@ -232,11 +232,17 @@ Future<void> downloadToGallery(EnteFile file) async {
       //files db before triggering a sync.
       await PhotoManager.stopChangeNotify();
       if (type == FileType.image) {
+        // Ensure title has a valid extension for MIME type inference.
+        // photo_manager uses the title extension to determine MIME type.
+        // If the title has no/unknown extension, Android MediaStore rejects
+        // the generic "image/*" MIME type.
+        final title = _titleWithValidExtension(file.title!, fileToSave!.path);
         savedAsset = await PhotoManager.editor
-            .saveImageWithPath(fileToSave!.path, title: file.title!);
+            .saveImageWithPath(fileToSave.path, title: title);
       } else if (type == FileType.video) {
+        final title = _titleWithValidExtension(file.title!, fileToSave!.path);
         savedAsset = await PhotoManager.editor
-            .saveVideo(fileToSave!, title: file.title!);
+            .saveVideo(fileToSave, title: title);
       } else if (type == FileType.livePhoto) {
         final File? liveVideoFile =
             await getFileFromServer(file, liveVideo: true);
@@ -246,10 +252,12 @@ Future<void> downloadToGallery(EnteFile file) async {
         if (downloadLivePhotoOnDroid) {
           await _saveLivePhotoOnDroid(fileToSave!, liveVideoFile, file);
         } else {
+          final title =
+              _titleWithValidExtension(file.title!, fileToSave!.path);
           savedAsset = await PhotoManager.editor.darwin.saveLivePhoto(
-            imageFile: fileToSave!,
+            imageFile: fileToSave,
             videoFile: liveVideoFile,
-            title: file.title!,
+            title: title,
           );
         }
       }
@@ -282,8 +290,9 @@ Future<void> _saveLivePhotoOnDroid(
   EnteFile enteFile,
 ) async {
   debugPrint("Downloading LivePhoto on Droid");
+  final imageTitle = _titleWithValidExtension(enteFile.title!, image.path);
   AssetEntity? savedAsset = await (PhotoManager.editor
-          .saveImageWithPath(image.path, title: enteFile.title!))
+          .saveImageWithPath(image.path, title: imageTitle))
       .catchError((err) {
     throw Exception("Failed to save image of live photo: $err");
   });
@@ -313,4 +322,49 @@ Future<void> _saveLivePhotoOnDroid(
     "remoteDownload",
   );
   await IgnoredFilesService.instance.cacheAndInsert([ignoreVideoFile]);
+}
+
+/// Returns a title with a valid file extension for MIME type inference.
+///
+/// photo_manager's saveImageWithPath uses the title's extension to determine
+/// the MIME type. If the title has no extension or an unrecognized one,
+/// Android's MediaStore rejects the generic "image/*" MIME type.
+///
+/// This function ensures the title has a proper extension by:
+/// 1. Checking if the original title has a known extension
+/// 2. If not, using the extension from the actual file path (from cache)
+String _titleWithValidExtension(String title, String filePath) {
+  final titleExtension = getExtension(title);
+  // Known image/video extensions that Android MediaStore accepts
+  const knownExtensions = {
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'bmp',
+    'heic',
+    'heif',
+    'mp4',
+    'mov',
+    'avi',
+    'mkv',
+    'webm',
+    '3gp',
+  };
+
+  if (knownExtensions.contains(titleExtension)) {
+    return title;
+  }
+
+  // Title doesn't have a known extension, use the extension from file path
+  final fileExtension = file_path.extension(filePath);
+  if (fileExtension.isNotEmpty) {
+    // Remove any existing extension from title and add the file's extension
+    final baseName = file_path.basenameWithoutExtension(title);
+    return baseName + fileExtension;
+  }
+
+  // Fallback: return original title (let photo_manager handle it)
+  return title;
 }
