@@ -3,7 +3,10 @@ import {
     logoutClearStateAgain,
 } from "ente-accounts/services/logout";
 import log from "ente-base/log";
-import { logoutFileViewerDataSource } from "ente-gallery/components/viewer/data-source";
+import {
+    logoutFileViewerDataSource,
+    stopAllVideoPlayback,
+} from "ente-gallery/components/viewer/data-source";
 import { downloadManager } from "ente-gallery/services/download";
 import { clearFilesDB } from "ente-gallery/services/files-db";
 import { resetUploadState } from "ente-gallery/services/upload";
@@ -25,6 +28,17 @@ import { uploadManager } from "./upload-manager";
 export const photosLogout = async () => {
     const ignoreError = (label: string, e: unknown) =>
         log.error(`Ignoring error during logout (${label})`, e);
+
+    // - Stop video playback
+
+    // Stop any playing videos immediately to prevent continued streaming during
+    // the logout sequence.
+
+    try {
+        stopAllVideoPlayback();
+    } catch (e) {
+        ignoreError("Video playback", e);
+    }
 
     // - Workers
 

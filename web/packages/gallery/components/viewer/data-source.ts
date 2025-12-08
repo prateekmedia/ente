@@ -217,6 +217,32 @@ const resetState = () => {
 export const logoutFileViewerDataSource = resetState;
 
 /**
+ * Stop playback of all video elements currently in the DOM.
+ *
+ * This is called during logout to ensure that any video streams (including HLS
+ * streams) are stopped before clearing auth tokens and performing the page
+ * reload. Without this, videos may continue buffering and playing briefly
+ * during the logout sequence.
+ *
+ * This function queries for both regular `<video>` elements and custom
+ * `<hls-video>` elements (used by the media-chrome library for HLS streaming).
+ */
+export const stopAllVideoPlayback = () => {
+    const videos = document.querySelectorAll<HTMLVideoElement>(
+        "video, hls-video",
+    );
+    for (const video of videos) {
+        video.pause();
+        // Clear the src to stop any ongoing network requests for HLS segments.
+        video.removeAttribute("src");
+        // For HLS videos, also clear the source elements if any.
+        video.querySelectorAll("source").forEach((source) => source.remove());
+        // Trigger load to abort any pending requests.
+        video.load();
+    }
+};
+
+/**
  * Clear any internal state if possible. This is invoked when files have been
  * updated on remote, and those changes synced locally.
  *
