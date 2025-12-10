@@ -18,6 +18,7 @@ import "package:photos/core/event_bus.dart";
 import 'package:photos/db/files_db.dart';
 import "package:photos/db/upload_locks_db.dart";
 import "package:photos/events/sync_status_update_event.dart";
+import "package:photos/events/user_logged_out_event.dart";
 import "package:photos/events/video_preview_state_changed_event.dart";
 import "package:photos/events/video_streaming_changed.dart";
 import 'package:photos/generated/intl/app_localizations.dart';
@@ -51,6 +52,8 @@ class VideoPreviewService {
   final int _maxPreviewSizeLimitForCache = 50 * 1024 * 1024; // 50 MB
   Set<int>? _failureFiles;
   bool _pausedDueToUpload = false;
+  bool _isStopped = false;
+  StreamSubscription<UserLoggedOutEvent>? _loggedOutSubscription;
 
   bool get _hasQueuedFile => fileQueue.isNotEmpty;
 
@@ -66,6 +69,47 @@ class VideoPreviewService {
     if (flagService.pauseStreamDuringUpload) {
       _listenToSyncCompletion();
     }
+    _listenToLogout();
+  }
+
+  void _listenToLogout() {
+    _loggedOutSubscription = Bus.instance.on<UserLoggedOutEvent>().listen((_) {
+      _logger.info("User logged out, stopping video streaming");
+      stop();
+    });
+  }
+
+  /// Stops all video streaming operations gracefully.
+  /// This cancels any running FFmpeg sessions, clears the queue,
+  /// and releases compute resources.
+  Future<void> stop() async {
+    _logger.info("Stopping video streaming service");
+    _isStopped = true;
+
+    // Cancel all running FFmpeg operations
+    await ffmpegService.cancelAll();
+
+    // Clear the queue and fire events for all items
+    for (final fileId in _items.keys) {
+      _fireVideoPreviewStateChange(fileId, PreviewItemStatus.paused);
+    }
+    fileQueue.clear();
+    _items.clear();
+
+    // Reset state
+    uploadingFileId = -1;
+    _pausedDueToUpload = false;
+
+    // Release compute resources
+    computeController.releaseCompute(stream: true);
+
+    _logger.info("Video streaming service stopped");
+  }
+
+  /// Resets the stopped state to allow new operations after re-login.
+  void resetStoppedState() {
+    _isStopped = false;
+    ffmpegService.reset();
   }
 
   void _listenToSyncCompletion() {
@@ -117,6 +161,8 @@ class VideoPreviewService {
     Bus.instance.fire(VideoStreamingChanged());
 
     if (isVideoStreamingEnabled) {
+      // Reset the stopped state when streaming is enabled (e.g., after re-login)
+      resetStoppedState();
       queueFiles(duration: Duration.zero);
     } else {
       clearQueue();
@@ -304,6 +350,12 @@ class VideoPreviewService {
     // not used currently
     bool forceUpload = false,
   }) async {
+    // Check if the service has been stopped (e.g., due to logout)
+    if (_isStopped) {
+      _logger.info("Video streaming stopped, skipping video processing");
+      return;
+    }
+
     // Check if file upload is happening before processing video for streaming
     if (flagService.pauseStreamDuringUpload &&
         FileUploader.instance.isUploading) {
@@ -522,11 +574,25 @@ class VideoPreviewService {
 
       final playlistGenReturnCode = playlistGenResult["returnCode"] as int?;
 
+      // Check if stopped during FFmpeg processing
+      if (_isStopped) {
+        _logger.info("Video streaming stopped during FFmpeg processing");
+        Directory(prefix).delete(recursive: true).ignore();
+        return;
+      }
+
       String? objectId;
       int? objectSize;
 
       if (ReturnCode.success == playlistGenReturnCode) {
         try {
+          // Check again before uploading
+          if (_isStopped) {
+            _logger.info("Video streaming stopped before upload");
+            Directory(prefix).delete(recursive: true).ignore();
+            return;
+          }
+
           _items[enteFile.uploadedFileID!] = PreviewItem(
             status: PreviewItemStatus.uploading,
             file: enteFile,
@@ -624,6 +690,12 @@ class VideoPreviewService {
         Directory(prefix).delete(recursive: true).ignore();
       }
     } finally {
+      // If service was stopped (e.g., due to logout), don't continue processing
+      if (_isStopped) {
+        _logger.info("[chunk] Service stopped, not continuing queue processing");
+        return;
+      }
+
       if (error != null) {
         _retryFile(enteFile, error);
       } else if (removeFile) {
@@ -633,7 +705,7 @@ class VideoPreviewService {
       // Check if we should stop processing due to network errors
       final bool shouldStopProcessing = _isNetworkError(error);
 
-      if (fileQueue.isNotEmpty && !shouldStopProcessing) {
+      if (fileQueue.isNotEmpty && !shouldStopProcessing && !_isStopped) {
         // If there was an error, add a delay before processing next file
         if (error != null) {
           _logger.info(
@@ -661,6 +733,8 @@ class VideoPreviewService {
           _logger.warning(
             "[chunk] Network error detected, stopping queue processing. ${fileQueue.length} items pending",
           );
+        } else if (_isStopped) {
+          _logger.info("[chunk] Service stopped, releasing compute");
         } else {
           _logger.info(
             "[chunk] Nothing to process, releasing compute",
@@ -1280,6 +1354,11 @@ class VideoPreviewService {
     bool forceProcess = false,
   }) {
     Future.delayed(duration, () async {
+      // Reset stopped state when actively queuing files (e.g., after re-login)
+      if (_isStopped) {
+        resetStoppedState();
+      }
+
       if (_hasQueuedFile && !forceProcess) return;
 
       // Don't start streaming if file uploads are in progress
