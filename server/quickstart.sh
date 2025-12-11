@@ -80,11 +80,11 @@ services:
       - ./museum.yaml:/museum.yaml:ro
       - ./data:/data:ro
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/ping"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/ping"]
       interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 120s
 
   # Resolve "localhost:3200" in the museum container to the minio container.
   socat:
@@ -108,6 +108,7 @@ services:
     environment:
       ENTE_API_ORIGIN: http://localhost:8080
       ENTE_ALBUMS_ORIGIN: https://localhost:3002
+      ENTE_PHOTOS_ORIGIN: http://localhost:3000
 
   postgres:
     image: postgres:15
