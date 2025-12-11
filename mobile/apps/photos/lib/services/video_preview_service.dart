@@ -17,6 +17,7 @@ import "package:photos/core/configuration.dart";
 import "package:photos/core/event_bus.dart";
 import 'package:photos/db/files_db.dart';
 import "package:photos/db/upload_locks_db.dart";
+import "package:photos/events/compute_control_event.dart";
 import "package:photos/events/sync_status_update_event.dart";
 import "package:photos/events/user_logged_out_event.dart";
 import "package:photos/events/video_preview_state_changed_event.dart";
@@ -54,6 +55,13 @@ class VideoPreviewService {
   bool _pausedDueToUpload = false;
   bool _isStopped = false;
   StreamSubscription<UserLoggedOutEvent>? _loggedOutSubscription;
+  StreamSubscription<ComputeControlEvent>? _computeControlSubscription;
+
+  /// Tracks FFmpeg processing progress for thermal/battery cancellation.
+  /// Stored as estimated percentage (0.0 to 1.0) based on elapsed time vs video duration.
+  double _ffmpegProgress = 0.0;
+  DateTime? _ffmpegStartTime;
+  int? _currentVideoDurationSeconds;
 
   bool get _hasQueuedFile => fileQueue.isNotEmpty;
 
@@ -70,6 +78,7 @@ class VideoPreviewService {
       _listenToSyncCompletion();
     }
     _listenToLogout();
+    _listenToComputeControl();
   }
 
   void _listenToLogout() {
@@ -77,6 +86,82 @@ class VideoPreviewService {
       _logger.info("User logged out, stopping video streaming");
       stop();
     });
+  }
+
+  void _listenToComputeControl() {
+    _computeControlSubscription =
+        Bus.instance.on<ComputeControlEvent>().listen((event) {
+      // If device becomes unhealthy while FFmpeg is processing and progress < 75%,
+      // cancel the operation to preserve device health
+      if (!event.shouldRun && _isCurrentlyCompressing()) {
+        // Calculate current progress based on elapsed time
+        _updateFfmpegProgress();
+
+        if (_ffmpegProgress < 0.75) {
+          _logger.info(
+            "Device health degraded (thermal/battery), cancelling FFmpeg at ${(_ffmpegProgress * 100).toStringAsFixed(1)}% progress",
+          );
+          _cancelDueToDeviceHealth();
+        } else {
+          _logger.info(
+            "Device health degraded but FFmpeg is ${(_ffmpegProgress * 100).toStringAsFixed(1)}% done, allowing completion",
+          );
+        }
+      }
+    });
+  }
+
+  /// Returns true if we're currently in the FFmpeg compression stage
+  bool _isCurrentlyCompressing() {
+    if (uploadingFileId < 0) return false;
+    final item = _items[uploadingFileId];
+    return item?.status == PreviewItemStatus.compressing;
+  }
+
+  /// Cancels current FFmpeg operation due to device health issues
+  Future<void> _cancelDueToDeviceHealth() async {
+    _logger.info("Cancelling FFmpeg due to device health issues");
+
+    // Cancel FFmpeg operations
+    await ffmpegService.cancelAll();
+
+    // Reset FFmpeg tracking
+    _resetFfmpegProgress();
+
+    // Clear the queue and release compute
+    clearQueue();
+    uploadingFileId = -1;
+    computeController.releaseCompute(stream: true);
+
+    // Reset the cancelled state so FFmpeg can run again later
+    ffmpegService.reset();
+  }
+
+  /// Starts tracking FFmpeg progress for a video
+  void _startFfmpegProgress(int? videoDurationSeconds) {
+    _ffmpegStartTime = DateTime.now();
+    _currentVideoDurationSeconds = videoDurationSeconds;
+    _ffmpegProgress = 0.0;
+  }
+
+  /// Updates FFmpeg progress estimate based on elapsed time
+  void _updateFfmpegProgress() {
+    if (_ffmpegStartTime == null || _currentVideoDurationSeconds == null) {
+      return;
+    }
+
+    final elapsed = DateTime.now().difference(_ffmpegStartTime!).inSeconds;
+    // Estimate: FFmpeg typically processes at 0.5x-2x realtime speed
+    // Use conservative estimate of 1x speed for progress calculation
+    final estimatedProgress = elapsed / _currentVideoDurationSeconds!;
+    _ffmpegProgress = estimatedProgress.clamp(0.0, 0.99);
+  }
+
+  /// Resets FFmpeg progress tracking
+  void _resetFfmpegProgress() {
+    _ffmpegStartTime = null;
+    _currentVideoDurationSeconds = null;
+    _ffmpegProgress = 0.0;
   }
 
   /// Stops all video streaming operations gracefully.
@@ -88,6 +173,9 @@ class VideoPreviewService {
 
     // Cancel all running FFmpeg operations
     await ffmpegService.cancelAll();
+
+    // Reset FFmpeg progress tracking
+    _resetFfmpegProgress();
 
     // Clear the queue and fire events for all items
     for (final fileId in _items.keys) {
@@ -558,6 +646,9 @@ class VideoPreviewService {
 
       _logger.info(command);
 
+      // Start tracking FFmpeg progress for thermal/battery cancellation
+      _startFfmpegProgress(props?.duration?.inSeconds);
+
       final playlistGenResult = await ffmpegService
           .runFfmpeg(
         // input file path
@@ -571,6 +662,9 @@ class VideoPreviewService {
         _logger.warning("FFmpeg command failed", error, stackTrace);
         return {};
       });
+
+      // Reset FFmpeg progress tracking after completion
+      _resetFfmpegProgress();
 
       final playlistGenReturnCode = playlistGenResult["returnCode"] as int?;
 
