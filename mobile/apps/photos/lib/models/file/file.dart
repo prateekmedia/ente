@@ -24,6 +24,7 @@ class EnteFile {
   String? localID;
   String? title;
   String? deviceFolder;
+  String? queueSource;
   int? creationTime;
   int? modificationTime;
   int? updationTime;
@@ -168,6 +169,7 @@ class EnteFile {
     localID = metadata["localID"];
     title = metadata["title"];
     deviceFolder = metadata["deviceFolder"];
+    queueSource = metadata["queueSource"];
     creationTime = metadata["creationTime"] ?? 0;
     modificationTime = metadata["modificationTime"] ?? creationTime;
     final latitude = double.tryParse(metadata["latitude"].toString());
@@ -254,6 +256,7 @@ class EnteFile {
     metadata["localID"] = isSharedMediaToAppSandbox ? null : localID;
     metadata["title"] = title;
     metadata["deviceFolder"] = deviceFolder;
+    metadata["queueSource"] = queueSource;
     metadata["creationTime"] = creationTime;
     metadata["modificationTime"] = modificationTime;
     metadata["fileType"] = fileType.index;
