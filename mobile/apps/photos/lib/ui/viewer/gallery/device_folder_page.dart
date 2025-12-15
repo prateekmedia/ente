@@ -146,9 +146,10 @@ class _BackupHeaderWidgetState extends State<BackupHeaderWidget> {
                           .updateDeviceFolderSyncStatus(
                         {widget.deviceCollection.id: !shouldBackup.value},
                       );
-                      // Clear skip flag - user made explicit folder selection
-                      if (backupPreferenceService
-                          .hasSkippedOnboardingPermission) {
+                      // Clear skip flag only when enabling backup (not disabling)
+                      if (!shouldBackup.value &&
+                          backupPreferenceService
+                              .hasSkippedOnboardingPermission) {
                         await backupPreferenceService
                             .setOnboardingPermissionSkipped(false);
                       }
