@@ -60,6 +60,7 @@ class FilesDB with SqlDbBase {
   static const columnThumbnailDecryptionHeader = 'thumbnail_decryption_header';
   static const columnMetadataDecryptionHeader = 'metadata_decryption_header';
   static const columnFileSize = 'file_size';
+  static const columnQueueSource = 'queue_source';
 
   // MMD -> Magic Metadata
   static const columnMMdEncodedJson = 'mmd_encoded_json';
@@ -90,6 +91,7 @@ class FilesDB with SqlDbBase {
     ...updateIndexes(),
     ...createEntityDataTable(),
     ...addAddedTime(),
+    ...addQueueSourceColumn(),
   ];
 
   static const List<String> _columnNames = [
@@ -100,6 +102,7 @@ class FilesDB with SqlDbBase {
     columnCollectionID,
     columnTitle,
     columnDeviceFolder,
+    columnQueueSource,
     columnLatitude,
     columnLongitude,
     columnFileType,
@@ -162,6 +165,7 @@ class FilesDB with SqlDbBase {
           $columnCollectionID INTEGER DEFAULT -1,
           $columnTitle TEXT NOT NULL,
           $columnDeviceFolder TEXT,
+          $columnQueueSource TEXT,
           $columnLatitude REAL,
           $columnLongitude REAL,
           $columnFileType INTEGER,
@@ -227,6 +231,7 @@ class FilesDB with SqlDbBase {
           $columnCollectionID INTEGER DEFAULT -1,
           $columnTitle TEXT NOT NULL,
           $columnDeviceFolder TEXT,
+          $columnQueueSource TEXT,
           $columnLatitude REAL,
           $columnLongitude REAL,
           $columnFileType INTEGER,
@@ -413,6 +418,14 @@ class FilesDB with SqlDbBase {
       '''
         CREATE INDEX IF NOT EXISTS added_time_index ON $filesTable($columnAddedTime);
       '''
+    ];
+  }
+
+  static List<String> addQueueSourceColumn() {
+    return [
+      '''
+        ALTER TABLE $filesTable ADD COLUMN $columnQueueSource TEXT;
+      ''',
     ];
   }
 
@@ -1073,16 +1086,38 @@ class FilesDB with SqlDbBase {
   // corresponding file entries are not already mapped to some other collection
   Future<void> setCollectionIDForUnMappedLocalFiles(
     int collectionID,
-    Set<String> localIDs,
-  ) async {
+    Set<String> localIDs, {
+    String? queueSource,
+  }) async {
+    if (localIDs.isEmpty) {
+      return;
+    }
     final db = await instance.sqliteAsyncDB;
     final inParam = localIDs.map((id) => "'$id'").join(',');
     await db.execute(
       '''
       UPDATE $filesTable
-      SET $columnCollectionID = $collectionID
+      SET $columnCollectionID = ?,
+          $columnQueueSource = ?
       WHERE $columnLocalID IN ($inParam) AND ($columnCollectionID IS NULL OR 
       $columnCollectionID = -1);
+    ''',
+      [collectionID, queueSource],
+    );
+  }
+
+  Future<void> clearCollectionAndQueueSource(Set<String> localIDs) async {
+    if (localIDs.isEmpty) {
+      return;
+    }
+    final db = await instance.sqliteAsyncDB;
+    final inParam = localIDs.map((id) => "'$id'").join(',');
+    await db.execute(
+      '''
+      UPDATE $filesTable
+      SET $columnCollectionID = -1,
+          $columnQueueSource = NULL
+      WHERE $columnLocalID IN ($inParam);
     ''',
     );
   }
@@ -1456,6 +1491,27 @@ class FilesDB with SqlDbBase {
     final result = <String>{};
     for (final row in rows) {
       result.add(row[columnLocalID] as String);
+    }
+    return result;
+  }
+
+  Future<Map<String, int>> getLocalIDCounts(Set<String> localIDs) async {
+    if (localIDs.isEmpty) {
+      return {};
+    }
+    final db = await instance.sqliteAsyncDB;
+    final inParam = localIDs.map((id) => "'$id'").join(',');
+    final rows = await db.getAll(
+      '''
+      SELECT $columnLocalID, COUNT(*) as cnt
+      FROM $filesTable
+      WHERE $columnLocalID IN ($inParam)
+      GROUP BY $columnLocalID;
+    ''',
+    );
+    final result = <String, int>{};
+    for (final row in rows) {
+      result[row[columnLocalID] as String] = row['cnt'] as int;
     }
     return result;
   }
@@ -1879,6 +1935,7 @@ class FilesDB with SqlDbBase {
       file.collectionID ?? -1,
       file.title,
       file.deviceFolder,
+      file.queueSource,
       latitude,
       longitude,
       getInt(file.fileType),
@@ -1905,7 +1962,8 @@ class FilesDB with SqlDbBase {
     ]);
 
     if (omitCollectionId) {
-      values.removeAt(3);
+      final collectionIndex = file.generatedID != null ? 4 : 3;
+      values.removeAt(collectionIndex);
     }
 
     return values;
@@ -1938,6 +1996,7 @@ class FilesDB with SqlDbBase {
         row[columnCollectionID] == -1 ? null : row[columnCollectionID];
     file.title = row[columnTitle];
     file.deviceFolder = row[columnDeviceFolder];
+    file.queueSource = row[columnQueueSource];
     if (row[columnLatitude] != null && row[columnLongitude] != null) {
       file.location = Location(
         latitude: row[columnLatitude],
