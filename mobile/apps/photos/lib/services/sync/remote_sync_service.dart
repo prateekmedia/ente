@@ -12,25 +12,26 @@ import 'package:photos/db/file_updation_db.dart';
 import 'package:photos/db/files_db.dart';
 import 'package:photos/events/backup_folders_updated_event.dart';
 import 'package:photos/events/collection_updated_event.dart';
-import "package:photos/events/diff_sync_complete_event.dart";
+import 'package:photos/events/diff_sync_complete_event.dart';
 import 'package:photos/events/files_updated_event.dart';
 import 'package:photos/events/force_reload_home_gallery_event.dart';
 import 'package:photos/events/local_photos_updated_event.dart';
 import 'package:photos/events/sync_status_update_event.dart';
-import "package:photos/main.dart" show isProcessBg;
+import 'package:photos/main.dart' show isProcessBg;
 import 'package:photos/models/device_collection.dart';
-import "package:photos/models/file/extensions/file_props.dart";
+import 'package:photos/models/file/extensions/file_props.dart';
 import 'package:photos/models/file/file.dart';
 import 'package:photos/models/file/file_type.dart';
 import 'package:photos/models/upload_strategy.dart';
-import "package:photos/service_locator.dart";
+import 'package:photos/service_locator.dart';
 import 'package:photos/services/app_lifecycle_service.dart';
+import 'package:photos/services/backup/device_backup_selection_cache.dart';
 import 'package:photos/services/collections_service.dart';
 import 'package:photos/services/hidden_service.dart';
 import 'package:photos/services/ignored_files_service.dart';
-import "package:photos/services/language_service.dart";
+import 'package:photos/services/language_service.dart';
 import 'package:photos/services/local_file_update_service.dart';
-import "package:photos/services/notification_service.dart";
+import 'package:photos/services/notification_service.dart';
 import 'package:photos/services/sync/diff_fetcher.dart';
 import 'package:photos/services/sync/sync_service.dart';
 import 'package:photos/utils/file_uploader.dart';
@@ -44,6 +45,8 @@ class RemoteSyncService {
   final Configuration _config = Configuration.instance;
   final CollectionsService _collectionsService = CollectionsService.instance;
   final DiffFetcher _diffFetcher = DiffFetcher();
+  final DeviceBackupSelectionCache _selectionCache =
+      DeviceBackupSelectionCache.instance;
   final LocalFileUpdateService _localFileUpdateService =
       LocalFileUpdateService.instance;
   int _completedUploads = 0;
@@ -359,6 +362,8 @@ class RemoteSyncService {
     _logger.info("Syncing device collections to be uploaded");
     final int ownerID = _config.getUserID()!;
 
+    await _selectionCache.hydrateIfNeeded();
+
     final deviceCollections = await _db.getDeviceCollections();
     deviceCollections.removeWhere((element) => !element.shouldBackup);
     // Sort by count to ensure that photos in iOS are first inserted in
@@ -415,6 +420,7 @@ class RemoteSyncService {
       await _db.setCollectionIDForUnMappedLocalFiles(
         collectionID,
         localIDsToSync,
+        queueSource: deviceCollection.id,
       );
 
       // mark IDs as already synced if corresponding entry is present in
@@ -478,12 +484,16 @@ class RemoteSyncService {
     final Set<int> oldCollectionIDsForAutoSync =
         await _db.getDeviceSyncCollectionIDs();
     await _db.updateDevicePathSyncStatus(syncStatusUpdate);
+    _selectionCache.applyUpdate(syncStatusUpdate);
     final Set<int> newCollectionIDsForAutoSync =
         await _db.getDeviceSyncCollectionIDs();
     SyncService.instance.onDeviceCollectionSet(newCollectionIDsForAutoSync);
     // remove all collectionIDs which are still marked for backup
     oldCollectionIDsForAutoSync.removeAll(newCollectionIDsForAutoSync);
-    await removeFilesQueuedForUpload(oldCollectionIDsForAutoSync.toList());
+    await removeFilesQueuedForUpload(
+      oldCollectionIDsForAutoSync.toList(),
+      isFromFolderDeselection: true,
+    );
     if (syncStatusUpdate.values.any((syncStatus) => syncStatus == false)) {
       backupPreferenceService.setSelectAllFoldersForBackup(false).ignore();
     }
@@ -493,14 +503,20 @@ class RemoteSyncService {
     Bus.instance.fire(BackupFoldersUpdatedEvent());
   }
 
-  Future<void> removeFilesQueuedForUpload(List<int> collectionIDs) async {
+  Future<void> removeFilesQueuedForUpload(
+    List<int> collectionIDs, {
+    bool isFromFolderDeselection = false,
+  }) async {
     /*
       For each collection, perform following action
       1) Get List of all files not uploaded yet
       2) Delete files who localIDs is also present in other collections.
       3) For Remaining files, set the collectionID as -1
+      4) If from folder deselection, remove from backup queue
      */
     _logger.info("Removing files for collections $collectionIDs");
+    final Set<String> localIDsToRemoveFromBackups = {};
+
     for (int collectionID in collectionIDs) {
       final List<EnteFile> pendingUploads =
           await _db.getPendingUploadForCollection(collectionID);
@@ -521,22 +537,37 @@ class RemoteSyncService {
         "RemovingFiles $collectionIDs: filesInOtherCollection "
         "${localIDsInOtherFileEntries.length}",
       );
-      final List<EnteFile> entriesToUpdate = [];
       final List<int> entriesToDelete = [];
+      final Set<String> localIDsToClear = {};
       for (EnteFile pendingUpload in pendingUploads) {
-        if (localIDsInOtherFileEntries.contains(pendingUpload.localID)) {
+        final localID = pendingUpload.localID;
+        if (localIDsInOtherFileEntries.contains(localID)) {
           entriesToDelete.add(pendingUpload.generatedID!);
-        } else {
-          pendingUpload.collectionID = null;
-          entriesToUpdate.add(pendingUpload);
+        } else if (localID != null) {
+          localIDsToClear.add(localID);
+          if (isFromFolderDeselection) {
+            localIDsToRemoveFromBackups.add(localID);
+          }
         }
       }
-      await _db.deleteMultipleByGeneratedIDs(entriesToDelete);
-      await _db.insertMultiple(entriesToUpdate);
+      if (entriesToDelete.isNotEmpty) {
+        await _db.deleteMultipleByGeneratedIDs(entriesToDelete);
+      }
+      if (localIDsToClear.isNotEmpty) {
+        await _db.clearCollectionAndQueueSource(localIDsToClear);
+      }
       _logger.info(
         "RemovingFiles $collectionIDs: deleted "
-        "${entriesToDelete.length} and updated ${entriesToUpdate.length}",
+        "${entriesToDelete.length} and cleared ${localIDsToClear.length}",
       );
+    }
+
+    // Remove files from backup queue only when folder is deselected
+    if (isFromFolderDeselection && localIDsToRemoveFromBackups.isNotEmpty) {
+      _uploader.removeFromBackupsWhere((file) {
+        return file.localID != null &&
+            localIDsToRemoveFromBackups.contains(file.localID);
+      });
     }
   }
 
@@ -581,10 +612,56 @@ class RemoteSyncService {
     // 1. Passed the only-new filter during auto-backup sync, OR
     // 2. Were manually added by the user to a collection
     // In case 2, we should NOT filter them out - user explicitly chose them.
+    await _selectionCache.hydrateIfNeeded();
     final List<EnteFile> originalFiles = await _db.getFilesPendingForUpload();
     if (originalFiles.isEmpty) {
       return originalFiles;
     }
+
+    final List<EnteFile> selectionFiltered = [];
+    final List<EnteFile> unselected = [];
+    final Set<String> unselectedLocalIDs = {};
+    for (final file in originalFiles) {
+      if (_selectionCache.isSelected(file.queueSource)) {
+        selectionFiltered.add(file);
+      } else {
+        if (file.localID != null) {
+          unselectedLocalIDs.add(file.localID!);
+        }
+        unselected.add(file);
+      }
+    }
+
+    if (unselected.isNotEmpty && unselectedLocalIDs.isNotEmpty) {
+      final counts = await _db.getLocalIDCounts(unselectedLocalIDs);
+      final List<int> generatedIDsToDelete = [];
+      final Set<String> localIDsToClear = {};
+      for (final file in unselected) {
+        final localID = file.localID;
+        if (localID == null) {
+          continue;
+        }
+        final count = counts[localID] ?? 1;
+        if (count > 1 && file.generatedID != null) {
+          generatedIDsToDelete.add(file.generatedID!);
+        } else {
+          localIDsToClear.add(localID);
+        }
+      }
+      if (generatedIDsToDelete.isNotEmpty) {
+        await _db.deleteMultipleByGeneratedIDs(generatedIDsToDelete);
+      }
+      if (localIDsToClear.isNotEmpty) {
+        await _db.clearCollectionAndQueueSource(localIDsToClear);
+      }
+      _uploader.removeFromQueueWhere(
+        (file) =>
+            file.localID != null && unselectedLocalIDs.contains(file.localID),
+        UserCancelledUploadError(),
+        removeFromBackups: true,
+      );
+    }
+
     final bool shouldRemoveVideos =
         !_config.shouldBackupVideos() || bgWithoutResumableUpload;
     final ignoredIDs = await IgnoredFilesService.instance.idToIgnoreReasonMap;
@@ -598,7 +675,7 @@ class RemoteSyncService {
     final whitelistedIDs =
         (_prefs.getStringList(_ignoreBackUpSettingsForIDs_) ?? <String>[])
             .toSet();
-    for (var file in originalFiles) {
+    for (var file in selectionFiltered) {
       if (shouldRemoveVideos &&
           (file.fileType == FileType.video &&
               !whitelistedIDs.contains(file.localID))) {
