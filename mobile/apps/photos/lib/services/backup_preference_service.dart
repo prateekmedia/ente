@@ -122,8 +122,8 @@ class BackupPreferenceService {
       await _setAllFoldersShouldBackup(true);
       await setSelectAllFoldersForBackup(true);
       await setHasSelectedAnyBackupFolder(true);
-      // Only clear skip flag if first import is already done,
-      // otherwise LocalSyncService.sync() will handle it after first import
+      // Only clear skip flag if first import is done (folders loaded),
+      // ensuring user can see gallery properly after skip is cleared
       if (hasSkippedOnboardingPermission &&
           LocalSyncService.instance.hasCompletedFirstImport()) {
         await setOnboardingPermissionSkipped(false);

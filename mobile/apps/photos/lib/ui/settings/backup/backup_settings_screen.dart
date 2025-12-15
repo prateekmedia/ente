@@ -236,8 +236,8 @@ class BackupSettingsScreen extends StatelessWidget {
             _onlyNewToggleDebouncer.run(() async {
               await SyncService.instance.sync();
             });
-            // Only clear skip flag if first import is already done,
-            // otherwise LocalSyncService.sync() will handle it after first import
+            // Only clear skip flag if first import is done (folders loaded),
+            // ensuring user can see gallery properly after skip is cleared
             if (backupPreferenceService.hasSkippedOnboardingPermission &&
                 LocalSyncService.instance.hasCompletedFirstImport()) {
               await backupPreferenceService.setOnboardingPermissionSkipped(

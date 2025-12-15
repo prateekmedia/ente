@@ -129,9 +129,8 @@ class LocalSyncService {
       }
       if (!hasCompletedFirstImport()) {
         await _prefs.setBool(kHasCompletedFirstImportKey, true);
-        if (backupPreferenceService.hasSkippedOnboardingPermission) {
-          await backupPreferenceService.setOnboardingPermissionSkipped(false);
-        }
+        // Don't clear skip flag here - it should only clear when user
+        // makes an explicit backup folder selection decision
         await _refreshDeviceFolderCountAndCover(isFirstSync: true);
         _logger.info("first gallery import finished");
         Bus.instance

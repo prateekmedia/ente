@@ -235,8 +235,8 @@ class _GrantPermissionsWidgetState extends State<GrantPermissionsWidget> {
   }) async {
     _logger.info("Permission granted " + state.toString());
     await permissionService.onUpdatePermission(state);
-    // Don't clear skip flag here - let LocalSyncService.sync() handle it
-    // after first import completes to avoid race conditions
+    // Don't clear skip flag here - it should only clear when user
+    // makes an explicit backup folder selection decision
     if (shouldMarkLimitedFolders && state == PermissionState.limited) {
       // when limited permission is granted, by default mark all folders for
       // backup
