@@ -9,41 +9,42 @@ import 'package:dio/dio.dart';
 import 'package:ente_crypto/ente_crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
-import "package:path/path.dart";
-import "package:permission_handler/permission_handler.dart";
+import 'package:path/path.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:photos/core/configuration.dart';
-import "package:photos/core/constants.dart";
+import 'package:photos/core/constants.dart';
 import 'package:photos/core/errors.dart';
 import 'package:photos/core/event_bus.dart';
 import 'package:photos/core/network/network.dart';
 import 'package:photos/db/files_db.dart';
 import 'package:photos/db/upload_locks_db.dart';
-import "package:photos/events/backup_updated_event.dart";
-import "package:photos/events/file_uploaded_event.dart";
+import 'package:photos/events/backup_updated_event.dart';
+import 'package:photos/events/file_uploaded_event.dart';
 import 'package:photos/events/files_updated_event.dart';
 import 'package:photos/events/local_photos_updated_event.dart';
 import 'package:photos/events/subscription_purchased_event.dart';
-import "package:photos/extensions/logger_extension.dart";
-import "package:photos/main.dart" show isProcessBg, kLastBGTaskHeartBeatTime;
-import "package:photos/models/api/metadata.dart";
-import "package:photos/models/backup/backup_item.dart";
-import "package:photos/models/backup/backup_item_status.dart";
+import 'package:photos/extensions/logger_extension.dart';
+import 'package:photos/main.dart' show isProcessBg, kLastBGTaskHeartBeatTime;
+import 'package:photos/models/api/metadata.dart';
+import 'package:photos/models/backup/backup_item.dart';
+import 'package:photos/models/backup/backup_item_status.dart';
 import 'package:photos/models/file/file.dart';
 import 'package:photos/models/file/file_type.dart';
-import "package:photos/models/metadata/file_magic.dart";
-import "package:photos/models/user_details.dart";
+import 'package:photos/models/metadata/file_magic.dart';
+import 'package:photos/models/user_details.dart';
 import 'package:photos/module/upload/model/upload_url.dart';
-import "package:photos/module/upload/service/multipart.dart";
-import "package:photos/service_locator.dart";
-import "package:photos/services/account/user_service.dart";
+import 'package:photos/module/upload/service/multipart.dart';
+import 'package:photos/service_locator.dart';
+import 'package:photos/services/account/user_service.dart';
+import 'package:photos/services/backup/device_backup_selection_cache.dart';
 import 'package:photos/services/collections_service.dart';
 import 'package:photos/services/sync/local_sync_service.dart';
 import 'package:photos/services/sync/sync_service.dart';
-import "package:photos/utils/exif_util.dart";
-import "package:photos/utils/file_key.dart";
+import 'package:photos/utils/exif_util.dart';
+import 'package:photos/utils/file_key.dart';
 import 'package:photos/utils/file_uploader_util.dart';
-import "package:photos/utils/file_util.dart";
-import "package:photos/utils/network_util.dart";
+import 'package:photos/utils/file_util.dart';
+import 'package:photos/utils/network_util.dart';
 import 'package:photos/utils/standalone/data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tuple/tuple.dart';
@@ -74,6 +75,8 @@ class FileUploader {
 
   // Track used upload URLs to detect race conditions
   final Map<String, DateTime> _usedUploadURLs = {};
+  final DeviceBackupSelectionCache _selectionCache =
+      DeviceBackupSelectionCache.instance;
 
   LinkedHashMap<String, BackupItem> get allBackups => _allBackups;
 
@@ -142,6 +145,7 @@ class FileUploader {
       UploadLocksDB.instance,
       flagService,
     );
+    await _selectionCache.hydrateIfNeeded();
     if (currentTime - (_prefs.getInt(_lastStaleFileCleanupTime) ?? 0) >
         tempDirCleanUpInterval) {
       await removeStaleFiles();
@@ -277,8 +281,9 @@ class FileUploader {
 
   void removeFromQueueWhere(
     final bool Function(EnteFile) fn,
-    final Error reason,
-  ) {
+    final Error reason, {
+    bool removeFromBackups = false,
+  }) {
     final List<String> uploadsToBeRemoved = [];
     _queue.entries
         .where((entry) => entry.value.status == UploadStatus.notStarted)
@@ -289,8 +294,12 @@ class FileUploader {
     });
     for (final id in uploadsToBeRemoved) {
       _queue.remove(id)?.completer.completeError(reason);
-      _allBackups[id] = _allBackups[id]!
-          .copyWith(status: BackupItemStatus.retry, error: reason);
+      if (removeFromBackups) {
+        _allBackups.remove(id);
+      } else {
+        _allBackups[id] = _allBackups[id]!
+            .copyWith(status: BackupItemStatus.retry, error: reason);
+      }
       Bus.instance.fire(BackupUpdatedEvent(_allBackups));
     }
     _logger.info(
@@ -299,7 +308,37 @@ class FileUploader {
     _totalCountInUploadSession -= uploadsToBeRemoved.length;
   }
 
+  void _pruneUnselectedPendingUploads() {
+    final Set<String> localIDsToClear = {};
+    final List<String> idsToRemove = [];
+    _queue.entries
+        .where((entry) => entry.value.status == UploadStatus.notStarted)
+        .forEach((entry) {
+      final file = entry.value.file;
+      if (!_selectionCache.isSelected(file.queueSource)) {
+        idsToRemove.add(entry.key);
+        if (file.localID != null) {
+          localIDsToClear.add(file.localID!);
+        }
+      }
+    });
+    if (idsToRemove.isEmpty) {
+      return;
+    }
+    for (final id in idsToRemove) {
+      _queue.remove(id)?.completer.completeError(UserCancelledUploadError());
+      _allBackups.remove(id);
+    }
+    _totalCountInUploadSession -= idsToRemove.length;
+    Bus.instance.fire(BackupUpdatedEvent(_allBackups));
+
+    if (localIDsToClear.isNotEmpty) {
+      FilesDB.instance.clearCollectionAndQueueSource(localIDsToClear);
+    }
+  }
+
   void _pollQueue() {
+    _pruneUnselectedPendingUploads();
     _logger.internalInfo(
       "[UPLOAD-DEBUG] _pollQueue() called. Queue size: ${_queue.length}, "
       "uploadCounter: $_uploadCounter/$kMaximumConcurrentUploads, "
