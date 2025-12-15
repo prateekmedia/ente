@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:photos/db/device_files_db.dart';
 import 'package:photos/db/files_db.dart';
 import 'package:photos/models/device_collection.dart';
+import 'package:photos/services/sync/local_sync_service.dart';
 import 'package:photos/services/sync/remote_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -121,7 +122,10 @@ class BackupPreferenceService {
       await _setAllFoldersShouldBackup(true);
       await setSelectAllFoldersForBackup(true);
       await setHasSelectedAnyBackupFolder(true);
-      if (hasSkippedOnboardingPermission) {
+      // Only clear skip flag if first import is already done,
+      // otherwise LocalSyncService.sync() will handle it after first import
+      if (hasSkippedOnboardingPermission &&
+          LocalSyncService.instance.hasCompletedFirstImport()) {
         await setOnboardingPermissionSkipped(false);
       }
       _logger.info('Auto-selected all folders for backup');
