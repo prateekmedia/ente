@@ -308,37 +308,35 @@ class FileUploader {
     _totalCountInUploadSession -= uploadsToBeRemoved.length;
   }
 
-  void _pruneUnselectedPendingUploads() {
-    final Set<String> localIDsToClear = {};
-    final List<String> idsToRemove = [];
-    _queue.entries
-        .where((entry) => entry.value.status == UploadStatus.notStarted)
-        .forEach((entry) {
-      final file = entry.value.file;
-      if (!_selectionCache.isSelected(file.queueSource)) {
-        idsToRemove.add(entry.key);
-        if (file.localID != null) {
-          localIDsToClear.add(file.localID!);
-        }
-      }
-    });
-    if (idsToRemove.isEmpty) {
-      return;
+  bool _dropFirstUnselectedPending() {
+    final entry = _queue.entries.firstWhereOrNull(
+      (e) =>
+          e.value.status == UploadStatus.notStarted &&
+          !_selectionCache.isSelected(e.value.file.queueSource),
+    );
+    if (entry == null) {
+      return false;
     }
-    for (final id in idsToRemove) {
-      _queue.remove(id)?.completer.completeError(UserCancelledUploadError());
-      _allBackups.remove(id);
-    }
-    _totalCountInUploadSession -= idsToRemove.length;
-    Bus.instance.fire(BackupUpdatedEvent(_allBackups));
 
-    if (localIDsToClear.isNotEmpty) {
-      FilesDB.instance.clearCollectionAndQueueSource(localIDsToClear);
+    final file = entry.value.file;
+    _queue
+        .remove(entry.key)
+        ?.completer
+        .completeError(UserCancelledUploadError());
+    _allBackups.remove(entry.key);
+    if (file.localID != null) {
+      FilesDB.instance.clearCollectionAndQueueSource({file.localID!});
     }
+    _totalCountInUploadSession--;
+    Bus.instance.fire(BackupUpdatedEvent(_allBackups));
+    return true;
   }
 
   void _pollQueue() {
-    _pruneUnselectedPendingUploads();
+    if (_dropFirstUnselectedPending()) {
+      _pollQueue();
+      return;
+    }
     _logger.internalInfo(
       "[UPLOAD-DEBUG] _pollQueue() called. Queue size: ${_queue.length}, "
       "uploadCounter: $_uploadCounter/$kMaximumConcurrentUploads, "
