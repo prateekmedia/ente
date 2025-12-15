@@ -1111,15 +1111,42 @@ class FilesDB with SqlDbBase {
       return;
     }
     final db = await instance.sqliteAsyncDB;
-    final inParam = localIDs.map((id) => "'$id'").join(',');
-    await db.execute(
-      '''
-      UPDATE $filesTable
-      SET $columnCollectionID = -1,
-          $columnQueueSource = NULL
-      WHERE $columnLocalID IN ($inParam);
-    ''',
-    );
+
+    final counts = await getLocalIDCounts(localIDs);
+    final Set<String> toDelete = {};
+    final Set<String> toUpdate = {};
+
+    for (final id in localIDs) {
+      final count = counts[id] ?? 0;
+      if (count > 1) {
+        toDelete.add(id);
+      } else {
+        toUpdate.add(id);
+      }
+    }
+
+    if (toDelete.isNotEmpty) {
+      final deleteInParam = toDelete.map((id) => "'$id'").join(',');
+      await db.execute(
+        '''
+        DELETE FROM $filesTable
+        WHERE $columnLocalID IN ($deleteInParam);
+      ''',
+      );
+    }
+
+    if (toUpdate.isNotEmpty) {
+      final updateInParam = toUpdate.map((id) => "'$id'").join(',');
+      await db.execute(
+        '''
+        UPDATE $filesTable
+        SET $columnCollectionID = -1,
+            $columnQueueSource = NULL,
+            $columnUploadedFileID = -1
+        WHERE $columnLocalID IN ($updateInParam);
+      ''',
+      );
+    }
   }
 
   Future<void> markFilesForReUpload(
