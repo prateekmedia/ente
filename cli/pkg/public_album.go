@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"net/url"
@@ -19,6 +20,64 @@ import (
 	"github.com/ente-io/cli/utils"
 	"github.com/ente-io/cli/utils/encoding"
 )
+
+// safeMove moves a file atomically to prevent corruption.
+// It first copies to a temp file in the destination directory, syncs, then renames.
+// The destination file is either complete or doesn't exist - never partial.
+func safeMove(source, destination string) error {
+	// Try atomic rename first (works on same filesystem)
+	if err := os.Rename(source, destination); err == nil {
+		return nil
+	}
+
+	// Cross-device: copy to temp file in destination dir, then atomic rename
+	destDir := filepath.Dir(destination)
+	tempFile, err := os.CreateTemp(destDir, ".ente-tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tempPath := tempFile.Name()
+
+	// Clean up temp file on any error
+	success := false
+	defer func() {
+		if !success {
+			os.Remove(tempPath)
+		}
+	}()
+
+	src, err := os.Open(source)
+	if err != nil {
+		tempFile.Close()
+		return fmt.Errorf("failed to open source: %w", err)
+	}
+
+	if _, err = io.Copy(tempFile, src); err != nil {
+		src.Close()
+		tempFile.Close()
+		return fmt.Errorf("failed to copy: %w", err)
+	}
+	src.Close()
+
+	// Sync to ensure all data is on disk before rename
+	if err = tempFile.Sync(); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("failed to sync: %w", err)
+	}
+
+	if err = tempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
+
+	// Atomic rename - this is the critical step that ensures no corruption
+	if err = os.Rename(tempPath, destination); err != nil {
+		return fmt.Errorf("failed to rename temp file: %w", err)
+	}
+
+	success = true
+	os.Remove(source)
+	return nil
+}
 
 // Base58 alphabet used by Ente (same as Bitcoin)
 const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -244,7 +303,7 @@ func (c *ClICtrl) DownloadRandomFromPublicAlbum(albumURL, outputPath, fileType, 
 		if outputIsFile {
 			// For live photos with file output, save the image part to the specified path
 			if imagePath != "" {
-				if err := Move(imagePath, outputPath); err != nil {
+				if err := safeMove(imagePath, outputPath); err != nil {
 					return err
 				}
 			}
@@ -252,7 +311,7 @@ func (c *ClICtrl) DownloadRandomFromPublicAlbum(albumURL, outputPath, fileType, 
 			if videoPath != "" {
 				videoExt := filepath.Ext(videoPath)
 				videoDest := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + videoExt
-				if err := Move(videoPath, videoDest); err != nil {
+				if err := safeMove(videoPath, videoDest); err != nil {
 					return err
 				}
 			}
@@ -260,13 +319,13 @@ func (c *ClICtrl) DownloadRandomFromPublicAlbum(albumURL, outputPath, fileType, 
 			baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 			if imagePath != "" {
 				dest := filepath.Join(outputPath, fmt.Sprintf("%s%s", baseName, filepath.Ext(imagePath)))
-				if err := Move(imagePath, dest); err != nil {
+				if err := safeMove(imagePath, dest); err != nil {
 					return err
 				}
 			}
 			if videoPath != "" {
 				dest := filepath.Join(outputPath, fmt.Sprintf("%s%s", baseName, filepath.Ext(videoPath)))
-				if err := Move(videoPath, dest); err != nil {
+				if err := safeMove(videoPath, dest); err != nil {
 					return err
 				}
 			}
@@ -281,7 +340,7 @@ func (c *ClICtrl) DownloadRandomFromPublicAlbum(albumURL, outputPath, fileType, 
 	} else {
 		dest = filepath.Join(outputPath, fileName)
 	}
-	if err := Move(decryptedPath, dest); err != nil {
+	if err := safeMove(decryptedPath, dest); err != nil {
 		return err
 	}
 
