@@ -53,14 +53,14 @@ func init() {
 
 	// random subcommand (requires login)
 	randomAlbumCmd.Flags().StringP("album", "a", "", "Album name (required)")
-	randomAlbumCmd.Flags().StringP("output", "o", ".", "Output directory for the downloaded file")
-	randomAlbumCmd.Flags().StringP("type", "t", "", "Optional file type filter: image | video | live")
+	randomAlbumCmd.Flags().StringP("output", "o", ".", "Output path (file or directory)")
+	randomAlbumCmd.Flags().StringP("type", "t", "", "Filter: image|video|live or extension like .jpg, .png, .mp4")
 	_ = randomAlbumCmd.MarkFlagRequired("album")
 
 	// random-link subcommand (public albums, no login)
 	randomLinkCmd.Flags().StringP("url", "u", "", "Public album URL (required)")
-	randomLinkCmd.Flags().StringP("output", "o", ".", "Output directory for the downloaded file")
-	randomLinkCmd.Flags().StringP("type", "t", "", "Optional file type filter: image | video | live")
+	randomLinkCmd.Flags().StringP("output", "o", ".", "Output path (file or directory)")
+	randomLinkCmd.Flags().StringP("type", "t", "", "Filter: image|video|live or extension like .jpg, .png, .mp4")
 	randomLinkCmd.Flags().StringP("password", "p", "", "Password for protected albums")
 	_ = randomLinkCmd.MarkFlagRequired("url")
 

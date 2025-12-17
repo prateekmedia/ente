@@ -194,7 +194,7 @@ func (c *ClICtrl) DownloadRandomFromPublicAlbum(albumURL, outputPath, fileType, 
 		}
 	}
 
-	typeFilter, err := parseFileType(fileType)
+	typeFilter, err := parseFileFilter(fileType)
 	if err != nil {
 		return err
 	}
@@ -254,10 +254,10 @@ func (c *ClICtrl) DownloadRandomFromPublicAlbum(albumURL, outputPath, fileType, 
 		return fmt.Errorf("no files found in this public album")
 	}
 
-	// Filter by type if specified
+	// Filter by type/extension if specified
 	var candidates []model.RemoteFile
 	for _, f := range files {
-		if typeFilter != nil && f.GetFileType() != *typeFilter {
+		if !typeFilter.matchesFile(f) {
 			continue
 		}
 		candidates = append(candidates, f)

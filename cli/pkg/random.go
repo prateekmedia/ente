@@ -54,7 +54,7 @@ func (c *ClICtrl) DownloadRandomFromAlbum(albumName, outputPath, fileType string
 		}
 	}
 
-	typeFilter, err := parseFileType(fileType)
+	typeFilter, err := parseFileFilter(fileType)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (c *ClICtrl) syncAlbumFilesMetadata(ctx context.Context, album model.Remote
 	return nil
 }
 
-func (c *ClICtrl) getAlbumCandidates(ctx context.Context, albumID int64, typeFilter *model.FileType) ([]model.RemoteFile, error) {
+func (c *ClICtrl) getAlbumCandidates(ctx context.Context, albumID int64, filter *fileFilter) ([]model.RemoteFile, error) {
 	entries, err := c.getRemoteAlbumEntries(ctx)
 	if err != nil {
 		return nil, err
@@ -299,7 +299,7 @@ func (c *ClICtrl) getAlbumCandidates(ctx context.Context, albumID int64, typeFil
 			return nil, err
 		}
 
-		if typeFilter != nil && file.GetFileType() != *typeFilter {
+		if !filter.matchesFile(file) {
 			continue
 		}
 		files = append(files, file)
@@ -308,24 +308,59 @@ func (c *ClICtrl) getAlbumCandidates(ctx context.Context, albumID int64, typeFil
 	return files, nil
 }
 
-func parseFileType(value string) (*model.FileType, error) {
+// fileFilter holds either a file type or extension filter
+type fileFilter struct {
+	fileType  *model.FileType
+	extension string // with dot, e.g. ".jpg"
+}
+
+// matchesFile checks if a file matches this filter
+func (f *fileFilter) matchesFile(file model.RemoteFile) bool {
+	if f == nil {
+		return true
+	}
+	if f.fileType != nil {
+		return file.GetFileType() == *f.fileType
+	}
+	if f.extension != "" {
+		fileName := strings.ToLower(file.GetTitle())
+		return strings.HasSuffix(fileName, f.extension)
+	}
+	return true
+}
+
+func parseFileFilter(value string) (*fileFilter, error) {
 	value = strings.TrimSpace(strings.ToLower(value))
 	if value == "" {
 		return nil, nil
 	}
 
+	// Check if it's an extension (starts with . or common extensions)
+	if strings.HasPrefix(value, ".") {
+		return &fileFilter{extension: value}, nil
+	}
+
+	// Check for common extensions without dot
+	commonExts := []string{"jpg", "jpeg", "png", "gif", "webp", "heic", "mp4", "mov", "avi", "mkv"}
+	for _, ext := range commonExts {
+		if value == ext {
+			return &fileFilter{extension: "." + value}, nil
+		}
+	}
+
+	// Check for file types
 	switch value {
 	case "image", "photo":
 		t := model.Image
-		return &t, nil
+		return &fileFilter{fileType: &t}, nil
 	case "video":
 		t := model.Video
-		return &t, nil
+		return &fileFilter{fileType: &t}, nil
 	case "live":
 		t := model.LivePhoto
-		return &t, nil
+		return &fileFilter{fileType: &t}, nil
 	default:
-		return nil, fmt.Errorf("invalid type %q. allowed values: image, video, live", value)
+		return nil, fmt.Errorf("invalid filter %q. use: image, video, live, or extension like .jpg, .png, .mp4", value)
 	}
 }
 
