@@ -11,12 +11,26 @@ type Collection struct {
 	NameDecryptionNonce string           `json:"nameDecryptionNonce"`
 	Type                string           `json:"type" binding:"required"`
 	Sharees             []CollectionUser `json:"sharees"`
+	PublicURLs          []PublicURL      `json:"publicURLs,omitempty"`
 	UpdationTime        int64            `json:"updationTime"`
 	IsDeleted           bool             `json:"isDeleted,omitempty"`
 	MagicMetadata       *MagicMetadata   `json:"magicMetadata,omitempty"`
 	PublicMagicMetadata *MagicMetadata   `json:"pubMagicMetadata,omitempty"`
 	SharedMagicMetadata *MagicMetadata   `json:"sharedMagicMetadata,omitempty"`
 	collectionKey       []byte
+}
+
+// PublicURL represents a public sharing URL for a collection
+type PublicURL struct {
+	URL             string  `json:"url"`
+	DeviceLimit     int     `json:"deviceLimit"`
+	ValidTill       int64   `json:"validTill"`
+	EnableDownload  bool    `json:"enableDownload"`
+	EnableCollect   bool    `json:"enableCollect"`
+	PasswordEnabled bool    `json:"passwordEnabled"`
+	Nonce           *string `json:"nonce,omitempty"`
+	MemLimit        *int64  `json:"memLimit,omitempty"`
+	OpsLimit        *int64  `json:"opsLimit,omitempty"`
 }
 
 // CollectionUser represents the owner of a collection
