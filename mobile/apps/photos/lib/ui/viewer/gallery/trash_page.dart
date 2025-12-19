@@ -72,32 +72,32 @@ class TrashPage extends StatelessWidget {
           ),
           body: SelectionState(
             selectedFiles: _selectedFiles,
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                gallery,
-                const BottomShadowWidget(
-                  offsetDy: 20,
-                ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  height: filesAreSelected ? 0 : 80,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 100),
-                    opacity: filesAreSelected ? 0.0 : 1.0,
-                    curve: Curves.easeIn,
-                    child: IgnorePointer(
-                      ignoring: filesAreSelected,
-                      child: const SafeArea(
-                        minimum: EdgeInsets.only(bottom: 6),
-                        child: BottomButtonsWidget(),
+            child: SafeArea(
+              top: false,
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  gallery,
+                  const BottomShadowWidget(
+                    offsetDy: 20,
+                  ),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    height: filesAreSelected ? 0 : 80,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 100),
+                      opacity: filesAreSelected ? 0.0 : 1.0,
+                      curve: Curves.easeIn,
+                      child: IgnorePointer(
+                        ignoring: filesAreSelected,
+                        child: const BottomButtonsWidget(),
                       ),
                     ),
                   ),
-                ),
-                FileSelectionOverlayBar(GalleryType.trash, _selectedFiles),
-              ],
+                  FileSelectionOverlayBar(GalleryType.trash, _selectedFiles),
+                ],
+              ),
             ),
           ),
         ),

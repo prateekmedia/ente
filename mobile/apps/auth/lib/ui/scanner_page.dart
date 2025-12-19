@@ -65,67 +65,70 @@ class ScannerPageState extends State<ScannerPage> {
       appBar: AppBar(
         title: Text(l10n.scan),
       ),
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            flex: 5,
-            child: QRView(
-              key: qrKey,
-              onQRViewCreated: _onQRViewCreated,
-              formatsAllowed: const [BarcodeFormat.qrcode],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              flex: 5,
+              child: QRView(
+                key: qrKey,
+                onQRViewCreated: _onQRViewCreated,
+                formatsAllowed: const [BarcodeFormat.qrcode],
+              ),
             ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: showGalleryImport
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: totp != null
-                                ? Text(
-                                    totp!,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                          Semantics(
-                            button: true,
-                            label: l10n.importFromGallery,
-                            child: Opacity(
-                              opacity: _isImportingFromGallery ? 0.5 : 1,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 12),
-                                child: IconButtonWidget(
-                                  icon: Icons.photo_library_outlined,
-                                  iconButtonType: IconButtonType.rounded,
-                                  onTap: _isImportingFromGallery
-                                      ? null
-                                      : _handleImportFromGallery,
-                                  defaultColor: galleryBackgroundColor,
-                                  iconColor: galleryIconColor,
-                                  pressedColor: galleryPressedColor,
-                                  size: 28,
-                                  padding: const EdgeInsets.all(14),
+            Expanded(
+              flex: 1,
+              child: Center(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: showGalleryImport
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: totp != null
+                                  ? Text(
+                                      totp!,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium,
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            Semantics(
+                              button: true,
+                              label: l10n.importFromGallery,
+                              child: Opacity(
+                                opacity: _isImportingFromGallery ? 0.5 : 1,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: IconButtonWidget(
+                                    icon: Icons.photo_library_outlined,
+                                    iconButtonType: IconButtonType.rounded,
+                                    onTap: _isImportingFromGallery
+                                        ? null
+                                        : _handleImportFromGallery,
+                                    defaultColor: galleryBackgroundColor,
+                                    iconColor: galleryIconColor,
+                                    pressedColor: galleryPressedColor,
+                                    size: 28,
+                                    padding: const EdgeInsets.all(14),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        totp ?? l10n.scanACode,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                          ],
+                        )
+                      : Text(
+                          totp ?? l10n.scanACode,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
