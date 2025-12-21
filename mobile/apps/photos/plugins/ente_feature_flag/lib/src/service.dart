@@ -49,7 +49,6 @@ class FlagService {
   }
 
   bool get enableAdminRole => internalUser;
-  bool get surfacePublicLink => internalUser;
   bool get enableDeleteSuggestion => internalUser;
 
   bool get betaUser => flags.betaUser;
@@ -89,13 +88,17 @@ class FlagService {
   bool get enableOnlyBackupFuturePhotos => internalUser;
 
   bool get facesTimeline => internalUser;
-  bool get ritualsFlag => internalUser;
+  bool get ritualsFlag => true;
 
   bool get pauseStreamDuringUpload => internalUser;
 
   bool get streamEnabledByDefault => internalUser;
 
-  bool get manualTagFileToPerson => internalUser && hasGrantedMLConsent;
+  bool get manualTagFileToPerson => hasGrantedMLConsent;
+
+  bool get enableShareePin => true;
+
+  bool get stopStreamOnLogOut => internalUser;
 
   Future<void> tryRefreshFlags() async {
     try {
