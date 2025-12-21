@@ -48,14 +48,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tuple/tuple.dart';
 import "package:uuid/uuid.dart";
 
-extension FileUploadItemX on FileUploadItem? {
-  // Treat null as manual for backwards compatibility with old queued files
-  bool get isManualUpload {
-    final source = this?.file.queueSource;
-    return source == null || source == manualQueueSource;
-  }
-}
-
 class FileUploader {
   static const kMaximumConcurrentUploads = 4;
   static const kMaximumConcurrentVideoUploads = 2;
@@ -258,9 +250,8 @@ class FileUploader {
 
   void removeFromQueueWhere(
     final bool Function(EnteFile) fn,
-    final Error reason, {
-    bool skip = false,
-  }) {
+    final Error reason,
+  ) {
     final List<String> uploadsToBeRemoved = [];
     _queue.entries
         .where((entry) => entry.value.status == UploadStatus.notStarted)
@@ -271,12 +262,8 @@ class FileUploader {
     });
     for (final id in uploadsToBeRemoved) {
       _queue.remove(id)?.completer.completeError(reason);
-      if (skip) {
-        _allBackups.remove(id);
-      } else {
-        _allBackups[id] = _allBackups[id]!
-            .copyWith(status: BackupItemStatus.retry, error: reason);
-      }
+      _allBackups[id] = _allBackups[id]!
+          .copyWith(status: BackupItemStatus.retry, error: reason);
       Bus.instance.fire(BackupUpdatedEvent(_allBackups));
     }
     _logger.info(
@@ -285,74 +272,56 @@ class FileUploader {
     _totalCountInUploadSession -= uploadsToBeRemoved.length;
   }
 
-  Future<void> _cleanupAndSkip(FileUploadItem entry, Error error) async {
-    final localId = entry.file.localID;
-    if (localId != null) {
-      await FilesDB.instance.cleanupPendingUploadsFromCollection(
-        [localId],
-        entry.collectionID,
-      );
-      _queue.remove(localId);
-      _allBackups.remove(localId);
-      if (_totalCountInUploadSession > 0) {
-        _totalCountInUploadSession--;
-      }
-      Bus.instance.fire(BackupUpdatedEvent(_allBackups));
-    }
-    entry.completer.completeError(error);
-  }
-
   /// Checks if a pending upload should be skipped based on current backup preferences.
-  ///
   /// Returns true if the entry was skipped, false otherwise.
   ///
   /// Skip conditions:
-  /// 1. Backup folder was deselected (only when enableBackupFolderSync flag is on)
+  /// 1. Backup folder was deselected
   /// 2. File is older than the "only new photos" preference epoch
   ///
-  /// Note: Files with null queueSource (legacy queued files before this feature)
-  /// or manualQueueSource are treated as manual uploads and never skipped.
-  /// This ensures backward compatibility and preserves user intent for manual uploads.
-  Future<bool> _skipPendingEntryIfFilteredOut(
-    FileUploadItem? pendingEntry,
-  ) async {
-    // Early exit if the feature flag is disabled
-    if (!flagService.enableBackupFolderSync) {
-      return false;
-    }
+  /// Files with null/manual queueSource are never skipped (preserves user intent).
+  Future<bool> _shouldSkipPendingEntry(FileUploadItem? entry) async {
+    if (!flagService.enableBackupFolderSync) return false;
+    if (entry == null) return false;
 
-    if (pendingEntry == null || pendingEntry.isManualUpload) {
-      return false;
-    }
+    final queueSource = entry.file.queueSource;
+    // Null or manual queueSource = manual upload, never skip
+    if (queueSource == null || queueSource == manualQueueSource) return false;
 
-    final queueSource = pendingEntry.file.queueSource!;
+    // Check if folder is still selected
+    final isSelected = await deviceFolderSelectionCache.isSelected(queueSource);
+    if (!isSelected) return true;
 
-    Error? skipReason;
-
-    final isSelected = await deviceFolderSelectionCache.isSelected(
-      queueSource,
-    );
-    if (!isSelected) {
-      skipReason = BackupFolderDeselectedError();
-    }
-
-    final int? onlyNewSinceEpoch = backupPreferenceService.onlyNewSinceEpoch;
-    if (skipReason == null &&
-        onlyNewSinceEpoch != null &&
-        (pendingEntry.file.creationTime ?? 0) < onlyNewSinceEpoch) {
-      skipReason = BackupTooOldForPreferenceError();
-    }
-
-    if (skipReason != null) {
-      // Mark as in-progress immediately to prevent race conditions with
-      // concurrent _pollQueue calls before the async cleanup completes
-      pendingEntry.status = UploadStatus.inProgress;
-      await _cleanupAndSkip(pendingEntry, skipReason);
-      scheduleMicrotask(_pollQueue);
+    // Check only-new preference
+    final onlyNewSinceEpoch = backupPreferenceService.onlyNewSinceEpoch;
+    if (onlyNewSinceEpoch != null &&
+        (entry.file.creationTime ?? 0) < onlyNewSinceEpoch) {
       return true;
     }
 
     return false;
+  }
+
+  /// Removes a pending entry from queue and cleans up DB.
+  Future<void> _skipAndCleanup(FileUploadItem entry) async {
+    final localId = entry.file.localID;
+    final queueSource = entry.file.queueSource;
+
+    if (localId != null && queueSource != null) {
+      await FilesDB.instance.cleanupFilteredPendingUpload(
+        localId,
+        entry.collectionID,
+        queueSource,
+      );
+    }
+
+    _queue.remove(localId);
+    _allBackups.remove(localId);
+    if (_totalCountInUploadSession > 0) {
+      _totalCountInUploadSession--;
+    }
+    Bus.instance.fire(BackupUpdatedEvent(_allBackups));
+    entry.completer.completeError(SilentlyCancelUploadsError());
   }
 
   Future<void> _pollQueue() async {
@@ -384,12 +353,15 @@ class FileUploader {
             )
             ?.value;
       }
-      final bool wasSkipped = await _skipPendingEntryIfFilteredOut(
-        pendingEntry,
-      );
-      if (wasSkipped) {
+
+      // Check if entry should be skipped (folder deselected or too old)
+      if (await _shouldSkipPendingEntry(pendingEntry)) {
+        pendingEntry!.status = UploadStatus.inProgress; // Prevent re-polling
+        await _skipAndCleanup(pendingEntry);
+        scheduleMicrotask(() => _pollQueue());
         return;
       }
+
       if (pendingEntry != null) {
         pendingEntry.status = UploadStatus.inProgress;
         _allBackups[pendingEntry.file.localID!] =

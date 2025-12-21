@@ -37,6 +37,7 @@ class EnteFile {
       _queueSource = value;
     }
   }
+
   int? creationTime;
   int? modificationTime;
   int? updationTime;

@@ -5,13 +5,11 @@ import 'dart:math';
 import 'package:flutter/widgets.dart';
 import 'package:logging/logging.dart';
 import 'package:photos/core/configuration.dart';
-import 'package:photos/core/constants.dart' show manualQueueSource;
 import 'package:photos/core/errors.dart';
 import 'package:photos/core/event_bus.dart';
 import 'package:photos/db/device_files_db.dart';
 import 'package:photos/db/file_updation_db.dart';
 import 'package:photos/db/files_db.dart';
-import 'package:photos/db/upload_locks_db.dart';
 import 'package:photos/events/backup_folders_updated_event.dart';
 import 'package:photos/events/collection_updated_event.dart';
 import 'package:photos/events/diff_sync_complete_event.dart';
@@ -505,17 +503,8 @@ class RemoteSyncService {
     Bus.instance.fire(BackupFoldersUpdatedEvent());
   }
 
-  /// Removes auto-queued files pending upload for the given collections.
+  /// Removes files pending upload for the given collections.
   ///
-  /// When enableBackupFolderSync is ON:
-  /// For each collection:
-  /// 1) Get list of all files not uploaded yet (pending uploads).
-  /// 2) Skip files that were manually queued or have no queueSource
-  ///    (preserves user intent for manual uploads).
-  /// 3) Clean up remaining auto-queued files via DB (handles uniqueness conflicts).
-  /// 4) Clean up any associated multipart upload tracks.
-  ///
-  /// When enableBackupFolderSync is OFF (legacy behavior):
   /// For each collection:
   /// 1) Get list of all files not uploaded yet (pending uploads).
   /// 2) Delete files whose localIDs are also present in other collections.
@@ -533,74 +522,39 @@ class RemoteSyncService {
         continue;
       }
 
-      if (flagService.enableBackupFolderSync) {
-        // New behavior: use queueSource to filter, DB handles cleanup
-        final List<String> localIDsToCleanup = [];
+      _logger.info(
+        "RemovingFiles $collectionID: pendingUploads ${pendingUploads.length}",
+      );
 
-        for (EnteFile pendingUpload in pendingUploads) {
-          if (pendingUpload.queueSource == null ||
-              pendingUpload.queueSource == manualQueueSource) {
-            continue;
-          }
-          if (pendingUpload.localID != null) {
-            localIDsToCleanup.add(pendingUpload.localID!);
-          }
+      final Set<String> localIDsInOtherFileEntries =
+          await _db.getLocalIDsPresentInEntries(
+        pendingUploads,
+        collectionID,
+      );
+      _logger.info(
+        "RemovingFiles $collectionID: filesInOtherCollection "
+        "${localIDsInOtherFileEntries.length}",
+      );
+
+      final List<EnteFile> entriesToUpdate = [];
+      final List<int> entriesToDelete = [];
+
+      for (EnteFile pendingUpload in pendingUploads) {
+        if (localIDsInOtherFileEntries.contains(pendingUpload.localID)) {
+          entriesToDelete.add(pendingUpload.generatedID!);
+        } else {
+          pendingUpload.collectionID = null;
+          entriesToUpdate.add(pendingUpload);
         }
-
-        if (localIDsToCleanup.isEmpty) {
-          continue;
-        }
-
-        // DB method handles uniqueness conflicts internally
-        final result = await _db.cleanupPendingUploadsFromCollection(
-          localIDsToCleanup,
-          collectionID,
-        );
-
-        for (final localID in localIDsToCleanup) {
-          await UploadLocksDB.instance.deleteMultipartTrack(localID);
-        }
-
-        _logger.info(
-          "RemovingFiles $collectionID: deleted ${result.deleted}, "
-          "updated ${result.updated}",
-        );
-      } else {
-        // Legacy behavior: delete duplicates, nullify collectionID for rest
-        _logger.info(
-          "RemovingFiles $collectionID: pendingUploads ${pendingUploads.length}",
-        );
-
-        final Set<String> localIDsInOtherFileEntries =
-            await _db.getLocalIDsPresentInEntries(
-          pendingUploads,
-          collectionID,
-        );
-        _logger.info(
-          "RemovingFiles $collectionID: filesInOtherCollection "
-          "${localIDsInOtherFileEntries.length}",
-        );
-
-        final List<EnteFile> entriesToUpdate = [];
-        final List<int> entriesToDelete = [];
-
-        for (EnteFile pendingUpload in pendingUploads) {
-          if (localIDsInOtherFileEntries.contains(pendingUpload.localID)) {
-            entriesToDelete.add(pendingUpload.generatedID!);
-          } else {
-            pendingUpload.collectionID = null;
-            entriesToUpdate.add(pendingUpload);
-          }
-        }
-
-        await _db.deleteMultipleByGeneratedIDs(entriesToDelete);
-        await _db.insertMultiple(entriesToUpdate);
-
-        _logger.info(
-          "RemovingFiles $collectionID: deleted ${entriesToDelete.length} "
-          "and updated ${entriesToUpdate.length}",
-        );
       }
+
+      await _db.deleteMultipleByGeneratedIDs(entriesToDelete);
+      await _db.insertMultiple(entriesToUpdate);
+
+      _logger.info(
+        "RemovingFiles $collectionID: deleted ${entriesToDelete.length} "
+        "and updated ${entriesToUpdate.length}",
+      );
     }
   }
 
@@ -833,12 +787,6 @@ class RemoteSyncService {
     EnteFile file,
   ) {
     if (error == null) {
-      return;
-    }
-    if (error is BackupFolderDeselectedError) {
-      return;
-    }
-    if (error is BackupTooOldForPreferenceError) {
       return;
     }
     if (error is SilentlyCancelUploadsError) {
