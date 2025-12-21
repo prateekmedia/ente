@@ -258,9 +258,8 @@ class FileUploader {
 
   void removeFromQueueWhere(
     final bool Function(EnteFile) fn,
-    final Error reason, {
-    bool skip = false,
-  }) {
+    final Error reason,
+  ) {
     final List<String> uploadsToBeRemoved = [];
     _queue.entries
         .where((entry) => entry.value.status == UploadStatus.notStarted)
@@ -271,12 +270,8 @@ class FileUploader {
     });
     for (final id in uploadsToBeRemoved) {
       _queue.remove(id)?.completer.completeError(reason);
-      if (skip) {
-        _allBackups.remove(id);
-      } else {
-        _allBackups[id] = _allBackups[id]!
-            .copyWith(status: BackupItemStatus.retry, error: reason);
-      }
+      _allBackups[id] = _allBackups[id]!
+          .copyWith(status: BackupItemStatus.retry, error: reason);
       Bus.instance.fire(BackupUpdatedEvent(_allBackups));
     }
     _logger.info(
@@ -287,10 +282,12 @@ class FileUploader {
 
   Future<void> _cleanupAndSkip(FileUploadItem entry, Error error) async {
     final localId = entry.file.localID;
-    if (localId != null) {
+    final queueSource = entry.file.queueSource;
+    if (localId != null && queueSource != null) {
       await FilesDB.instance.cleanupPendingUploadsFromCollection(
         [localId],
         entry.collectionID,
+        queueSource,
       );
       _queue.remove(localId);
       _allBackups.remove(localId);

@@ -1478,20 +1478,18 @@ class FilesDB with SqlDbBase {
     return convertToFiles(results);
   }
 
-  /// Cleanup a file entry from the database by localID and collectionID.
-  /// This is used when a file should be removed from pending uploads (e.g., folder
-  /// deselected, file too old for only-new backup preference).
-  /// Cleans up pending upload entries from a collection by localIDs.
+  /// Cleans up pending upload entries for the given localIDs in a collection.
   ///
-  /// For each localID, if another entry already exists with null collectionID
-  /// and null uploadedFileID, the entry is deleted to avoid uniqueness
-  /// conflicts. Otherwise, the entry's collectionID and queueSource are set
-  /// to null, allowing it to be re-queued on next sync.
+  /// For each localID:
+  /// - If another pending entry already exists with a null collectionID,
+  ///   delete the current row to avoid unique constraint conflicts.
+  /// - Otherwise, clear collectionID and queueSource for the matching row.
   ///
   /// Returns a record with counts of (deleted, updated) entries.
   Future<({int deleted, int updated})> cleanupPendingUploadsFromCollection(
     List<String> localIDs,
     int collectionId,
+    String queueSource,
   ) async {
     if (localIDs.isEmpty) {
       return (deleted: 0, updated: 0);
@@ -1501,13 +1499,13 @@ class FilesDB with SqlDbBase {
       final db = await instance.sqliteAsyncDB;
       final inParam = localIDs.map((id) => "'$id'").join(',');
 
-      // Find localIDs that already have entries with null collectionID
+      // Find localIDs that already have entries with null collectionID.
       final existingRows = await db.getAll(
         '''
         SELECT $columnLocalID FROM $filesTable
         WHERE $columnLocalID IN ($inParam)
           AND ($columnCollectionID IS NULL OR $columnCollectionID = -1)
-          AND $columnUploadedFileID IS NULL;
+          AND ($columnUploadedFileID IS NULL OR $columnUploadedFileID = -1);
         ''',
       );
       final localIDsWithNullCollection = {
@@ -1529,9 +1527,10 @@ class FilesDB with SqlDbBase {
           DELETE FROM $filesTable
           WHERE $columnLocalID IN ($deleteInParam)
           AND $columnCollectionID = ?
+          AND $columnQueueSource = ?
           AND ($columnUploadedFileID IS NULL OR $columnUploadedFileID = -1);
           ''',
-          [collectionId],
+          [collectionId, queueSource],
         );
       }
 
@@ -1544,9 +1543,10 @@ class FilesDB with SqlDbBase {
           SET $columnCollectionID = NULL, $columnQueueSource = NULL
           WHERE $columnLocalID IN ($updateInParam)
           AND $columnCollectionID = ?
+          AND $columnQueueSource = ?
           AND ($columnUploadedFileID IS NULL OR $columnUploadedFileID = -1);
           ''',
-          [collectionId],
+          [collectionId, queueSource],
         );
       }
 
