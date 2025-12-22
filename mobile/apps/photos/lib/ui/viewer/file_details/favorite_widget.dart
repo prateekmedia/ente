@@ -47,6 +47,7 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
       setState(() {
         _isFavorite = isFavorite;
       });
+      _updateAnimationState();
     }
   }
 
@@ -79,11 +80,15 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
   void _setInitialAnimationState() {
     if (_isFavorite == null || _hasSetInitialState) return;
     _hasSetInitialState = true;
+    _updateAnimationState();
+  }
 
+  void _updateAnimationState() {
+    if (_isFavorite == null || _stateMachine == null) return;
     if (_isFavorite!) {
-      _stateMachine?.trigger("Filled")?.fire();
+      _stateMachine!.trigger("Filled")?.fire();
     } else {
-      _stateMachine?.trigger("Stroke")?.fire();
+      _stateMachine!.trigger("Stroke")?.fire();
     }
   }
 
@@ -157,14 +162,14 @@ class _FavoriteWidgetState extends State<FavoriteWidget> {
   Widget build(BuildContext context) {
     // Show blank while initial state is being fetched
     if (_isFavorite == null || _isLoading) {
-      return const SizedBox(width: 24, height: 24);
+      return const SizedBox(width: 22, height: 22);
     }
 
     return GestureDetector(
       onTap: _onTap,
       child: SizedBox(
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
         child: rive.RiveWidgetBuilder(
           fileLoader: _riveFileLoader,
           stateMachineSelector: const rive.StateMachineNamed(
