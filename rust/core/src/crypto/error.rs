@@ -90,9 +90,25 @@ pub enum CryptoError {
     #[error("Sealed box open failed")]
     SealedBoxOpenFailed,
 
+    /// Invalid public key (e.g., small-order point).
+    #[error("Invalid public key")]
+    InvalidPublicKey,
+
     /// Hash computation failed.
     #[error("Hash computation failed")]
     HashFailed,
+
+    /// Argon2 error.
+    #[error("Argon2 error: {0:?}")]
+    Argon2(argon2::Error),
+
+    /// AEAD error.
+    #[error("AEAD error")]
+    Aead,
+
+    /// Array conversion error.
+    #[error("Array conversion error")]
+    ArrayConversion,
 
     /// IO error.
     #[error("IO error: {0}")]
@@ -101,3 +117,9 @@ pub enum CryptoError {
 
 /// Result type for crypto operations.
 pub type Result<T> = std::result::Result<T, CryptoError>;
+
+impl From<std::array::TryFromSliceError> for CryptoError {
+    fn from(_: std::array::TryFromSliceError) -> Self {
+        CryptoError::ArrayConversion
+    }
+}

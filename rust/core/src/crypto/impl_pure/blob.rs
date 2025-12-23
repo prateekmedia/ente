@@ -1,26 +1,14 @@
 //! Blob encryption (XChaCha20-Poly1305 SecretStream without chunking).
 //!
-//! This module provides encryption using libsodium's secretstream APIs
-//! for small-ish data that doesn't need to be chunked.
-//! Use this for encrypting metadata associated with Ente objects.
+//! This module provides encryption using SecretStream for small-ish data
+//! that doesn't need to be chunked. Use this for encrypting metadata
+//! associated with Ente objects.
 
-use super::{CryptoError, Result};
-use libsodium_sys as sodium;
+use super::stream::{StreamDecryptor, StreamEncryptor};
+use crate::crypto::{CryptoError, Result};
 
-/// Key length for SecretStream (32 bytes).
-pub const KEY_BYTES: usize = sodium::crypto_secretstream_xchacha20poly1305_KEYBYTES as usize;
-
-/// Header length for SecretStream (24 bytes).
-pub const HEADER_BYTES: usize = sodium::crypto_secretstream_xchacha20poly1305_HEADERBYTES as usize;
-
-/// Additional bytes (MAC) per message (17 bytes).
-pub const ABYTES: usize = sodium::crypto_secretstream_xchacha20poly1305_ABYTES as usize;
-
-/// Tag for final message in stream.
-pub const TAG_FINAL: u8 = sodium::crypto_secretstream_xchacha20poly1305_TAG_FINAL as u8;
-
-/// Tag for regular message.
-pub const TAG_MESSAGE: u8 = sodium::crypto_secretstream_xchacha20poly1305_TAG_MESSAGE as u8;
+// Re-export stream constants for public API compatibility
+pub use super::stream::{ABYTES, HEADER_BYTES, KEY_BYTES, TAG_FINAL, TAG_MESSAGE};
 
 /// Result of blob encryption.
 #[derive(Debug, Clone)]
@@ -49,42 +37,12 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<EncryptedBlob> {
         });
     }
 
-    let state_bytes = unsafe { sodium::crypto_secretstream_xchacha20poly1305_statebytes() };
-    let mut state = vec![0u8; state_bytes];
-    let mut header = vec![0u8; HEADER_BYTES];
-
-    // Initialize push state
-    let result = unsafe {
-        sodium::crypto_secretstream_xchacha20poly1305_init_push(
-            state.as_mut_ptr() as *mut sodium::crypto_secretstream_xchacha20poly1305_state,
-            header.as_mut_ptr(),
-            key.as_ptr(),
-        )
-    };
-
-    if result != 0 {
-        return Err(CryptoError::StreamInitFailed);
-    }
+    // Create encryptor
+    let mut encryptor = StreamEncryptor::new(key)?;
+    let header = encryptor.header.clone();
 
     // Encrypt with final tag (single message)
-    let mut ciphertext = vec![0u8; plaintext.len() + ABYTES];
-
-    let result = unsafe {
-        sodium::crypto_secretstream_xchacha20poly1305_push(
-            state.as_mut_ptr() as *mut sodium::crypto_secretstream_xchacha20poly1305_state,
-            ciphertext.as_mut_ptr(),
-            std::ptr::null_mut(), // ciphertext_len not needed
-            plaintext.as_ptr(),
-            plaintext.len() as u64,
-            std::ptr::null(),
-            0,
-            TAG_FINAL,
-        )
-    };
-
-    if result != 0 {
-        return Err(CryptoError::StreamPushFailed);
-    }
+    let ciphertext = encryptor.push(plaintext, true)?;
 
     Ok(EncryptedBlob {
         encrypted_data: ciphertext,
@@ -123,45 +81,12 @@ pub fn decrypt(ciphertext: &[u8], header: &[u8], key: &[u8]) -> Result<Vec<u8>> 
         });
     }
 
-    let state_bytes = unsafe { sodium::crypto_secretstream_xchacha20poly1305_statebytes() };
-    let mut state = vec![0u8; state_bytes];
-
-    // Initialize pull state
-    let result = unsafe {
-        sodium::crypto_secretstream_xchacha20poly1305_init_pull(
-            state.as_mut_ptr() as *mut sodium::crypto_secretstream_xchacha20poly1305_state,
-            header.as_ptr(),
-            key.as_ptr(),
-        )
-    };
-
-    if result != 0 {
-        return Err(CryptoError::StreamInitFailed);
-    }
+    // Create decryptor
+    let mut decryptor = StreamDecryptor::new(header, key)?;
 
     // Decrypt
-    let mut plaintext = vec![0u8; ciphertext.len() - ABYTES];
-    let mut plaintext_len: u64 = 0;
-    let mut tag: u8 = 0;
+    let (plaintext, _tag) = decryptor.pull(ciphertext)?;
 
-    let result = unsafe {
-        sodium::crypto_secretstream_xchacha20poly1305_pull(
-            state.as_mut_ptr() as *mut sodium::crypto_secretstream_xchacha20poly1305_state,
-            plaintext.as_mut_ptr(),
-            &mut plaintext_len,
-            &mut tag,
-            ciphertext.as_ptr(),
-            ciphertext.len() as u64,
-            std::ptr::null(),
-            0,
-        )
-    };
-
-    if result != 0 {
-        return Err(CryptoError::StreamPullFailed);
-    }
-
-    plaintext.truncate(plaintext_len as usize);
     Ok(plaintext)
 }
 
@@ -210,11 +135,11 @@ pub fn decrypt_json<T: serde::de::DeserializeOwned>(blob: &EncryptedBlob, key: &
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::impl_pure::keys;
 
     #[test]
     fn test_encrypt_decrypt() {
-        crate::crypto::init().unwrap();
-        let key = crate::crypto::keys::generate_stream_key();
+        let key = keys::generate_stream_key();
         let plaintext = b"Hello, World!";
 
         let encrypted = encrypt(plaintext, &key).unwrap();
@@ -227,8 +152,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt_large() {
-        crate::crypto::init().unwrap();
-        let key = crate::crypto::keys::generate_stream_key();
+        let key = keys::generate_stream_key();
         let plaintext = vec![0x42u8; 1024 * 1024]; // 1 MB
 
         let encrypted = encrypt(&plaintext, &key).unwrap();
@@ -238,9 +162,8 @@ mod tests {
 
     #[test]
     fn test_wrong_key_fails() {
-        crate::crypto::init().unwrap();
-        let key1 = crate::crypto::keys::generate_stream_key();
-        let key2 = crate::crypto::keys::generate_stream_key();
+        let key1 = keys::generate_stream_key();
+        let key2 = keys::generate_stream_key();
         let plaintext = b"Secret message";
 
         let encrypted = encrypt(plaintext, &key1).unwrap();
@@ -250,8 +173,7 @@ mod tests {
 
     #[test]
     fn test_empty_plaintext() {
-        crate::crypto::init().unwrap();
-        let key = crate::crypto::keys::generate_stream_key();
+        let key = keys::generate_stream_key();
         let plaintext = b"";
 
         let encrypted = encrypt(plaintext, &key).unwrap();
@@ -261,8 +183,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_decrypt_json() {
-        crate::crypto::init().unwrap();
-        let key = crate::crypto::keys::generate_stream_key();
+        let key = keys::generate_stream_key();
 
         #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
         struct TestData {
@@ -282,7 +203,6 @@ mod tests {
 
     #[test]
     fn test_invalid_key_length() {
-        crate::crypto::init().unwrap();
         let short_key = vec![0u8; 16];
         let result = encrypt(b"test", &short_key);
         assert!(matches!(result, Err(CryptoError::InvalidKeyLength { .. })));
@@ -290,13 +210,71 @@ mod tests {
 
     #[test]
     fn test_invalid_header_length() {
-        crate::crypto::init().unwrap();
-        let key = crate::crypto::keys::generate_stream_key();
+        let key = keys::generate_stream_key();
         let short_header = vec![0u8; 12];
         let result = decrypt(b"test_ciphertext_here", &short_header, &key);
         assert!(matches!(
             result,
             Err(CryptoError::InvalidHeaderLength { .. })
         ));
+    }
+
+    #[test]
+    fn test_corrupted_ciphertext() {
+        let key = keys::generate_stream_key();
+        let plaintext = b"Original data";
+
+        let encrypted = encrypt(plaintext, &key).unwrap();
+        let mut corrupted = encrypted.clone();
+
+        // Corrupt a byte in the encrypted data
+        corrupted.encrypted_data[10] ^= 1;
+
+        let result = decrypt_blob(&corrupted, &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_corrupted_header() {
+        let key = keys::generate_stream_key();
+        let plaintext = b"Original data";
+
+        let encrypted = encrypt(plaintext, &key).unwrap();
+        let mut corrupted_header = encrypted.decryption_header.clone();
+
+        // Corrupt a byte in the header
+        corrupted_header[5] ^= 1;
+
+        let result = decrypt(&encrypted.encrypted_data, &corrupted_header, &key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_different_plaintexts_produce_different_ciphertexts() {
+        let key = keys::generate_stream_key();
+
+        let encrypted1 = encrypt(b"Message 1", &key).unwrap();
+        let encrypted2 = encrypt(b"Message 2", &key).unwrap();
+
+        assert_ne!(encrypted1.encrypted_data, encrypted2.encrypted_data);
+    }
+
+    #[test]
+    fn test_same_plaintext_produces_different_ciphertexts() {
+        let key = keys::generate_stream_key();
+        let plaintext = b"Same message";
+
+        let encrypted1 = encrypt(plaintext, &key).unwrap();
+        let encrypted2 = encrypt(plaintext, &key).unwrap();
+
+        // Different headers (random) -> different ciphertexts
+        assert_ne!(encrypted1.decryption_header, encrypted2.decryption_header);
+        assert_ne!(encrypted1.encrypted_data, encrypted2.encrypted_data);
+
+        // But both decrypt to same plaintext
+        let decrypted1 = decrypt_blob(&encrypted1, &key).unwrap();
+        let decrypted2 = decrypt_blob(&encrypted2, &key).unwrap();
+        assert_eq!(decrypted1, plaintext);
+        assert_eq!(decrypted2, plaintext);
     }
 }

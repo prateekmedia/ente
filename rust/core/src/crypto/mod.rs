@@ -1,7 +1,12 @@
 //! Cryptographic utilities for Ente.
 //!
-//! This module provides all the cryptographic primitives used by Ente clients,
-//! built on top of libsodium.
+//! This module provides all the cryptographic primitives used by Ente clients.
+//!
+//! # Implementation
+//!
+//! This crate uses **pure Rust** cryptographic implementations from the RustCrypto project.
+//! All implementations maintain byte-for-byte wire format compatibility with libsodium
+//! for interoperability with existing clients (mobile/web).
 //!
 //! # Overview
 //!
@@ -33,7 +38,7 @@
 //! ```rust
 //! use ente_core::crypto;
 //!
-//! // Initialize libsodium (must be called once)
+//! // Initialize crypto backend (must be called once)
 //! crypto::init().unwrap();
 //!
 //! // Generate a key and encrypt some data
@@ -53,37 +58,16 @@
 //! ```
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use libsodium_sys as sodium;
-use std::sync::Once;
 
-pub mod argon;
-pub mod blob;
 mod error;
-pub mod hash;
-pub mod kdf;
-pub mod keys;
-pub mod sealed;
-pub mod secretbox;
-pub mod stream;
+
+// Pure Rust implementation
+mod impl_pure;
+
+// Re-export the pure Rust implementation
+pub use impl_pure::*;
 
 pub use error::{CryptoError, Result};
-
-static INIT: Once = Once::new();
-
-/// Initialize libsodium. Must be called before any crypto operations.
-///
-/// This function is safe to call multiple times; initialization only happens once.
-///
-/// # Panics
-/// Panics if libsodium fails to initialize.
-pub fn init() -> Result<()> {
-    INIT.call_once(|| unsafe {
-        if sodium::sodium_init() < 0 {
-            panic!("Failed to initialize libsodium");
-        }
-    });
-    Ok(())
-}
 
 /// Decode a base64 string to bytes.
 ///
