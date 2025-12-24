@@ -71,7 +71,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<EncryptedData> {
 /// * `key` - 32-byte encryption key.
 ///
 /// # Returns
-/// MAC || ciphertext
+/// ciphertext || MAC (libsodium crypto_secretbox_easy format)
 pub fn encrypt_with_nonce(plaintext: &[u8], nonce: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     if key.len() != KEY_BYTES {
         return Err(CryptoError::InvalidKeyLength {
@@ -89,22 +89,15 @@ pub fn encrypt_with_nonce(plaintext: &[u8], nonce: &[u8], key: &[u8]) -> Result<
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(key));
     let nonce_ga = GenericArray::from_slice(nonce);
 
-    // RustCrypto returns: ciphertext || MAC
-    let rust_output = cipher
+    // RustCrypto returns: ciphertext || MAC (same as libsodium crypto_secretbox_easy)
+    cipher
         .encrypt(nonce_ga, plaintext)
-        .map_err(|_| CryptoError::EncryptionFailed)?;
-
-    // libsodium expects: MAC || ciphertext
-    let ct_len = rust_output.len() - MAC_BYTES;
-    let mut libsodium_output = Vec::with_capacity(rust_output.len());
-    libsodium_output.extend_from_slice(&rust_output[ct_len..]); // MAC first
-    libsodium_output.extend_from_slice(&rust_output[..ct_len]); // then ciphertext
-
-    Ok(libsodium_output)
+        .map_err(|_| CryptoError::EncryptionFailed)
 }
 
 /// Trait for types that can be decrypted as SecretBox.
 pub trait SecretBoxDecryptable {
+    /// Returns the ciphertext bytes for decryption.
     fn as_ciphertext(&self) -> &[u8];
 }
 
@@ -152,10 +145,10 @@ pub fn decrypt_box<T: SecretBoxDecryptable + ?Sized>(encrypted: &T, key: &[u8]) 
 /// Decrypt ciphertext with a provided nonce.
 ///
 /// # Wire Format
-/// Input: MAC (16 bytes) || ciphertext
+/// Input: ciphertext || MAC (16 bytes) (libsodium crypto_secretbox_easy format)
 ///
 /// # Arguments
-/// * `ciphertext` - MAC || encrypted data.
+/// * `ciphertext` - Encrypted data || MAC.
 /// * `nonce` - 24-byte nonce.
 /// * `key` - 32-byte encryption key.
 ///
@@ -181,20 +174,13 @@ pub fn decrypt(ciphertext: &[u8], nonce: &[u8], key: &[u8]) -> Result<Vec<u8>> {
         });
     }
 
-    // libsodium format: MAC || ciphertext
-    // RustCrypto expects: ciphertext || MAC
-    let mac = &ciphertext[..MAC_BYTES];
-    let ct = &ciphertext[MAC_BYTES..];
-
-    let mut rust_input = Vec::with_capacity(ciphertext.len());
-    rust_input.extend_from_slice(ct);
-    rust_input.extend_from_slice(mac);
-
+    // libsodium crypto_secretbox_easy format: ciphertext || MAC
+    // RustCrypto expects same format: ciphertext || MAC
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(key));
     let nonce_ga = GenericArray::from_slice(nonce);
 
     cipher
-        .decrypt(nonce_ga, rust_input.as_slice())
+        .decrypt(nonce_ga, ciphertext)
         .map_err(|_| CryptoError::DecryptionFailed)
 }
 

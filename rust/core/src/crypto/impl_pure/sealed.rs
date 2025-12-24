@@ -5,12 +5,12 @@
 //!
 //! # Wire Format (libsodium crypto_box_seal)
 //!
-//! Output: ephemeral_pk (32 bytes) || MAC (16 bytes) || ciphertext
+//! Output: ephemeral_pk (32 bytes) || ciphertext || MAC (16 bytes)
 //!
 //! - Nonce: BLAKE2b-24(ephemeral_pk || recipient_pk)
 //! - Shared secret: X25519(ephemeral_sk, recipient_pk)
 //! - Key: HSalsa20(shared_secret, zero_nonce)
-//! - Encryption: XSalsa20-Poly1305 with MAC || ciphertext layout
+//! - Encryption: XSalsa20-Poly1305 (ciphertext || MAC format)
 
 use blake2b_simd::Params as Blake2bParams;
 use rand_core::{OsRng, RngCore};
@@ -82,7 +82,7 @@ fn is_contributory(shared_secret: &[u8; 32]) -> bool {
 /// * `recipient_pk` - Recipient's 32-byte public key.
 ///
 /// # Returns
-/// ephemeral_pk || MAC || ciphertext
+/// ephemeral_pk || ciphertext || MAC (libsodium crypto_box_seal format)
 pub fn seal(plaintext: &[u8], recipient_pk: &[u8]) -> Result<Vec<u8>> {
     if recipient_pk.len() != PUBLIC_KEY_BYTES {
         return Err(CryptoError::InvalidKeyLength {
@@ -118,21 +118,16 @@ pub fn seal(plaintext: &[u8], recipient_pk: &[u8]) -> Result<Vec<u8>> {
     let nonce = seal_nonce(ephemeral_public.as_bytes(), &recipient_pk_arr);
 
     // Encrypt with XSalsa20-Poly1305
+    // RustCrypto outputs: ciphertext || MAC (same as libsodium)
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(&box_key));
-    let rust_output = cipher
+    let encrypted = cipher
         .encrypt(GenericArray::from_slice(&nonce), plaintext)
         .map_err(|_| CryptoError::EncryptionFailed)?;
 
-    // Reorder: RustCrypto = ct||MAC, libsodium = MAC||ct
-    let ct_len = rust_output.len() - 16;
-    let mac = &rust_output[ct_len..];
-    let ct = &rust_output[..ct_len];
-
-    // Build output: ephemeral_pk || MAC || ciphertext
-    let mut result = Vec::with_capacity(32 + rust_output.len());
+    // Build output: ephemeral_pk || ciphertext || MAC
+    let mut result = Vec::with_capacity(32 + encrypted.len());
     result.extend_from_slice(ephemeral_public.as_bytes());
-    result.extend_from_slice(mac);
-    result.extend_from_slice(ct);
+    result.extend_from_slice(&encrypted);
 
     // Clean up sensitive data
     ephemeral_secret_bytes.zeroize();
@@ -143,7 +138,7 @@ pub fn seal(plaintext: &[u8], recipient_pk: &[u8]) -> Result<Vec<u8>> {
 /// Open (decrypt) a sealed box.
 ///
 /// # Arguments
-/// * `ciphertext` - Sealed data (ephemeral_pk || MAC || ciphertext).
+/// * `ciphertext` - Sealed data (ephemeral_pk || ciphertext || MAC).
 /// * `recipient_pk` - Recipient's 32-byte public key.
 /// * `recipient_sk` - Recipient's 32-byte secret key.
 ///
@@ -171,12 +166,11 @@ pub fn open(ciphertext: &[u8], recipient_pk: &[u8], recipient_sk: &[u8]) -> Resu
         });
     }
 
-    // Parse: ephemeral_pk (32) || MAC (16) || ciphertext
+    // Parse: ephemeral_pk (32) || ciphertext || MAC (16)
     let ephemeral_pk_bytes: [u8; 32] = ciphertext[..32]
         .try_into()
         .map_err(|_| CryptoError::ArrayConversion)?;
-    let mac = &ciphertext[32..48];
-    let ct = &ciphertext[48..];
+    let encrypted = &ciphertext[32..]; // ciphertext || MAC
 
     let ephemeral_pk = PublicKey::from(ephemeral_pk_bytes);
     let recipient_sk_arr: [u8; 32] = recipient_sk
@@ -201,15 +195,10 @@ pub fn open(ciphertext: &[u8], recipient_pk: &[u8], recipient_sk: &[u8]) -> Resu
     // Compute nonce
     let nonce = seal_nonce(&ephemeral_pk_bytes, &recipient_pk_arr);
 
-    // Convert to RustCrypto format: ct || MAC
-    let mut rust_input = Vec::with_capacity(ct.len() + 16);
-    rust_input.extend_from_slice(ct);
-    rust_input.extend_from_slice(mac);
-
-    // Decrypt
+    // Decrypt (RustCrypto expects same format: ciphertext || MAC)
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(&box_key));
     cipher
-        .decrypt(GenericArray::from_slice(&nonce), rust_input.as_slice())
+        .decrypt(GenericArray::from_slice(&nonce), encrypted)
         .map_err(|_| CryptoError::DecryptionFailed)
 }
 

@@ -48,7 +48,7 @@ pub fn derive_subkey(
     subkey_id: u64,
     context: &[u8],
 ) -> Result<Vec<u8>> {
-    if subkey_len < SUBKEY_BYTES_MIN || subkey_len > SUBKEY_BYTES_MAX {
+    if !(SUBKEY_BYTES_MIN..=SUBKEY_BYTES_MAX).contains(&subkey_len) {
         return Err(crate::crypto::CryptoError::InvalidKeyLength {
             expected: SUBKEY_BYTES_MAX,
             actual: subkey_len,

@@ -37,7 +37,7 @@ pub const KEY_BYTES_MAX: usize = 64;
 pub fn hash(data: &[u8], out_len: Option<usize>, key: Option<&[u8]>) -> Result<Vec<u8>> {
     let out_len = out_len.unwrap_or(HASH_BYTES_MAX);
 
-    if out_len < HASH_BYTES_MIN || out_len > HASH_BYTES_MAX {
+    if !(HASH_BYTES_MIN..=HASH_BYTES_MAX).contains(&out_len) {
         return Err(CryptoError::InvalidKeyLength {
             expected: HASH_BYTES_MAX,
             actual: out_len,
@@ -96,7 +96,7 @@ impl HashState {
     pub fn new(out_len: Option<usize>, key: Option<&[u8]>) -> Result<Self> {
         let out_len = out_len.unwrap_or(HASH_BYTES_MAX);
 
-        if out_len < HASH_BYTES_MIN || out_len > HASH_BYTES_MAX {
+        if !(HASH_BYTES_MIN..=HASH_BYTES_MAX).contains(&out_len) {
             return Err(CryptoError::InvalidKeyLength {
                 expected: HASH_BYTES_MAX,
                 actual: out_len,

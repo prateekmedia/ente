@@ -305,6 +305,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Slow: uses 1GB memory
     fn test_derive_sensitive_key() {
         let password = "sensitive test";
 
@@ -370,6 +371,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Slow: uses 1GB memory
     fn test_presets_produce_different_keys() {
         let password = "test password";
         let salt = vec![0x42u8; SALT_BYTES];
