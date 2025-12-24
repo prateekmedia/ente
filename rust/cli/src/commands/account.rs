@@ -1,7 +1,6 @@
 use crate::{
     api::{ApiClient, AuthClient},
     cli::account::{AccountCommand, AccountSubcommands},
-    crypto::decode_base64,
     models::{
         account::{Account, AccountSecrets, App},
         error::Result,
@@ -13,9 +12,8 @@ use dialoguer::{Input, Password, Select};
 use std::path::PathBuf;
 
 // Use ente-core for auth operations
-use ente_core::auth::{
-    DecryptedSecrets, KeyAttributes as CoreKeyAttributes, derive_kek,
-};
+use ente_core::auth::{DecryptedSecrets, KeyAttributes as CoreKeyAttributes, derive_kek};
+use ente_core::crypto;
 
 /// Convert CLI's KeyAttributes to core's KeyAttributes
 fn to_core_key_attributes(attrs: &crate::api::models::KeyAttributes) -> CoreKeyAttributes {
@@ -53,9 +51,12 @@ fn decrypt_secrets_with_plain_token(
         .map_err(|e| AuthError::Decode(format!("encrypted_secret_key: {}", e)))?;
     let secret_key_nonce = ente_core::crypto::decode_b64(&key_attrs.secret_key_decryption_nonce)
         .map_err(|e| AuthError::Decode(format!("secret_key_decryption_nonce: {}", e)))?;
-    let secret_key =
-        ente_core::crypto::secretbox::decrypt(&encrypted_secret_key, &secret_key_nonce, &master_key)
-            .map_err(|_| AuthError::InvalidKeyAttributes)?;
+    let secret_key = ente_core::crypto::secretbox::decrypt(
+        &encrypted_secret_key,
+        &secret_key_nonce,
+        &master_key,
+    )
+    .map_err(|_| AuthError::InvalidKeyAttributes)?;
 
     let token = base64::engine::general_purpose::URL_SAFE
         .decode(token)
@@ -223,7 +224,10 @@ async fn add_account(
 
     // First, get SRP attributes to check if email MFA is enabled
     let srp_attrs = auth_client.get_srp_attributes(&email).await?;
-    log::debug!("SRP attributes: is_email_mfa_enabled={}", srp_attrs.is_email_mfa_enabled);
+    log::debug!(
+        "SRP attributes: is_email_mfa_enabled={}",
+        srp_attrs.is_email_mfa_enabled
+    );
 
     // Determine auth flow based on email MFA setting
     let (auth_response, mut key_enc_key) = if srp_attrs.is_email_mfa_enabled {
@@ -262,7 +266,7 @@ async fn add_account(
                         // Resend OTP
                         auth_client.send_login_otp(&email).await?;
                         println!("✓ New verification code sent to {email}");
-                        
+
                         // Prompt for new OTP
                         current_otp = Input::new()
                             .with_prompt("Enter the 6-digit code from your email")
@@ -274,7 +278,9 @@ async fn add_account(
                                 }
                             })
                             .interact_text()
-                            .map_err(|e| crate::models::error::Error::InvalidInput(e.to_string()))?;
+                            .map_err(|e| {
+                                crate::models::error::Error::InvalidInput(e.to_string())
+                            })?;
                         continue;
                     } else {
                         return Err(e);
@@ -286,7 +292,10 @@ async fn add_account(
 
         // Check if 2FA is required after email verification
         let has_totp = email_auth_resp.get_two_factor_session_id().is_some();
-        let has_passkey = email_auth_resp.passkey_session_id.as_ref().map_or(false, |s| !s.is_empty());
+        let has_passkey = email_auth_resp
+            .passkey_session_id
+            .as_ref()
+            .is_some_and(|s| !s.is_empty());
 
         if has_totp && has_passkey {
             // Both available - let user choose
@@ -319,7 +328,8 @@ async fn add_account(
             &srp_attrs.kek_salt,
             srp_attrs.mem_limit as u32,
             srp_attrs.ops_limit as u32,
-        ).map_err(|e| crate::models::error::Error::Crypto(e.to_string()))?;
+        )
+        .map_err(|e| crate::models::error::Error::Crypto(e.to_string()))?;
 
         (email_auth_resp, key_enc_key)
     } else {
@@ -335,7 +345,9 @@ async fn add_account(
                         current_password = Password::new()
                             .with_prompt("Enter your password")
                             .interact()
-                            .map_err(|e| crate::models::error::Error::InvalidInput(e.to_string()))?;
+                            .map_err(|e| {
+                                crate::models::error::Error::InvalidInput(e.to_string())
+                            })?;
                         continue;
                     } else {
                         return Err(e);
@@ -347,7 +359,10 @@ async fn add_account(
 
     // Handle 2FA if required - for non-email-MFA flow
     let has_totp = auth_response.get_two_factor_session_id().is_some();
-    let has_passkey = auth_response.passkey_session_id.as_ref().map_or(false, |s| !s.is_empty());
+    let has_passkey = auth_response
+        .passkey_session_id
+        .as_ref()
+        .is_some_and(|s| !s.is_empty());
 
     let auth_response = if has_totp && has_passkey {
         // Both available - let user choose
@@ -374,11 +389,13 @@ async fn add_account(
     };
 
     // Decrypt keys
-    log::debug!("Final auth_response: id={}, has_key_attributes={}, has_encrypted_token={}", 
+    log::debug!(
+        "Final auth_response: id={}, has_key_attributes={}, has_encrypted_token={}",
         auth_response.id,
         auth_response.key_attributes.is_some(),
-        auth_response.encrypted_token.is_some());
-    
+        auth_response.encrypted_token.is_some()
+    );
+
     let key_attributes = auth_response.key_attributes.as_ref().ok_or_else(|| {
         crate::models::error::Error::AuthenticationFailed("No key attributes".to_string())
     })?;
@@ -417,13 +434,13 @@ async fn add_account(
             Err(e) => {
                 if matches!(e, ente_core::auth::AuthError::IncorrectPassword) {
                     println!("❌ Incorrect password. Please try again.");
-                    
+
                     // Prompt for password again
                     let new_password = Password::new()
                         .with_prompt("Enter your password")
                         .interact()
                         .map_err(|e| crate::models::error::Error::InvalidInput(e.to_string()))?;
-                    
+
                     // Re-derive key encryption key using ente-core
                     println!("Verifying password (this may take a few seconds)...");
                     key_enc_key = derive_kek(
@@ -431,8 +448,9 @@ async fn add_account(
                         &key_attributes.kek_salt,
                         key_attributes.mem_limit as u32,
                         key_attributes.ops_limit as u32,
-                    ).map_err(|e| crate::models::error::Error::Crypto(e.to_string()))?;
-                    
+                    )
+                    .map_err(|e| crate::models::error::Error::Crypto(e.to_string()))?;
+
                     println!("Decrypting account keys...");
                     continue;
                 } else {
@@ -445,8 +463,8 @@ async fn add_account(
     // Extract keys from decrypted secrets
     let master_key = secrets.master_key;
     let secret_key = secrets.secret_key;
-    let public_key = decode_base64(&key_attributes.public_key)?;
-    
+    let public_key = crypto::decode_b64(&key_attributes.public_key)?;
+
     // Token is already decrypted by decrypt_secrets
     let token = secrets.token;
 
@@ -560,7 +578,7 @@ async fn verify_totp_2fa(
     auth_resp: &crate::api::models::AuthResponse,
 ) -> Result<crate::api::models::AuthResponse> {
     println!("\n📱 Two-factor authentication required");
-    
+
     let session_id = auth_resp.get_two_factor_session_id().ok_or_else(|| {
         crate::models::error::Error::AuthenticationFailed("No 2FA session ID".to_string())
     })?;

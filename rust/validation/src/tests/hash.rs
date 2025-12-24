@@ -104,7 +104,7 @@ fn test_large_input() -> bool {
 fn test_known_vector() -> bool {
     // BLAKE2b test vector from RFC 7693
     let data = b"abc";
-    
+
     let libsodium_h = libsodium_hash(data, 64);
     let core_h = crypto::hash::hash_default(data).unwrap();
 
@@ -116,8 +116,9 @@ fn test_known_vector() -> bool {
     // Check known value (BLAKE2b-512 of "abc")
     let expected = hex::decode(
         "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d1\
-         7d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"
-    ).unwrap();
+         7d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923",
+    )
+    .unwrap();
 
     libsodium_h == expected && core_h == expected
 }
@@ -125,10 +126,10 @@ fn test_known_vector() -> bool {
 fn test_random_data() -> bool {
     for _ in 0..100 {
         let data = crate::random_bytes(rand::random::<usize>() % 10000 + 1);
-        
+
         let libsodium_h = libsodium_hash(&data, 64);
         let core_h = crypto::hash::hash_default(&data).unwrap();
-        
+
         if libsodium_h != core_h {
             return false;
         }

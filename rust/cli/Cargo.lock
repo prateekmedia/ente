@@ -811,7 +811,6 @@ dependencies = [
  "ente-core",
  "env_logger",
  "futures",
- "hex",
  "indicatif",
  "log",
  "mockito",

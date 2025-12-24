@@ -131,7 +131,7 @@ fn test_single_chunk() -> bool {
 
 fn test_multi_chunk() -> bool {
     let key = crate::random_bytes(KEY_BYTES);
-    let chunks = vec![b"First".to_vec(), b"Second".to_vec(), b"Third".to_vec()];
+    let chunks = [b"First".to_vec(), b"Second".to_vec(), b"Third".to_vec()];
 
     let mut encryptor = crypto::stream::StreamEncryptor::new(&key).unwrap();
     let mut encrypted_chunks = Vec::new();
@@ -148,7 +148,11 @@ fn test_multi_chunk() -> bool {
         if decrypted != *original {
             return false;
         }
-        let expected_tag = if i == chunks.len() - 1 { TAG_FINAL } else { TAG_MESSAGE };
+        let expected_tag = if i == chunks.len() - 1 {
+            TAG_FINAL
+        } else {
+            TAG_MESSAGE
+        };
         if tag != expected_tag {
             return false;
         }
@@ -189,7 +193,7 @@ fn test_libsodium_to_core() -> bool {
 
 fn test_multi_chunk_interop() -> bool {
     let key = crate::random_bytes(KEY_BYTES);
-    let chunks = vec![b"Alpha".to_vec(), b"Beta".to_vec(), b"Gamma".to_vec()];
+    let chunks = [b"Alpha".to_vec(), b"Beta".to_vec(), b"Gamma".to_vec()];
 
     // Core encrypt, libsodium decrypt
     let mut core_enc = crypto::stream::StreamEncryptor::new(&key).unwrap();
@@ -205,7 +209,11 @@ fn test_multi_chunk_interop() -> bool {
         if pt != *original {
             return false;
         }
-        let expected = if i == chunks.len() - 1 { TAG_FINAL } else { TAG_MESSAGE };
+        let expected = if i == chunks.len() - 1 {
+            TAG_FINAL
+        } else {
+            TAG_MESSAGE
+        };
         if tag != expected {
             return false;
         }
@@ -215,7 +223,11 @@ fn test_multi_chunk_interop() -> bool {
     let mut ls_enc = LibsodiumEncryptor::new(&key);
     let mut encrypted = Vec::new();
     for (i, chunk) in chunks.iter().enumerate() {
-        let tag = if i == chunks.len() - 1 { TAG_FINAL } else { TAG_MESSAGE };
+        let tag = if i == chunks.len() - 1 {
+            TAG_FINAL
+        } else {
+            TAG_MESSAGE
+        };
         encrypted.push(ls_enc.push(chunk, tag));
     }
 
@@ -225,7 +237,11 @@ fn test_multi_chunk_interop() -> bool {
         if pt != *original {
             return false;
         }
-        let expected = if i == chunks.len() - 1 { TAG_FINAL } else { TAG_MESSAGE };
+        let expected = if i == chunks.len() - 1 {
+            TAG_FINAL
+        } else {
+            TAG_MESSAGE
+        };
         if tag != expected {
             return false;
         }
@@ -252,7 +268,7 @@ fn test_empty_interop() -> bool {
     let ct = ls_enc.push(plaintext, TAG_FINAL);
     let mut core_dec = crypto::stream::StreamDecryptor::new(&ls_enc.header, &key).unwrap();
     let (pt, tag) = core_dec.pull(&ct).unwrap();
-    
+
     pt == plaintext && tag == TAG_FINAL
 }
 

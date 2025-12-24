@@ -91,11 +91,16 @@ pub struct AuthResponse {
 impl AuthResponse {
     /// Get the TOTP session ID (checks both V1 and V2 fields, filters empty strings)
     pub fn get_two_factor_session_id(&self) -> Option<&String> {
-        self.two_factor_session_id.as_ref()
+        self.two_factor_session_id
+            .as_ref()
             .filter(|s| !s.is_empty())
-            .or_else(|| self.two_factor_session_id_v2.as_ref().filter(|s| !s.is_empty()))
+            .or_else(|| {
+                self.two_factor_session_id_v2
+                    .as_ref()
+                    .filter(|s| !s.is_empty())
+            })
     }
-    
+
     pub fn is_mfa_required(&self) -> bool {
         self.get_two_factor_session_id().is_some()
     }

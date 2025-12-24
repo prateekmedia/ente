@@ -102,8 +102,16 @@ fn test_ciphertext_format() -> bool {
 
     // Debug output
     if core_ct != libsodium_ct {
-        eprintln!("  Core     ({} bytes): {:02x?}", core_ct.len(), &core_ct[..core_ct.len().min(32)]);
-        eprintln!("  Libsodium({} bytes): {:02x?}", libsodium_ct.len(), &libsodium_ct[..libsodium_ct.len().min(32)]);
+        eprintln!(
+            "  Core     ({} bytes): {:02x?}",
+            core_ct.len(),
+            &core_ct[..core_ct.len().min(32)]
+        );
+        eprintln!(
+            "  Libsodium({} bytes): {:02x?}",
+            libsodium_ct.len(),
+            &libsodium_ct[..libsodium_ct.len().min(32)]
+        );
     }
 
     // Both should produce identical ciphertext
