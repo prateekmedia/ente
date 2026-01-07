@@ -311,6 +311,7 @@ mod js_to_rust {
 
 mod bidirectional {
     use super::*;
+    use std::io::Cursor;
 
     /// This test generates vectors that can be used to verify JS implementation
     #[test]
@@ -352,17 +353,41 @@ mod bidirectional {
 
         let key = crypto::keys::generate_stream_key();
 
-        // Encrypt large data (multi-chunk)
-        let plaintext = vec![0x42u8; crypto::stream::ENCRYPTION_CHUNK_SIZE + 500];
-
+        // Test single-chunk encryption (simple encrypt function)
+        let plaintext = vec![0x42u8; 1000];
         let encrypted = crypto::stream::encrypt(&plaintext, &key).unwrap();
         let decrypted = crypto::stream::decrypt_stream(&encrypted, &key).unwrap();
-
         assert_eq!(decrypted, plaintext);
 
-        // Verify chunk boundaries
+        // Simple encrypt is single-chunk: size = plaintext + ABYTES
+        assert_eq!(
+            encrypted.encrypted_data.len(),
+            plaintext.len() + crypto::stream::ABYTES
+        );
+    }
+
+    #[test]
+    fn test_stream_multi_chunk_bidirectional() {
+        setup();
+
+        // Test multi-chunk encryption using encrypt_file (the chunking API)
+        let plaintext = vec![0x42u8; crypto::stream::ENCRYPTION_CHUNK_SIZE + 500];
+        let mut source = Cursor::new(plaintext.clone());
+        let mut encrypted = Vec::new();
+
+        let (key, header) =
+            crypto::stream::encrypt_file(&mut source, &mut encrypted, None).unwrap();
+
+        // Decrypt and verify roundtrip
+        let mut enc_cursor = Cursor::new(encrypted.clone());
+        let mut decrypted = Vec::new();
+        crypto::stream::decrypt_file(&mut enc_cursor, &mut decrypted, &header, &key).unwrap();
+        assert_eq!(decrypted, plaintext);
+
+        // Verify size: encrypt_file writes ciphertext only (header returned separately)
+        // estimate_encrypted_size returns ciphertext size (excludes header)
         let expected_size = crypto::stream::estimate_encrypted_size(plaintext.len());
-        assert_eq!(encrypted.encrypted_data.len(), expected_size);
+        assert_eq!(encrypted.len(), expected_size);
     }
 
     #[test]
@@ -771,13 +796,53 @@ mod public_api_coverage {
 
     #[test]
     fn test_stream_estimate_encrypted_size() {
-        assert_eq!(crypto::stream::estimate_encrypted_size(100), 100 + 17);
+        let abytes = crypto::stream::ABYTES;
+        let chunk_size = crypto::stream::ENCRYPTION_CHUNK_SIZE;
+        let dec_chunk_size = crypto::stream::DECRYPTION_CHUNK_SIZE;
+
+        // Empty: still produces a FINAL chunk with ABYTES overhead
+        assert_eq!(crypto::stream::estimate_encrypted_size(0), abytes);
+
+        // Small data: single FINAL chunk
+        assert_eq!(crypto::stream::estimate_encrypted_size(100), 100 + abytes);
+
+        // Exact chunk size: one MESSAGE chunk + empty FINAL chunk
+        assert_eq!(
+            crypto::stream::estimate_encrypted_size(chunk_size),
+            dec_chunk_size + abytes
+        );
+
+        // Chunk size + extra: one MESSAGE chunk + non-empty FINAL chunk
+        assert_eq!(
+            crypto::stream::estimate_encrypted_size(chunk_size + 500),
+            dec_chunk_size + 500 + abytes
+        );
+
+        // Two full chunks + partial: two MESSAGE chunks + non-empty FINAL chunk
+        assert_eq!(
+            crypto::stream::estimate_encrypted_size(2 * chunk_size + 100),
+            2 * dec_chunk_size + 100 + abytes
+        );
     }
 
     #[test]
     fn test_stream_validate_sizes() {
-        assert!(crypto::stream::validate_sizes(100, 117));
-        assert!(!crypto::stream::validate_sizes(100, 100));
+        let abytes = crypto::stream::ABYTES;
+        let chunk_size = crypto::stream::ENCRYPTION_CHUNK_SIZE;
+        let dec_chunk_size = crypto::stream::DECRYPTION_CHUNK_SIZE;
+
+        // Valid cases
+        assert!(crypto::stream::validate_sizes(0, abytes)); // empty plaintext
+        assert!(crypto::stream::validate_sizes(100, 117)); // small data
+        assert!(crypto::stream::validate_sizes(
+            chunk_size,
+            dec_chunk_size + abytes
+        )); // exact multiple
+
+        // Invalid cases
+        assert!(!crypto::stream::validate_sizes(100, 100)); // missing ABYTES
+        assert!(!crypto::stream::validate_sizes(0, 0)); // ciphertext can't be 0
+        assert!(!crypto::stream::validate_sizes(chunk_size, dec_chunk_size)); // missing final ABYTES
     }
 
     #[test]

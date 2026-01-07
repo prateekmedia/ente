@@ -86,6 +86,10 @@ pub enum CryptoError {
     #[error("Stream pull failed")]
     StreamPullFailed,
 
+    /// Stream was truncated (EOF before final tag).
+    #[error("Stream truncated: EOF before final tag")]
+    StreamTruncated,
+
     /// Sealed box open failed.
     #[error("Sealed box open failed")]
     SealedBoxOpenFailed,

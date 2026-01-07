@@ -11,8 +11,7 @@ thiserror = "2"
 
 # Pure Rust Cryptography
 xsalsa20poly1305 = "0.9"
-chacha20 = "0.9"
-poly1305 = "0.8"
+crypto_secretstream = "=0.2.0"
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }
 salsa20 = "0.10"
 argon2 = "0.5"
@@ -32,6 +31,7 @@ hex = "0.4"
 zeroize = { version = "1.8", features = ["derive"] }
 
 [dev-dependencies]
+chacha20 = "0.9.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 # No features needed - pure Rust is always enabled
