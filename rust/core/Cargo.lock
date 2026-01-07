@@ -96,6 +96,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-padding"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8894febbff9f758034a5b8e12d87918f56dfc64a8e1fe757d65e29041538d93"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -204,6 +213,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto_secretstream"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a6419214057ad50a13efccb3ad7714b86b848e3a5aa7b6cf5a3ff07edf387eb"
+dependencies = [
+ "aead",
+ "chacha20",
+ "getrandom 0.2.16",
+ "poly1305",
+ "rand_core 0.6.4",
+ "subtle",
+]
+
+[[package]]
 name = "curve25519-dalek"
 version = "4.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -268,10 +291,10 @@ dependencies = [
  "base64",
  "blake2b_simd",
  "chacha20",
+ "crypto_secretstream",
  "getrandom 0.2.16",
  "hex",
  "md-5",
- "poly1305",
  "rand_core 0.6.4",
  "reqwest",
  "salsa20",
@@ -649,6 +672,7 @@ version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
+ "block-padding",
  "generic-array",
 ]
 

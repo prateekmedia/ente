@@ -57,7 +57,8 @@ fn test_secretbox_encrypt_matches_libsodium() {
     let nonce = hex::decode(SECRETBOX_NONCE).unwrap();
     let expected_ct = hex::decode(SECRETBOX_CIPHERTEXT).unwrap();
 
-    let ciphertext = crypto::secretbox::encrypt_with_nonce(SECRETBOX_PLAINTEXT, &nonce, &key).unwrap();
+    let ciphertext =
+        crypto::secretbox::encrypt_with_nonce(SECRETBOX_PLAINTEXT, &nonce, &key).unwrap();
 
     assert_eq!(
         hex::encode(&ciphertext),
@@ -235,8 +236,8 @@ fn test_hchacha20_matches_libsodium() {
     let expected = hex::decode(HCHACHA_OUTPUT).unwrap();
 
     // Use chacha20 crate directly to verify
-    use chacha20::hchacha;
     use chacha20::cipher::consts::U10;
+    use chacha20::hchacha;
 
     let key_arr: [u8; 32] = key.try_into().unwrap();
     let input_arr: [u8; 16] = input.try_into().unwrap();
@@ -353,7 +354,7 @@ fn test_stream_multi_chunk() {
 // =============================================================================
 // SUMMARY
 // =============================================================================
-// 
+//
 // These tests verify byte-for-byte compatibility with libsodium:
 // - SecretBox: encrypt/decrypt with known vectors ✓
 // - KDF: subkey derivation with known vectors ✓

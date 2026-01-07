@@ -17,8 +17,8 @@ async fn run() -> ente_rs::Result<()> {
     // Initialize logger
     env_logger::init();
 
-    // Initialize libsodium
-    ente_rs::crypto::init()?;
+    // Initialize crypto
+    ente_core::crypto::init()?;
 
     // Initialize storage
     let config_dir = ente_rs::utils::get_cli_config_dir()?;

@@ -181,9 +181,10 @@ impl ApiClient {
                 log::debug!("API error: status={status}, body={error_text}");
             }
 
-            return Err(Error::api_error(status.as_u16(), format!(
-                "API error ({status}): {error_text}"
-            )));
+            return Err(Error::api_error(
+                status.as_u16(),
+                format!("API error ({status}): {error_text}"),
+            ));
         }
 
         let text = response.text().await?;
@@ -205,8 +206,6 @@ impl ApiClient {
         B: Serialize,
     {
         let url = format!("{}{}", self.base_url, path);
-
-
 
         let request = self.client.post(&url).json(body);
         let request = self.build_request(request, account_id);
@@ -231,15 +230,14 @@ impl ApiClient {
                 log::debug!("API error: status={status}, body={error_text}");
             }
 
-            return Err(Error::api_error(status.as_u16(), format!(
-                "API error ({status}): {error_text}"
-            )));
+            return Err(Error::api_error(
+                status.as_u16(),
+                format!("API error ({status}): {error_text}"),
+            ));
         }
 
         let text = response.text().await?;
-        
 
-        
         serde_json::from_str(&text).map_err(|e| {
             log::debug!("Failed to deserialize response: {e}");
             log::debug!(
@@ -278,9 +276,10 @@ impl ApiClient {
                 log::debug!("API error: status={status}, body={error_text}");
             }
 
-            return Err(Error::api_error(status.as_u16(), format!(
-                "API error ({status}): {error_text}"
-            )));
+            return Err(Error::api_error(
+                status.as_u16(),
+                format!("API error ({status}): {error_text}"),
+            ));
         }
 
         Ok(())
@@ -316,9 +315,10 @@ impl ApiClient {
                 log::debug!("API error: status={status}, body={error_text}");
             }
 
-            return Err(Error::api_error(status.as_u16(), format!(
-                "API error ({status}): {error_text}"
-            )));
+            return Err(Error::api_error(
+                status.as_u16(),
+                format!("API error ({status}): {error_text}"),
+            ));
         }
 
         let text = response.text().await?;
@@ -358,9 +358,10 @@ impl ApiClient {
                 log::debug!("API error: status={status}, body={error_text}");
             }
 
-            return Err(Error::api_error(status.as_u16(), format!(
-                "API error ({status}): {error_text}"
-            )));
+            return Err(Error::api_error(
+                status.as_u16(),
+                format!("API error ({status}): {error_text}"),
+            ));
         }
 
         Ok(())
@@ -379,7 +380,10 @@ impl ApiClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(Error::api_error(status.as_u16(), format!("Download error: {error_text}")));
+            return Err(Error::api_error(
+                status.as_u16(),
+                format!("Download error: {error_text}"),
+            ));
         }
 
         Ok(response.bytes().await?.to_vec())

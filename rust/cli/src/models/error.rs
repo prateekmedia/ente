@@ -1,3 +1,4 @@
+use ente_core::crypto::CryptoError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -87,10 +88,18 @@ impl Error {
     /// Get a user-friendly display message
     pub fn user_message(&self) -> String {
         match self {
-            Error::RateLimited => "⏳ Too many requests. Please wait a minute and try again.".to_string(),
-            Error::ApiError { status: 401, .. } => "🔐 Invalid credentials. Please check your password.".to_string(),
-            Error::ApiError { status: 410, .. } => "🔐 Session expired. Please restart the login process.".to_string(),
-            Error::ApiError { status: 429, .. } => "⏳ Too many requests. Please wait a minute and try again.".to_string(),
+            Error::RateLimited => {
+                "⏳ Too many requests. Please wait a minute and try again.".to_string()
+            }
+            Error::ApiError { status: 401, .. } => {
+                "🔐 Invalid credentials. Please check your password.".to_string()
+            }
+            Error::ApiError { status: 410, .. } => {
+                "🔐 Session expired. Please restart the login process.".to_string()
+            }
+            Error::ApiError { status: 429, .. } => {
+                "⏳ Too many requests. Please wait a minute and try again.".to_string()
+            }
             Error::ApiError { status: 404, .. } => "🔍 Not found.".to_string(),
             Error::AuthenticationFailed(msg) => format!("🔐 {}", msg),
             Error::Crypto(_) => "🔑 Decryption failed. Please check your password.".to_string(),
@@ -98,6 +107,16 @@ impl Error {
             Error::Network(_) => "🌐 Network error. Please check your connection.".to_string(),
             Error::InvalidInput(msg) => format!("⚠️  {}", msg),
             _ => format!("❌ {}", self),
+        }
+    }
+}
+
+impl From<CryptoError> for Error {
+    fn from(err: CryptoError) -> Self {
+        match err {
+            CryptoError::Base64Decode(source) => Error::Base64Decode(source),
+            CryptoError::Io(source) => Error::Io(source),
+            other => Error::Crypto(other.to_string()),
         }
     }
 }

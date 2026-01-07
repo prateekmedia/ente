@@ -28,7 +28,10 @@ fn main() {
         ("Argon2id", tests::argon2::run_all()),
         ("KDF (BLAKE2b)", tests::kdf::run_all()),
         ("SecretBox (XSalsa20-Poly1305)", tests::secretbox::run_all()),
-        ("SealedBox (X25519 + XSalsa20-Poly1305)", tests::sealed::run_all()),
+        (
+            "SealedBox (X25519 + XSalsa20-Poly1305)",
+            tests::sealed::run_all(),
+        ),
         ("BLAKE2b Hash", tests::hash::run_all()),
         ("Stream (XChaCha20-Poly1305)", tests::stream::run_all()),
         ("Full Auth Flow", tests::auth_flow::run_all()),
@@ -43,9 +46,7 @@ fn main() {
 
     for (name, (passed, failed)) in &results {
         let status = if *failed == 0 { "✅" } else { "❌" };
-        println!(
-            "║ {status} {name:<40} {passed:>3} passed, {failed:>3} failed ║",
-        );
+        println!("║ {status} {name:<40} {passed:>3} passed, {failed:>3} failed ║",);
         total_passed += passed;
         total_failed += failed;
     }

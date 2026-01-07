@@ -66,7 +66,11 @@ fn test_custom_params() -> bool {
     let salt = crate::random_bytes(16);
 
     // Test various param combinations
-    for (mem, ops) in [(32 * 1024 * 1024, 1), (128 * 1024 * 1024, 4), (64 * 1024 * 1024, 3)] {
+    for (mem, ops) in [
+        (32 * 1024 * 1024, 1),
+        (128 * 1024 * 1024, 4),
+        (64 * 1024 * 1024, 3),
+    ] {
         let libsodium_key = derive_libsodium(password, &salt, mem, ops);
         let core_key = crypto::argon::derive_key(password, &salt, mem, ops).unwrap();
         if libsodium_key != core_key {

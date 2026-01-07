@@ -1,8 +1,8 @@
 //! Integration tests for authentication module.
 
-use ente_core::auth::{decrypt_secrets_legacy, 
+use ente_core::auth::{
     KeyAttributes, KeyDerivationStrength, SrpAttributes, create_new_recovery_key,
-    decrypt_secrets_with_kek, derive_keys_for_login,
+    decrypt_secrets_legacy, decrypt_secrets_with_kek, derive_keys_for_login,
     generate_key_attributes_for_new_password_with_strength, generate_keys_with_strength,
     get_recovery_key, recover_with_key,
 };
@@ -85,7 +85,8 @@ mod login {
         let public_key = crypto::decode_b64(&signup.key_attributes.public_key).unwrap();
         let encrypted_token = create_sealed_token(b"token", &public_key);
 
-        let result = decrypt_secrets_legacy("wrong_password", &signup.key_attributes, &encrypted_token);
+        let result =
+            decrypt_secrets_legacy("wrong_password", &signup.key_attributes, &encrypted_token);
         assert!(result.is_err());
     }
 

@@ -9,7 +9,7 @@ use crate::api::models::{
     SendOtpRequest, SrpAttributes, VerifyEmailRequest, VerifySrpSessionRequest, VerifyTotpRequest,
 };
 use crate::models::error::Result;
-use base64::{engine::general_purpose::STANDARD, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use uuid::Uuid;
 
 // Use ente-core for crypto operations
@@ -27,10 +27,7 @@ impl<'a> AuthClient<'a> {
 
     /// Get SRP attributes for a user by email
     pub async fn get_srp_attributes(&self, email: &str) -> Result<SrpAttributes> {
-        let url = format!(
-            "/users/srp/attributes?email={}",
-            urlencoding::encode(email)
-        );
+        let url = format!("/users/srp/attributes?email={}", urlencoding::encode(email));
         let response: GetSrpAttributesResponse = self.api.get(&url, None).await?;
         log::debug!(
             "SRP attributes response: is_email_mfa_enabled={}",
@@ -105,7 +102,9 @@ impl<'a> AuthClient<'a> {
         let a_pub = srp_client.compute_a();
 
         log::debug!("Creating SRP session...");
-        let session = self.create_srp_session(&srp_attrs.srp_user_id, &a_pub).await?;
+        let session = self
+            .create_srp_session(&srp_attrs.srp_user_id, &a_pub)
+            .await?;
         log::debug!("Session created successfully: {}", session.session_id);
 
         // Add a small delay to avoid potential rate limiting

@@ -17,8 +17,13 @@ fn test_stream_encrypt_decrypt_empty() {
     let key = vec![0x42u8; 32];
     let plaintext = b"";
 
-    let (header, ciphertext) = crypto::stream::encrypt(plaintext, &key).unwrap();
-    let decrypted = crypto::stream::decrypt(&header, &ciphertext, &key).unwrap();
+    let encrypted = crypto::stream::encrypt(plaintext, &key).unwrap();
+    let decrypted = crypto::stream::decrypt(
+        &encrypted.encrypted_data,
+        &encrypted.decryption_header,
+        &key,
+    )
+    .unwrap();
 
     assert_eq!(decrypted, plaintext);
 }
@@ -29,8 +34,13 @@ fn test_stream_encrypt_decrypt_small() {
     let key = vec![0x42u8; 32];
     let plaintext = b"Hello, World!";
 
-    let (header, ciphertext) = crypto::stream::encrypt(plaintext, &key).unwrap();
-    let decrypted = crypto::stream::decrypt(&header, &ciphertext, &key).unwrap();
+    let encrypted = crypto::stream::encrypt(plaintext, &key).unwrap();
+    let decrypted = crypto::stream::decrypt(
+        &encrypted.encrypted_data,
+        &encrypted.decryption_header,
+        &key,
+    )
+    .unwrap();
 
     assert_eq!(decrypted, plaintext);
 }
@@ -41,8 +51,13 @@ fn test_stream_encrypt_decrypt_large() {
     let key = vec![0x42u8; 32];
     let plaintext = vec![0xAB; 1024 * 1024]; // 1 MB
 
-    let (header, ciphertext) = crypto::stream::encrypt(&plaintext, &key).unwrap();
-    let decrypted = crypto::stream::decrypt(&header, &ciphertext, &key).unwrap();
+    let encrypted = crypto::stream::encrypt(&plaintext, &key).unwrap();
+    let decrypted = crypto::stream::decrypt(
+        &encrypted.encrypted_data,
+        &encrypted.decryption_header,
+        &key,
+    )
+    .unwrap();
 
     assert_eq!(decrypted, plaintext);
 }
@@ -51,7 +66,7 @@ fn test_stream_encrypt_decrypt_large() {
 fn test_stream_multi_chunk() {
     crypto::init().unwrap();
     let key = vec![0x42u8; 32];
-    let chunks = vec![
+    let chunks = [
         b"First chunk".to_vec(),
         b"Second chunk".to_vec(),
         b"Third chunk".to_vec(),
@@ -143,7 +158,7 @@ fn test_secretbox_with_generated_nonce() {
 
     // Use the encrypt function that generates nonce
     let encrypted = crypto::secretbox::encrypt(plaintext, &key).unwrap();
-    
+
     // Decrypt using decrypt_box which handles EncryptedData
     let decrypted = crypto::secretbox::decrypt_box(&encrypted, &key).unwrap();
     assert_eq!(decrypted, plaintext);
@@ -367,19 +382,28 @@ fn test_ente_file_encryption_flow() {
 
     // 2. Encrypt file content
     let file_content = b"Photo data here...";
-    let (header, encrypted_file) = crypto::stream::encrypt(file_content, &file_key).unwrap();
+    let encrypted_file = crypto::stream::encrypt(file_content, &file_key).unwrap();
 
     // 3. Encrypt metadata
     let metadata = br#"{"title": "photo.jpg"}"#;
-    let (meta_header, encrypted_meta) = crypto::stream::encrypt(metadata, &file_key).unwrap();
+    let encrypted_meta = crypto::stream::encrypt(metadata, &file_key).unwrap();
 
     // 4. Decrypt file
-    let decrypted_file = crypto::stream::decrypt(&header, &encrypted_file, &file_key).unwrap();
+    let decrypted_file = crypto::stream::decrypt(
+        &encrypted_file.encrypted_data,
+        &encrypted_file.decryption_header,
+        &file_key,
+    )
+    .unwrap();
     assert_eq!(decrypted_file, file_content);
 
     // 5. Decrypt metadata
-    let decrypted_meta =
-        crypto::stream::decrypt(&meta_header, &encrypted_meta, &file_key).unwrap();
+    let decrypted_meta = crypto::stream::decrypt(
+        &encrypted_meta.encrypted_data,
+        &encrypted_meta.decryption_header,
+        &file_key,
+    )
+    .unwrap();
     assert_eq!(decrypted_meta, metadata);
 }
 
@@ -394,8 +418,8 @@ fn test_argon2_known_vector() {
     // This vector was validated against libsodium
     let password = "test_password";
     let salt = [
-        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
-        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd,
+        0xef,
     ];
 
     let key = crypto::argon::derive_key(password, &salt, 64 * 1024, 2).unwrap();
@@ -412,10 +436,9 @@ fn test_kdf_known_vector() {
 
     // This vector was validated against libsodium
     let master_key = [
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+        0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d,
+        0x1e, 0x1f,
     ];
 
     let login_key = crypto::kdf::derive_login_key(&master_key).unwrap();
@@ -434,7 +457,7 @@ fn test_secretbox_known_vector() {
     let plaintext = b"test";
 
     let ciphertext = crypto::secretbox::encrypt_with_nonce(plaintext, &nonce, &key).unwrap();
-    
+
     // Ciphertext should be plaintext + 16 bytes MAC
     assert_eq!(ciphertext.len(), plaintext.len() + 16);
 
@@ -454,8 +477,9 @@ fn test_hash_known_vector() {
     // Empty string BLAKE2b-512 hash (known value)
     let expected = hex::decode(
         "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419\
-         d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"
-    ).unwrap();
+         d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce",
+    )
+    .unwrap();
     assert_eq!(hash, expected);
 }
 
@@ -469,7 +493,8 @@ fn test_secretbox_known_vector_full() {
     crypto::init().unwrap();
 
     // Test vector with known inputs and expected output
-    let key = hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f").unwrap();
+    let key =
+        hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f").unwrap();
     let nonce = hex::decode("000102030405060708090a0b0c0d0e0f1011121314151617").unwrap();
     let plaintext = b"Hello, World!";
 
@@ -507,15 +532,20 @@ fn test_stream_format() {
     let key = [0x42u8; 32];
     let plaintext = b"Stream test";
 
-    let (header, ciphertext) = crypto::stream::encrypt(plaintext, &key).unwrap();
+    let encrypted = crypto::stream::encrypt(plaintext, &key).unwrap();
 
     // Header is 24 bytes
-    assert_eq!(header.len(), 24);
+    assert_eq!(encrypted.decryption_header.len(), 24);
 
     // Ciphertext = encrypted_tag (1) || ciphertext || MAC (16) = 17 + plaintext.len()
-    assert_eq!(ciphertext.len(), plaintext.len() + 17);
+    assert_eq!(encrypted.encrypted_data.len(), plaintext.len() + 17);
 
-    let decrypted = crypto::stream::decrypt(&header, &ciphertext, &key).unwrap();
+    let decrypted = crypto::stream::decrypt(
+        &encrypted.encrypted_data,
+        &encrypted.decryption_header,
+        &key,
+    )
+    .unwrap();
     assert_eq!(decrypted, plaintext);
 }
 
@@ -564,8 +594,9 @@ fn test_hash_empty_input() {
     let hash = crypto::hash::hash(b"", Some(64), None).unwrap();
     let expected = hex::decode(
         "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419\
-         d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"
-    ).unwrap();
+         d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce",
+    )
+    .unwrap();
     assert_eq!(hash, expected);
 }
 
@@ -607,9 +638,14 @@ fn test_ente_full_auth_simulation() {
     // 8. Encrypt a file
     let file_key = crypto::keys::generate_stream_key();
     let file_data = b"Photo metadata and content";
-    let (header, encrypted_file) = crypto::stream::encrypt(file_data, &file_key).unwrap();
+    let encrypted_file = crypto::stream::encrypt(file_data, &file_key).unwrap();
 
     // 9. Decrypt the file
-    let decrypted_file = crypto::stream::decrypt(&header, &encrypted_file, &file_key).unwrap();
+    let decrypted_file = crypto::stream::decrypt(
+        &encrypted_file.encrypted_data,
+        &encrypted_file.decryption_header,
+        &file_key,
+    )
+    .unwrap();
     assert_eq!(decrypted_file, file_data);
 }

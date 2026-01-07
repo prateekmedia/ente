@@ -47,8 +47,8 @@ mod srp;
 mod types;
 
 // High-level API (recommended for applications)
-pub use api::{create_srp_client, decrypt_secrets, derive_kek, derive_srp_credentials};
 pub use api::{DecryptedSecrets, SrpCredentials};
+pub use api::{create_srp_client, decrypt_secrets, derive_kek, derive_srp_credentials};
 pub use srp::SrpAuthClient;
 
 // Key generation (for signup)
@@ -60,8 +60,8 @@ pub use key_gen::{
 
 // Lower-level login utilities (prefer api module for new code)
 pub use login::{
-    decrypt_secrets_with_kek, derive_keys_for_login, derive_login_key_for_srp,
-    decrypt_secrets as decrypt_secrets_legacy,
+    decrypt_secrets as decrypt_secrets_legacy, decrypt_secrets_with_kek, derive_keys_for_login,
+    derive_login_key_for_srp,
 };
 
 // Recovery

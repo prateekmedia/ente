@@ -70,8 +70,8 @@ pub fn derive_kek(
     mem_limit: u32,
     ops_limit: u32,
 ) -> Result<Vec<u8>> {
-    let salt = crypto::decode_b64(kek_salt)
-        .map_err(|e| AuthError::Decode(format!("kek_salt: {}", e)))?;
+    let salt =
+        crypto::decode_b64(kek_salt).map_err(|e| AuthError::Decode(format!("kek_salt: {}", e)))?;
 
     argon::derive_key(password, &salt, mem_limit, ops_limit).map_err(AuthError::from)
 }
@@ -156,7 +156,7 @@ pub fn create_srp_client(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::{generate_keys_with_strength, KeyDerivationStrength};
+    use crate::auth::{KeyDerivationStrength, generate_keys_with_strength};
 
     #[test]
     fn test_derive_srp_credentials() {
@@ -206,8 +206,7 @@ mod tests {
         .unwrap();
 
         // Decrypt secrets
-        let secrets =
-            decrypt_secrets(&kek, &gen_result.key_attributes, &encrypted_token).unwrap();
+        let secrets = decrypt_secrets(&kek, &gen_result.key_attributes, &encrypted_token).unwrap();
 
         // Verify
         let original_master_key =

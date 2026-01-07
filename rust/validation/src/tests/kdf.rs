@@ -43,9 +43,8 @@ fn derive_libsodium(key: &[u8], subkey_len: usize, subkey_id: u64, context: &[u8
 
 fn test_login_key() -> bool {
     // Test vector used in ente's login flow
-    let master_key = hex::decode(
-        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-    ).unwrap();
+    let master_key =
+        hex::decode("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f").unwrap();
 
     let libsodium_subkey = derive_libsodium(&master_key, 32, 1, b"loginctx");
     let libsodium_login_key = &libsodium_subkey[..16];
@@ -72,9 +71,7 @@ fn test_different_ids() -> bool {
 fn test_different_contexts() -> bool {
     let master_key = crate::random_bytes(32);
 
-    let contexts: &[&[u8]] = &[
-        b"context1", b"context2", b"test", b"loginctx", b"ABCDEFGH",
-    ];
+    let contexts: &[&[u8]] = &[b"context1", b"context2", b"test", b"loginctx", b"ABCDEFGH"];
 
     for ctx in contexts {
         let libsodium_key = derive_libsodium(&master_key, 32, 1, ctx);
@@ -126,7 +123,10 @@ fn test_context_padding() -> bool {
         let libsodium_key = derive_libsodium(&master_key, 32, 1, ctx);
         let core_key = crypto::kdf::derive_subkey(&master_key, 32, 1, ctx).unwrap();
         if libsodium_key != core_key {
-            eprintln!("  Failed for short context={:?}", String::from_utf8_lossy(ctx));
+            eprintln!(
+                "  Failed for short context={:?}",
+                String::from_utf8_lossy(ctx)
+            );
             return false;
         }
     }
