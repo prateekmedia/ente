@@ -49,6 +49,8 @@ type FeatureFlagResponse struct {
 const (
 	// UploadV2 marks availability of the upload v2 APIs in the binary.
 	UploadV2 int64 = 1 << 0
+	// Comments marks availability of the comments feature.
+	Comments int64 = 1 << 1
 )
 
 type FlagKey string
@@ -93,7 +95,7 @@ func (k FlagKey) UserEditable() bool {
 }
 
 func (k FlagKey) NeedSubscription() bool {
-	return k == CustomDomain
+	return false
 }
 
 func (k FlagKey) CanRemove() bool {

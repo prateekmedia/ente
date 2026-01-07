@@ -2,6 +2,7 @@ import CalendarIcon from "@mui/icons-material/CalendarMonth";
 import CloseIcon from "@mui/icons-material/Close";
 import ImageIcon from "@mui/icons-material/Image";
 import LocationIcon from "@mui/icons-material/LocationOn";
+import CameraIcon from "@mui/icons-material/PhotoCameraOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import SettingsIcon from "@mui/icons-material/Settings";
 import {
@@ -23,7 +24,11 @@ import {
     isHLSGenerationSupported,
 } from "ente-gallery/services/video";
 import { ItemCard, PreviewItemTile } from "ente-new/photos/components/Tiles";
-import { isMLSupported, mlStatusSnapshot } from "ente-new/photos/services/ml";
+import {
+    isMLSupported,
+    mlStatusSnapshot,
+    peopleStateSnapshot,
+} from "ente-new/photos/services/ml";
 import { searchOptionsForString } from "ente-new/photos/services/search";
 import type { SearchOption } from "ente-new/photos/services/search/types";
 import { nullToUndefined } from "ente-utils/transform";
@@ -157,6 +162,9 @@ const SearchInput: React.FC<Omit<SearchBarProps, "onShowSearchInput">> = ({
 }) => {
     // A ref to the top level Select.
     const selectRef = useRef<SelectInstance<SearchOption> | null>(null);
+    // Subscribe to people state so that we re-render when people data arrives.
+    // This is needed because shouldShowEmptyState reads peopleStateSnapshot().
+    usePeopleStateSnapshot();
     // The currently selected option.
     //
     // We need to use `null` instead of `undefined` to indicate missing values,
@@ -291,7 +299,9 @@ const SearchInput: React.FC<Omit<SearchBarProps, "onShowSearchInput">> = ({
                 onInputChange={handleInputChange}
                 isClearable
                 escapeClearsValue
-                menuIsOpen={isFocused && inputValue !== ""}
+                menuIsOpen={
+                    isFocused && (inputValue !== "" || shouldShowEmptyState(""))
+                }
                 onFocus={handleFocus}
                 onBlur={handleBlur}
                 placeholder={t("search_hint")}
@@ -487,6 +497,9 @@ const iconForOption = (option: SearchOption | undefined) => {
             return <ImageIcon />;
         case "date":
             return <CalendarIcon />;
+        case "cameraMake":
+        case "cameraModel":
+            return <CameraIcon />;
         case "sidebarAction":
             return <SettingsIcon />;
         case "location":
@@ -541,17 +554,22 @@ const shouldShowEmptyState = (inputValue: string) => {
         vpStatus: vpStatus?.enabled ? vpStatus.status : "disabled",
     });
 
-    if (
-        (!mlStatus || mlStatus.phase == "disabled") &&
-        (!vpStatus?.enabled || vpStatus.status != "processing")
-    ) {
-        // ML is either not supported or currently disabled AND video processing
-        // is either not supported or currently not happening. Don't show the
-        // empty state.
-        log.info(
-            "[SearchBar] shouldShowEmptyState: false (ML disabled, no video processing)",
-        );
-        return false;
+    const isMLInactive =
+        !mlStatus || mlStatus.phase == "disabled" || mlStatus.phase == "done";
+    const isVideoProcessing =
+        vpStatus?.enabled && vpStatus.status == "processing";
+
+    if (isMLInactive && !isVideoProcessing) {
+        // ML is inactive AND video processing is not happening.
+        // Only show empty state if there are people to display.
+        const people = peopleStateSnapshot()?.visiblePeople;
+        const hasPeople = people && people.length > 0;
+        if (!hasPeople) {
+            log.info(
+                "[SearchBar] shouldShowEmptyState: false (ML inactive, no video processing, no people)",
+            );
+            return false;
+        }
     }
 
     // Show it otherwise.
@@ -606,9 +624,9 @@ const EmptyState: React.FC<
             break;
     }
 
-    // If ML is disabled and we're not video processing, then don't show the
-    // empty state content.
-    if ((!mlStatus || mlStatus.phase == "disabled") && !label) {
+    // If there's nothing to show (no people and no status label), return empty.
+    const hasPeople = people && people.length > 0;
+    if (!hasPeople && !label) {
         return <></>;
     }
 
@@ -726,6 +744,12 @@ const labelForOption = (option: SearchOption) => {
 
         case "fileCaption":
             return t("description");
+
+        case "cameraMake":
+            return t("cameraMake", { defaultValue: "Camera Make" });
+
+        case "cameraModel":
+            return t("cameraModel", { defaultValue: "Camera Model" });
 
         case "date":
             return t("date");
