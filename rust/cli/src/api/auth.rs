@@ -95,11 +95,11 @@ impl<'a> AuthClient<'a> {
             is_email_mfa_enabled: srp_attrs.is_email_mfa_enabled,
         };
 
-        let (mut srp_client, kek) = ente_core::auth::create_srp_client(password, &core_attrs)
+        let (mut srp_session, kek) = ente_core::auth::start_srp_session(password, &core_attrs)
             .map_err(|e| crate::models::error::Error::Crypto(e.to_string()))?;
 
         // Step 3: Get client's public value and create session
-        let a_pub = srp_client.compute_a();
+        let a_pub = srp_session.public_a();
 
         log::debug!("Creating SRP session...");
         let session = self
@@ -110,17 +110,15 @@ impl<'a> AuthClient<'a> {
         // Add a small delay to avoid potential rate limiting
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-        // Step 4: Process server's public key
+        // Step 4: Decode server's public key
         let server_b = STANDARD
             .decode(&session.srp_b)
             .map_err(|e| crate::models::error::Error::Crypto(format!("Invalid server B: {}", e)))?;
 
-        srp_client
-            .set_b(&server_b)
+        // Step 5: Compute proof using server's public value
+        let proof = srp_session
+            .compute_m1(&server_b)
             .map_err(|e| crate::models::error::Error::Crypto(e.to_string()))?;
-
-        // Step 5: Generate proof and verify session
-        let proof = srp_client.compute_m1();
 
         let auth_response = self
             .verify_srp_session(&srp_attrs.srp_user_id, &session.session_id, &proof)
@@ -129,7 +127,7 @@ impl<'a> AuthClient<'a> {
         // TODO: Verify server proof if provided
         // if let Some(srp_m2) = &auth_response.srp_m2 {
         //     let server_proof = STANDARD.decode(srp_m2)?;
-        //     srp_client.verify_m2(&server_proof)?;
+        //     srp_session.verify_m2(&server_proof)?;
         // }
 
         Ok((auth_response, kek))
@@ -196,9 +194,9 @@ mod tests {
             is_email_mfa_enabled: false,
         };
 
-        let (client, kek) = ente_core::auth::create_srp_client(password, &srp_attrs).unwrap();
+        let (session, kek) = ente_core::auth::start_srp_session(password, &srp_attrs).unwrap();
 
         assert_eq!(kek.len(), 32);
-        assert!(!client.compute_a().is_empty());
+        assert!(!session.public_a().is_empty());
     }
 }

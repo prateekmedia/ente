@@ -5,7 +5,10 @@
 
 use crate::crypto::{self, argon, kdf, sealed, secretbox};
 
-use super::{AuthError, KeyAttributes, Result, SrpAttributes, SrpAuthClient};
+use super::{AuthError, KeyAttributes, Result, SrpAttributes};
+
+#[cfg(any(test, feature = "srp"))]
+use super::SrpSession;
 
 /// Credentials derived from password for SRP authentication.
 #[derive(Debug)]
@@ -127,30 +130,31 @@ pub fn decrypt_secrets(
     })
 }
 
-/// Create an SRP client for password authentication.
+/// Start an SRP session for password authentication.
 ///
 /// This is a convenience function that:
 /// 1. Derives credentials from password
-/// 2. Creates an SRP client ready for the protocol
+/// 2. Creates an SRP session ready for the protocol
 ///
 /// # Arguments
 /// * `password` - User's password
 /// * `srp_attrs` - SRP attributes from the server
 ///
 /// # Returns
-/// * Tuple of (SrpAuthClient, kek) - use client for SRP, keep kek for later decryption
-pub fn create_srp_client(
+/// * Tuple of (SrpSession, kek) - use session for SRP, keep kek for later decryption
+#[cfg(any(test, feature = "srp"))]
+pub fn start_srp_session(
     password: &str,
     srp_attrs: &SrpAttributes,
-) -> Result<(SrpAuthClient, Vec<u8>)> {
+) -> Result<(SrpSession, Vec<u8>)> {
     let creds = derive_srp_credentials(password, srp_attrs)?;
 
     let srp_salt = crypto::decode_b64(&srp_attrs.srp_salt)
         .map_err(|e| AuthError::Decode(format!("srp_salt: {}", e)))?;
 
-    let client = SrpAuthClient::new(&srp_attrs.srp_user_id, &srp_salt, &creds.login_key)?;
+    let session = SrpSession::new(&srp_attrs.srp_user_id, &srp_salt, &creds.login_key)?;
 
-    Ok((client, creds.kek))
+    Ok((session, creds.kek))
 }
 
 #[cfg(test)]
@@ -247,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_srp_client() {
+    fn test_start_srp_session() {
         crate::crypto::init().unwrap();
 
         let password = "test_password";
@@ -263,9 +267,9 @@ mod tests {
             is_email_mfa_enabled: false,
         };
 
-        let (client, kek) = create_srp_client(password, &srp_attrs).unwrap();
+        let (session, kek) = start_srp_session(password, &srp_attrs).unwrap();
 
         assert_eq!(kek.len(), 32);
-        assert!(!client.compute_a().is_empty());
+        assert!(!session.public_a().is_empty());
     }
 }

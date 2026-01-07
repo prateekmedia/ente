@@ -4,9 +4,14 @@
 //!   cargo run -p ente-validation --bin bench
 
 use std::collections::BTreeMap;
+use std::ffi::c_char;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
+use base64::{engine::general_purpose::STANDARD, Engine};
+use ente_core::auth::{
+    decrypt_secrets, derive_kek, generate_keys_with_strength, KeyAttributes, KeyDerivationStrength,
+};
 use ente_core::crypto;
 use libsodium_sys as sodium;
 use serde::Serialize;
@@ -16,6 +21,8 @@ const STREAM_CHUNK: usize = 64 * 1024;
 
 const ARGON_MEM: u32 = 67_108_864; // 64 MiB
 const ARGON_OPS: u32 = 2;
+
+const AUTH_TOKEN: &[u8] = b"benchmark-auth-token";
 
 const SECRETBOX_KEY_BYTES: usize = 32;
 const SECRETBOX_NONCE_BYTES: usize = 24;
@@ -67,6 +74,23 @@ struct BenchResultJson {
     size_bytes: usize,
     iterations: usize,
     duration_ms: f64,
+}
+
+struct CoreAuthArtifacts {
+    key_attrs: KeyAttributes,
+    encrypted_token: String,
+}
+
+struct LibsodiumAuthArtifacts {
+    kek_salt_b64: String,
+    mem_limit: u32,
+    ops_limit: u32,
+    encrypted_key_b64: String,
+    key_nonce_b64: String,
+    public_key_b64: String,
+    encrypted_secret_key_b64: String,
+    secret_key_nonce_b64: String,
+    encrypted_token_b64: String,
 }
 
 fn write_json_if_requested(results: &[BenchResult]) {
@@ -154,6 +178,21 @@ fn main() {
     let argon_iters = 3;
     results.push(bench_argon_core(argon_iters));
     results.push(bench_argon_libsodium(argon_iters));
+
+    // Auth flow (signup + login)
+    let auth_iters = 3;
+    let auth_password = "benchmark-password";
+    let core_auth = build_core_auth_artifacts(auth_password);
+    let libsodium_auth = build_libsodium_auth_artifacts(auth_password);
+
+    results.push(bench_auth_core_signup(auth_password, auth_iters));
+    results.push(bench_auth_libsodium_signup(auth_password, auth_iters));
+    results.push(bench_auth_core_login(auth_password, &core_auth, auth_iters));
+    results.push(bench_auth_libsodium_login(
+        auth_password,
+        &libsodium_auth,
+        auth_iters,
+    ));
 
     print_results(&results);
     print_summary(&results);
@@ -481,6 +520,185 @@ fn bench_argon_libsodium(iterations: usize) -> BenchResult {
     }
 }
 
+fn bench_auth_core_signup(password: &str, iterations: usize) -> BenchResult {
+    let mut sink = 0u64;
+
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let result = generate_keys_with_strength(password, KeyDerivationStrength::Interactive)
+            .expect("core keygen failed");
+        sink ^= result.login_key[0] as u64;
+    }
+    black_box(sink);
+
+    BenchResult {
+        case: "auth",
+        implementation: "rust-core",
+        operation: "signup",
+        size_bytes: 0,
+        iterations,
+        duration: start.elapsed(),
+    }
+}
+
+fn bench_auth_libsodium_signup(password: &str, iterations: usize) -> BenchResult {
+    let mut sink = 0u64;
+
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let artifacts = build_libsodium_auth_artifacts(password);
+        sink ^= artifacts.encrypted_key_b64.len() as u64;
+    }
+    black_box(sink);
+
+    BenchResult {
+        case: "auth",
+        implementation: "libsodium",
+        operation: "signup",
+        size_bytes: 0,
+        iterations,
+        duration: start.elapsed(),
+    }
+}
+
+fn bench_auth_core_login(
+    password: &str,
+    artifacts: &CoreAuthArtifacts,
+    iterations: usize,
+) -> BenchResult {
+    let mut sink = 0u64;
+    let mem = artifacts.key_attrs.mem_limit.unwrap_or(ARGON_MEM);
+    let ops = artifacts.key_attrs.ops_limit.unwrap_or(ARGON_OPS);
+
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let kek = derive_kek(password, &artifacts.key_attrs.kek_salt, mem, ops)
+            .expect("core derive_kek failed");
+        let secrets = decrypt_secrets(&kek, &artifacts.key_attrs, &artifacts.encrypted_token)
+            .expect("core decrypt_secrets failed");
+        sink ^= secrets.master_key[0] as u64;
+    }
+    black_box(sink);
+
+    BenchResult {
+        case: "auth",
+        implementation: "rust-core",
+        operation: "login",
+        size_bytes: 0,
+        iterations,
+        duration: start.elapsed(),
+    }
+}
+
+fn bench_auth_libsodium_login(
+    password: &str,
+    artifacts: &LibsodiumAuthArtifacts,
+    iterations: usize,
+) -> BenchResult {
+    let mut sink = 0u64;
+
+    let start = Instant::now();
+    for _ in 0..iterations {
+        let salt = STANDARD
+            .decode(&artifacts.kek_salt_b64)
+            .expect("decode kek_salt failed");
+        let kek = libsodium_argon2(password, &salt, artifacts.mem_limit, artifacts.ops_limit);
+
+        let enc_key = STANDARD
+            .decode(&artifacts.encrypted_key_b64)
+            .expect("decode encrypted_key failed");
+        let key_nonce = STANDARD
+            .decode(&artifacts.key_nonce_b64)
+            .expect("decode key_nonce failed");
+        let master_key = libsodium_secretbox_decrypt(&enc_key, &key_nonce, &kek);
+
+        let enc_secret_key = STANDARD
+            .decode(&artifacts.encrypted_secret_key_b64)
+            .expect("decode encrypted_secret_key failed");
+        let secret_key_nonce = STANDARD
+            .decode(&artifacts.secret_key_nonce_b64)
+            .expect("decode secret_key_nonce failed");
+        let secret_key =
+            libsodium_secretbox_decrypt(&enc_secret_key, &secret_key_nonce, &master_key);
+
+        let public_key = STANDARD
+            .decode(&artifacts.public_key_b64)
+            .expect("decode public_key failed");
+        let encrypted_token = STANDARD
+            .decode(&artifacts.encrypted_token_b64)
+            .expect("decode encrypted_token failed");
+        let token = libsodium_seal_open(&encrypted_token, &public_key, &secret_key);
+        sink ^= token[0] as u64;
+    }
+    black_box(sink);
+
+    BenchResult {
+        case: "auth",
+        implementation: "libsodium",
+        operation: "login",
+        size_bytes: 0,
+        iterations,
+        duration: start.elapsed(),
+    }
+}
+
+fn build_core_auth_artifacts(password: &str) -> CoreAuthArtifacts {
+    let gen_result = generate_keys_with_strength(password, KeyDerivationStrength::Interactive)
+        .expect("core keygen failed");
+    let public_key = crypto::decode_b64(&gen_result.key_attributes.public_key)
+        .expect("decode public key failed");
+    let sealed_token = crypto::sealed::seal(AUTH_TOKEN, &public_key).expect("core seal failed");
+
+    CoreAuthArtifacts {
+        key_attrs: gen_result.key_attributes,
+        encrypted_token: STANDARD.encode(sealed_token),
+    }
+}
+
+fn build_libsodium_auth_artifacts(password: &str) -> LibsodiumAuthArtifacts {
+    let master_key = libsodium_random_bytes(SECRETBOX_KEY_BYTES);
+    let recovery_key = libsodium_random_bytes(SECRETBOX_KEY_BYTES);
+
+    let nonce_master_recovery = libsodium_random_bytes(SECRETBOX_NONCE_BYTES);
+    let enc_master_with_recovery =
+        libsodium_secretbox_encrypt(&master_key, &nonce_master_recovery, &recovery_key);
+    let _ = STANDARD.encode(&enc_master_with_recovery);
+    let _ = STANDARD.encode(&nonce_master_recovery);
+
+    let nonce_recovery_master = libsodium_random_bytes(SECRETBOX_NONCE_BYTES);
+    let enc_recovery_with_master =
+        libsodium_secretbox_encrypt(&recovery_key, &nonce_recovery_master, &master_key);
+    let _ = STANDARD.encode(&enc_recovery_with_master);
+    let _ = STANDARD.encode(&nonce_recovery_master);
+    let _ = hex::encode(&recovery_key);
+
+    let kek_salt = libsodium_random_bytes(16);
+    let kek = libsodium_argon2(password, &kek_salt, ARGON_MEM, ARGON_OPS);
+    let _login_key = libsodium_derive_login_key(&kek);
+
+    let key_nonce = libsodium_random_bytes(SECRETBOX_NONCE_BYTES);
+    let enc_key = libsodium_secretbox_encrypt(&master_key, &key_nonce, &kek);
+
+    let (public_key, secret_key) = libsodium_box_keypair();
+
+    let secret_key_nonce = libsodium_random_bytes(SECRETBOX_NONCE_BYTES);
+    let enc_secret_key = libsodium_secretbox_encrypt(&secret_key, &secret_key_nonce, &master_key);
+
+    let sealed_token = libsodium_seal(AUTH_TOKEN, &public_key);
+
+    LibsodiumAuthArtifacts {
+        kek_salt_b64: STANDARD.encode(&kek_salt),
+        mem_limit: ARGON_MEM,
+        ops_limit: ARGON_OPS,
+        encrypted_key_b64: STANDARD.encode(&enc_key),
+        key_nonce_b64: STANDARD.encode(&key_nonce),
+        public_key_b64: STANDARD.encode(&public_key),
+        encrypted_secret_key_b64: STANDARD.encode(&enc_secret_key),
+        secret_key_nonce_b64: STANDARD.encode(&secret_key_nonce),
+        encrypted_token_b64: STANDARD.encode(&sealed_token),
+    }
+}
+
 fn libsodium_argon2(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -> Vec<u8> {
     let mut key = vec![0u8; 32];
     let result = unsafe {
@@ -497,6 +715,69 @@ fn libsodium_argon2(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32)
     };
     assert_eq!(result, 0, "libsodium argon2 failed");
     key
+}
+
+fn libsodium_derive_login_key(kek: &[u8]) -> Vec<u8> {
+    let mut subkey = vec![0u8; 32];
+    let mut ctx = [0u8; 8];
+    ctx[..8].copy_from_slice(b"loginctx");
+
+    let result = unsafe {
+        sodium::crypto_kdf_derive_from_key(
+            subkey.as_mut_ptr(),
+            subkey.len(),
+            1,
+            ctx.as_ptr() as *const c_char,
+            kek.as_ptr(),
+        )
+    };
+    assert_eq!(result, 0, "libsodium kdf failed");
+    subkey[..16].to_vec()
+}
+
+fn libsodium_random_bytes(len: usize) -> Vec<u8> {
+    let mut buf = vec![0u8; len];
+    unsafe {
+        sodium::randombytes_buf(buf.as_mut_ptr() as *mut _, len);
+    }
+    buf
+}
+
+fn libsodium_box_keypair() -> (Vec<u8>, Vec<u8>) {
+    let mut public_key = vec![0u8; sodium::crypto_box_PUBLICKEYBYTES as usize];
+    let mut secret_key = vec![0u8; sodium::crypto_box_SECRETKEYBYTES as usize];
+    let result =
+        unsafe { sodium::crypto_box_keypair(public_key.as_mut_ptr(), secret_key.as_mut_ptr()) };
+    assert_eq!(result, 0, "libsodium keypair failed");
+    (public_key, secret_key)
+}
+
+fn libsodium_seal(plaintext: &[u8], public_key: &[u8]) -> Vec<u8> {
+    let mut ciphertext = vec![0u8; plaintext.len() + sodium::crypto_box_SEALBYTES as usize];
+    unsafe {
+        sodium::crypto_box_seal(
+            ciphertext.as_mut_ptr(),
+            plaintext.as_ptr(),
+            plaintext.len() as u64,
+            public_key.as_ptr(),
+        );
+    }
+    ciphertext
+}
+
+fn libsodium_seal_open(ciphertext: &[u8], public_key: &[u8], secret_key: &[u8]) -> Vec<u8> {
+    let mut plaintext = vec![0u8; ciphertext.len() - sodium::crypto_box_SEALBYTES as usize];
+    let result = unsafe {
+        sodium::crypto_box_seal_open(
+            plaintext.as_mut_ptr(),
+            ciphertext.as_ptr(),
+            ciphertext.len() as u64,
+            public_key.as_ptr(),
+            secret_key.as_ptr(),
+        )
+    };
+    assert_eq!(result, 0, "libsodium seal open failed");
+    plaintext
 }
 
 fn libsodium_secretbox_encrypt(plaintext: &[u8], nonce: &[u8], key: &[u8]) -> Vec<u8> {
