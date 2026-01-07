@@ -17,7 +17,7 @@ High-level authentication API for Ente clients.
 
 | Function | Description |
 |----------|-------------|
-| `create_srp_client()` | Create SRP client for password authentication |
+| `start_srp_session()` | Start SRP session for password authentication (feature: `srp`) |
 | `derive_srp_credentials()` | Derive KEK and login key from password |
 | `derive_kek()` | Derive key-encryption-key only (for email MFA flow) |
 | `decrypt_secrets()` | Decrypt master key, secret key, and token |
@@ -26,19 +26,25 @@ High-level authentication API for Ente clients.
 
 ### Quick Start - SRP Login
 
+Requires the `srp` feature:
+
+```toml
+[dependencies]
+ente-core = { path = "../core", features = ["srp"] }
+```
+
 ```rust
 use ente_core::auth;
 
-// 1. Create SRP client (derives keys from password)
-let (mut srp_client, kek) = auth::create_srp_client(password, &srp_attrs)?;
+// 1. Start SRP session (derives keys from password)
+let (mut srp_session, kek) = auth::start_srp_session(password, &srp_attrs)?;
 
 // 2. Get client's public value, send to server
-let a_pub = srp_client.compute_a();
+let a_pub = srp_session.public_a();
 let session = api.create_srp_session(&a_pub).await?;
 
-// 3. Process server's response
-srp_client.set_b(&session.srp_b)?;
-let m1 = srp_client.compute_m1();
+// 3. Compute client proof using server response
+let m1 = srp_session.compute_m1(&session.srp_b)?;
 
 // 4. Verify with server, get key attributes
 let auth_response = api.verify_srp_session(&m1).await?;

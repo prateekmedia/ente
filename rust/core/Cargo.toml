@@ -34,6 +34,10 @@ zeroize = { version = "1.8", features = ["derive"] }
 chacha20 = "0.9.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
+[features]
+default = []
+srp = []
+
 # No features needed - pure Rust is always enabled
 
 [lints.rust]

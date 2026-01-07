@@ -8,6 +8,8 @@ use libsodium_sys as sodium;
 const KEY_BYTES: usize = 32;
 const HEADER_BYTES: usize = 24;
 const TAG_MESSAGE: u8 = 0;
+const TAG_PUSH: u8 = 1;
+const TAG_REKEY: u8 = 2;
 const TAG_FINAL: u8 = 3;
 
 #[allow(dead_code)]
@@ -110,6 +112,8 @@ pub fn run_all() -> TestResult {
         "Multi-chunk roundtrip (core-only)" => test_multi_chunk(),
         "Core encrypt, libsodium decrypt" => test_core_to_libsodium(),
         "Libsodium encrypt, core decrypt" => test_libsodium_to_core(),
+        "Libsodium TAG_PUSH interop" => test_libsodium_push_tag(),
+        "Libsodium TAG_REKEY interop" => test_libsodium_rekey_tag(),
         "Multi-chunk interop" => test_multi_chunk_interop(),
         "Empty plaintext interop" => test_empty_interop(),
         "Large plaintext interop (64KB)" => test_large_interop(),
@@ -189,6 +193,43 @@ fn test_libsodium_to_core() -> bool {
     let (decrypted, tag) = decryptor.pull(&ciphertext).unwrap();
 
     decrypted == plaintext && tag == TAG_FINAL
+}
+
+fn test_libsodium_push_tag() -> bool {
+    let key = crate::random_bytes(KEY_BYTES);
+    let chunks = [b"Push tag chunk".to_vec(), b"Final chunk".to_vec()];
+
+    // Encrypt with libsodium using TAG_PUSH then TAG_FINAL
+    let mut encryptor = LibsodiumEncryptor::new(&key);
+    let ct_push = encryptor.push(&chunks[0], TAG_PUSH);
+    let ct_final = encryptor.push(&chunks[1], TAG_FINAL);
+
+    // Decrypt with core and verify tags
+    let mut decryptor = crypto::stream::StreamDecryptor::new(&encryptor.header, &key).unwrap();
+    let (pt_push, tag_push) = decryptor.pull(&ct_push).unwrap();
+    let (pt_final, tag_final) = decryptor.pull(&ct_final).unwrap();
+
+    pt_push == chunks[0] && tag_push == TAG_PUSH && pt_final == chunks[1] && tag_final == TAG_FINAL
+}
+
+fn test_libsodium_rekey_tag() -> bool {
+    let key = crate::random_bytes(KEY_BYTES);
+    let chunks = [b"Rekey chunk".to_vec(), b"After rekey".to_vec()];
+
+    // Encrypt with libsodium using TAG_REKEY then TAG_FINAL
+    let mut encryptor = LibsodiumEncryptor::new(&key);
+    let ct_rekey = encryptor.push(&chunks[0], TAG_REKEY);
+    let ct_final = encryptor.push(&chunks[1], TAG_FINAL);
+
+    // Decrypt with core and verify tags
+    let mut decryptor = crypto::stream::StreamDecryptor::new(&encryptor.header, &key).unwrap();
+    let (pt_rekey, tag_rekey) = decryptor.pull(&ct_rekey).unwrap();
+    let (pt_final, tag_final) = decryptor.pull(&ct_final).unwrap();
+
+    pt_rekey == chunks[0]
+        && tag_rekey == TAG_REKEY
+        && pt_final == chunks[1]
+        && tag_final == TAG_FINAL
 }
 
 fn test_multi_chunk_interop() -> bool {
