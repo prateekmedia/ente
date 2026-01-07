@@ -57,7 +57,7 @@ pub const KEY_BYTES: usize = 32;
 /// # Arguments
 /// * `password` - Password string (UTF-8).
 /// * `salt` - 16-byte salt.
-/// * `mem_limit` - Memory limit in bytes.
+/// * `mem_limit` - Memory limit in bytes (must be a multiple of 1024).
 /// * `ops_limit` - Operations/iterations limit.
 ///
 /// # Returns
@@ -74,6 +74,13 @@ pub fn derive_key(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -
         return Err(CryptoError::InvalidKeyDerivationParams(format!(
             "Memory limit {} is below minimum {}",
             mem_limit, MEMLIMIT_MIN
+        )));
+    }
+
+    if mem_limit % 1024 != 0 {
+        return Err(CryptoError::InvalidKeyDerivationParams(format!(
+            "Memory limit {} must be a multiple of 1024 bytes",
+            mem_limit
         )));
     }
 
@@ -186,7 +193,7 @@ pub fn derive_sensitive_key_with_salt(password: &str, salt: &[u8]) -> Result<Vec
 /// # Arguments
 /// * `password` - Password string.
 /// * `salt_b64` - Base64-encoded salt.
-/// * `mem_limit` - Memory limit in bytes.
+/// * `mem_limit` - Memory limit in bytes (must be a multiple of 1024).
 /// * `ops_limit` - Operations/iterations limit.
 ///
 /// # Returns
@@ -332,6 +339,23 @@ mod tests {
 
         let result = derive_key(password, &salt, 4096, OPSLIMIT_INTERACTIVE);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_memlimit_not_aligned() {
+        let password = "test";
+        let salt = keys::generate_salt();
+
+        let result = derive_key(
+            password,
+            &salt,
+            MEMLIMIT_INTERACTIVE + 1,
+            OPSLIMIT_INTERACTIVE,
+        );
+        assert!(matches!(
+            result,
+            Err(CryptoError::InvalidKeyDerivationParams(_))
+        ));
     }
 
     #[test]
