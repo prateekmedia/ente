@@ -3,9 +3,7 @@
 //! This module provides authenticated encryption using XSalsa20-Poly1305.
 //! The wire format maintains byte-for-byte compatibility with libsodium's crypto_secretbox_easy:
 //!
-//! Output: MAC (16 bytes) || ciphertext (plaintext_len bytes)
-//!
-//! Note: RustCrypto's AEAD outputs ciphertext || MAC, so we must reorder bytes.
+//! Output: ciphertext || MAC (16 bytes)
 
 use xsalsa20poly1305::XSalsa20Poly1305;
 use xsalsa20poly1305::aead::generic_array::GenericArray;
@@ -63,7 +61,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<EncryptedData> {
 /// Encrypt plaintext with a provided nonce.
 ///
 /// # Wire Format
-/// Output: MAC (16 bytes) || ciphertext (plaintext_len bytes)
+/// Output: ciphertext || MAC (16 bytes)
 ///
 /// # Arguments
 /// * `plaintext` - Data to encrypt.

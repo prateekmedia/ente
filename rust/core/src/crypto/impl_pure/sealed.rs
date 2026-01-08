@@ -11,6 +11,8 @@
 //! - Shared secret: X25519(ephemeral_sk, recipient_pk)
 //! - Key: HSalsa20(shared_secret, zero_nonce)
 //! - Encryption: XSalsa20-Poly1305 (ciphertext || MAC format)
+//!
+//! Note: Format is verified against libsodium in the validation suite.
 
 use blake2b_simd::Params as Blake2bParams;
 use rand_core::{OsRng, RngCore};

@@ -3,7 +3,9 @@ use uuid::Uuid;
 
 // ========== Authentication Models ==========
 
-/// Default to true for security - if field is missing, use email OTP flow
+/// Default to true for security - if field is missing, use email OTP flow.
+///
+/// Matches mobile/web behavior: absence falls back to email verification.
 fn default_email_mfa_enabled() -> bool {
     true
 }
