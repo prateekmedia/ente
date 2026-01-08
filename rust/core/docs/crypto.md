@@ -79,5 +79,5 @@ let login_key = kdf::derive_login_key(&kek)?;
 ## Wire Formats
 
 - **SecretBox**: `MAC (16) || ciphertext`
-- **Stream chunk**: `tag (1) || ciphertext || MAC (16)`
+- **Stream chunk**: `ciphertext (plaintext + 17 bytes with tag embedded)`
 - **Sealed**: `ephemeral_pk (32) || MAC (16) || ciphertext`
