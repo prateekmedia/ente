@@ -48,17 +48,23 @@ rust/
 │   ├── Cargo.toml
 │   └── Cargo.lock
 │
-└── core/                   # Pure Rust business logic
-    ├── src/
-    │   ├── lib.rs
-    │   └── urls.rs
-    └── Cargo.toml          # crate name: ente-core
-
+├── core/                   # Pure Rust business logic
+│   ├── src/
+│   │   ├── lib.rs
+│   │   └── urls.rs
+│   └── Cargo.toml          # crate name: ente-core
+│
 └── validation/             # Crypto validation + benchmarks vs libsodium
     ├── src/
     │   ├── main.rs
     │   └── bin/
     │       └── bench.rs
+    ├── wasm/               # WASM bench bindings
+    │   ├── src/
+    │   │   └── lib.rs
+    │   └── Cargo.toml      # crate name: ente-validation-wasm
+    ├── js/                 # JS + WASM benchmarks
+    │   └── bench-wasm.mjs
     └── Cargo.toml          # crate name: ente-validation
 
 web/packages/wasm/          # WASM bindings (lives in web workspace)
@@ -142,8 +148,15 @@ cargo test       # test
 cargo run -p ente-validation --bin ente-validation    # validation suite
 cargo run -p ente-validation --bin bench              # benchmarks (debug)
 cargo run -p ente-validation --bin bench --release    # benchmarks (release)
+```
+
+**ente-validation wasm benchmarks (rust/validation/):**
+
+```sh
 wasm-pack build --target nodejs rust/validation/wasm  # wasm bench build
-node rust/validation/js/bench-wasm.mjs                # wasm benchmarks
+cd rust/validation/js
+npm install
+node bench-wasm.mjs                                   # wasm benchmarks
 ```
 
 **ente-wasm (web/packages/wasm/):**
