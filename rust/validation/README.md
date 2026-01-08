@@ -27,6 +27,33 @@ To write JSON output:
 BENCH_JSON=bench-rust.json cargo run -p ente-validation --bin bench --release
 ```
 
+## WASM Benchmarks (rust-core vs JS)
+
+Build the wasm bench crate (requires wasm-pack):
+
+```bash
+wasm-pack build --target nodejs rust/validation/wasm
+```
+
+Install JS dependencies:
+
+```bash
+cd rust/validation/js
+npm install
+```
+
+Run the WASM benchmark (rust-core wasm vs libsodium-wrappers-sumo wasm):
+
+```bash
+node rust/validation/js/bench-wasm.mjs
+```
+
+To write JSON output:
+
+```bash
+BENCH_JSON=bench-wasm.json node rust/validation/js/bench-wasm.mjs
+```
+
 ## Requirements
 
 The validation suite uses `libsodium-sys-stable`. Ensure libsodium builds
