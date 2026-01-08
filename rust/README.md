@@ -142,6 +142,8 @@ cargo test       # test
 cargo run -p ente-validation --bin ente-validation    # validation suite
 cargo run -p ente-validation --bin bench              # benchmarks (debug)
 cargo run -p ente-validation --bin bench --release    # benchmarks (release)
+wasm-pack build --target nodejs rust/validation/wasm  # wasm bench build
+node rust/validation/js/bench-wasm.mjs                # wasm benchmarks
 ```
 
 **ente-wasm (web/packages/wasm/):**
