@@ -143,7 +143,7 @@ pub fn decrypt_secrets(
 /// # Returns
 /// * Tuple of (SrpSession, kek) - use session for SRP, keep kek for later decryption
 #[cfg(any(test, feature = "srp"))]
-pub fn start_srp_session(
+pub(crate) fn start_srp_session(
     password: &str,
     srp_attrs: &SrpAttributes,
 ) -> Result<(SrpSession, Vec<u8>)> {

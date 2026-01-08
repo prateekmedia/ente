@@ -3,13 +3,90 @@
 //! Provides high-level authentication flows that handle all the crypto complexity.
 
 use flutter_rust_bridge::frb;
+use getrandom::getrandom;
+use sha2::Sha256;
+use srp::client::{SrpClient as SrpClientInner, SrpClientVerifier};
+use srp::groups::G_4096;
 use std::sync::Mutex;
 
 // Store active SRP sessions
 static SRP_SESSIONS: Mutex<Option<SrpSession>> = Mutex::new(None);
 
+struct SrpClientSession {
+    inner: SrpClientInner<'static, Sha256>,
+    identity: Vec<u8>,
+    login_key: Vec<u8>,
+    salt: Vec<u8>,
+    a_private: Vec<u8>,
+    a_public: Vec<u8>,
+    verifier: Option<SrpClientVerifier<Sha256>>,
+}
+
+impl SrpClientSession {
+    fn new(srp_user_id: &str, srp_salt: &[u8], login_key: &[u8]) -> Result<Self, String> {
+        if login_key.len() != 16 {
+            return Err(format!(
+                "login key must be 16 bytes, got {}",
+                login_key.len()
+            ));
+        }
+
+        let client = SrpClientInner::<Sha256>::new(&G_4096);
+
+        let mut a_private = vec![0u8; 64];
+        getrandom(&mut a_private).map_err(|e| format!("Failed to generate random bytes: {}", e))?;
+
+        let a_public = client.compute_public_ephemeral(&a_private);
+        let identity = srp_user_id.as_bytes().to_vec();
+
+        Ok(Self {
+            inner: client,
+            identity,
+            login_key: login_key.to_vec(),
+            salt: srp_salt.to_vec(),
+            a_private,
+            a_public,
+            verifier: None,
+        })
+    }
+
+    fn public_a(&self) -> Vec<u8> {
+        self.a_public.clone()
+    }
+
+    fn compute_m1(&mut self, server_b: &[u8]) -> Result<Vec<u8>, String> {
+        let verifier = self
+            .inner
+            .process_reply(
+                &self.a_private,
+                &self.identity,
+                &self.login_key,
+                &self.salt,
+                server_b,
+            )
+            .map_err(|e| format!("Failed to process server response: {:?}", e))?;
+
+        let proof = verifier.proof().to_vec();
+        self.verifier = Some(verifier);
+
+        Ok(proof)
+    }
+
+    #[allow(dead_code)]
+    fn verify_m2(&self, server_m2: &[u8]) -> Result<(), String> {
+        let verifier = self
+            .verifier
+            .as_ref()
+            .ok_or_else(|| "Client proof not computed".to_string())?;
+
+        verifier
+            .verify_server(server_m2)
+            .map_err(|_| "Server proof verification failed".to_string())
+    }
+}
+
 struct SrpSession {
-    client: ente_core::auth::SrpAuthClient,
+    client: SrpClientSession,
     kek: Vec<u8>,
 }
 
@@ -83,10 +160,14 @@ pub async fn srp_start(
         is_email_mfa_enabled: srp_attrs.is_email_mfa_enabled,
     };
 
-    let (client, kek) =
-        ente_core::auth::create_srp_client(&password, &core_attrs).map_err(|e| e.to_string())?;
+    let creds = ente_core::auth::derive_srp_credentials(&password, &core_attrs)
+        .map_err(|e| e.to_string())?;
+    let srp_salt = ente_core::crypto::decode_b64(&core_attrs.srp_salt)
+        .map_err(|e| format!("srp_salt: {}", e))?;
 
-    let a_pub = client.compute_a();
+    let client = SrpClientSession::new(&core_attrs.srp_user_id, &srp_salt, &creds.login_key)?;
+
+    let a_pub = client.public_a();
 
     // Pad to 512 bytes as per ente protocol
     let padded_a = pad_bytes(&a_pub, 512);
@@ -94,7 +175,10 @@ pub async fn srp_start(
 
     // Store session for later
     let mut sessions = SRP_SESSIONS.lock().unwrap();
-    *sessions = Some(SrpSession { client, kek });
+    *sessions = Some(SrpSession {
+        client,
+        kek: creds.kek,
+    });
 
     Ok(SrpSessionResult { srp_a })
 }
@@ -110,9 +194,7 @@ pub fn srp_finish(srp_b: String) -> Result<SrpVerifyResult, String> {
     let mut sessions = SRP_SESSIONS.lock().unwrap();
     let session = sessions.as_mut().ok_or("No active SRP session")?;
 
-    session.client.set_b(&server_b).map_err(|e| e.to_string())?;
-
-    let m1 = session.client.compute_m1();
+    let m1 = session.client.compute_m1(&server_b)?;
 
     // Pad to 32 bytes as per ente protocol
     let padded_m1 = pad_bytes(&m1, 32);

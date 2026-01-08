@@ -5,15 +5,10 @@ The `auth` module provides high-level authentication operations for Ente clients
 - **Login**: Password verification via SRP or email MFA
 - **Signup**: Key generation for new accounts
 - **Recovery**: Account recovery with recovery key
-- **SRP Protocol**: Secure Remote Password authentication
+- **SRP Login**: Client-side SRP exchange using derived credentials
 
-SRP session helpers are gated behind the `srp` feature. Enable it to use
-`start_srp_session` or `SrpSession`:
-
-```toml
-[dependencies]
-ente-core = { path = "../core", features = ["srp"] }
-```
+SRP protocol exchange is handled in the application layer. This module only
+provides credential derivation and secret decryption helpers.
 
 ## Architecture
 
@@ -32,7 +27,6 @@ ente-core = { path = "../core", features = ["srp"] }
 ├─────────────────────────────────────────────────────────────────┤
 │  • derive_srp_credentials() - Password → KEK + login key         │
 │  • derive_kek()             - Password → KEK only                │
-│  • start_srp_session()      - Start SRP protocol session         │
 │  • decrypt_secrets()        - KEK → master key, secret key, token│
 │  • generate_keys()          - Signup key generation              │
 │  • recover_with_key()       - Recovery key → keys                │
@@ -50,18 +44,14 @@ User                    App                     Server              ente-core
  │                       │ get_srp_attributes ───►│                     │
  │                       │◄─── srp_attrs ─────────│                     │
  │                       │                        │                     │
- │                       │ start_srp_session(password, srp_attrs) ─────►│
- │                       │◄───────────── (srp_session, kek) ────────────│
+ │                       │ derive_srp_credentials(password, srp_attrs) ─►│
+ │                       │◄──────── (login_key, kek) ───────────────────│
  │                       │                        │                     │
- │                       │ public_a() ───────────────────────────────────►│
- │                       │◄─────────────────────────────── a_pub ────────│
- │                       │                        │                     │
+ │                       │ [SRP client] public_a(login_key, srp_attrs)   │
  │                       │ create_srp_session(a_pub) ──►│               │
  │                       │◄─── session_id, srp_b ─│                     │
  │                       │                        │                     │
- │                       │ compute_m1(srp_b) ───────────────────────────►│
- │                       │◄─────────────────────────────── m1 ───────────│
- │                       │                        │                     │
+ │                       │ [SRP client] compute_m1(srp_b, login_key)     │
  │                       │ verify_srp_session(m1) ►│                     │
  │                       │◄── auth_response ──────│                     │
  │                       │                        │                     │
@@ -170,6 +160,9 @@ pub fn derive_srp_credentials(
 ) -> Result<SrpCredentials>
 ```
 
+Use `login_key` with your SRP client to compute srpA/srpM1. Keep `kek` for
+`decrypt_secrets`.
+
 #### `derive_kek`
 Derive only the KEK (for email MFA flow).
 
@@ -182,16 +175,6 @@ pub fn derive_kek(
 ) -> Result<Vec<u8>>
 ```
 
-#### `start_srp_session`
-Start an SRP session ready for authentication (requires `srp` feature).
-
-```rust
-pub fn start_srp_session(
-    password: &str,
-    srp_attrs: &SrpAttributes,
-) -> Result<(SrpSession, Vec<u8>)>  // (session, kek)
-```
-
 #### `decrypt_secrets`
 Decrypt master key, secret key, and token.
 
@@ -201,26 +184,6 @@ pub fn decrypt_secrets(
     key_attrs: &KeyAttributes,
     encrypted_token: &str,
 ) -> Result<DecryptedSecrets>
-```
-
-### SrpSession
-
-SRP session for password authentication.
-
-```rust
-impl SrpSession {
-    /// Create new session
-    pub fn new(srp_user_id: &str, srp_salt: &[u8], login_key: &[u8]) -> Result<Self>;
-    
-    /// Get client's public value A (send to server)
-    pub fn public_a(&self) -> Vec<u8>;
-    
-    /// Compute proof M1 (send to server)
-    pub fn compute_m1(&mut self, server_b: &[u8]) -> Result<Vec<u8>>;
-    
-    /// Verify server's proof M2 (optional)
-    pub fn verify_m2(&self, server_m2: &[u8]) -> Result<()>;
-}
 ```
 
 ## Error Handling
@@ -290,22 +253,27 @@ async fn login(email: &str, password: &str, api: &ApiClient) -> Result<Secrets> 
         auth::decrypt_secrets(&kek, &key_attrs, &encrypted_token)
     } else {
         // SRP flow
-        let (mut session, kek) = auth::start_srp_session(password, &srp_attrs)?;
-        
-        let a_pub = session.public_a();
+        let creds = auth::derive_srp_credentials(password, &srp_attrs)?;
+
+        // Use login_key with your SRP client to compute srpA/srpM1.
+        let mut srp = SrpClient::new(
+            &srp_attrs.srp_user_id,
+            &srp_attrs.srp_salt,
+            &creds.login_key,
+        )?;
+        let a_pub = srp.public_a();
         let server_session = api.create_srp_session(&srp_attrs.srp_user_id, &a_pub).await?;
-        
-        let m1 = session.compute_m1(&server_session.srp_b)?;
-        
+        let m1 = srp.compute_m1(&server_session.srp_b)?;
+
         let auth_resp = api.verify_srp_session(&server_session.id, &m1).await?;
-        
+
         // Handle 2FA if required
         let auth_resp = handle_2fa_if_needed(auth_resp, api).await?;
-        
+
         let key_attrs = auth_resp.key_attributes.unwrap();
         let encrypted_token = auth_resp.encrypted_token.unwrap();
-        
-        auth::decrypt_secrets(&kek, &key_attrs, &encrypted_token)
+
+        auth::decrypt_secrets(&creds.kek, &key_attrs, &encrypted_token)
     }
 }
 ```

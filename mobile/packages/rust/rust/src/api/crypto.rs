@@ -237,7 +237,7 @@ pub async fn derive_sensitive_key(
     }
 
     while mem_limit >= ente_core::crypto::argon::MEMLIMIT_MIN
-        && ops_limit <= ente_core::crypto::argon::OPSLIMIT_MAX
+        && ops_limit < ente_core::crypto::argon::OPSLIMIT_MAX
     {
         match ente_core::crypto::argon::derive_key(&password, &salt_bytes, mem_limit, ops_limit) {
             Ok(key) => {
