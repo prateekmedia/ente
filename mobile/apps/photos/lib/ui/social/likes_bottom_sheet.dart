@@ -1,15 +1,18 @@
 import "dart:async";
 
+import "package:ente_icons/ente_icons.dart";
 import "package:flutter/material.dart";
 import "package:photos/core/configuration.dart";
 import "package:photos/db/files_db.dart";
 import "package:photos/extensions/user_extension.dart";
+import "package:photos/generated/l10n.dart";
 import "package:photos/models/api/collection/user.dart";
 import "package:photos/models/collection/collection.dart";
 import "package:photos/models/social/reaction.dart";
 import "package:photos/models/social/social_data_provider.dart";
 import "package:photos/services/collections_service.dart";
 import "package:photos/theme/ente_theme.dart";
+import "package:photos/ui/common/loading_widget.dart";
 import "package:photos/ui/components/buttons/icon_button_widget.dart";
 import "package:photos/ui/sharing/user_avator_widget.dart";
 import "package:photos/ui/social/widgets/collection_selector_widget.dart";
@@ -207,13 +210,16 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
   Widget build(BuildContext context) {
     final colorScheme = getEnteColorScheme(context);
     final mediaQuery = MediaQuery.of(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       constraints: BoxConstraints(
         maxHeight: mediaQuery.size.height * _maxHeightFraction,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.backgroundBase,
+        color: isDarkMode
+            ? const Color(0xFF0E0E0E)
+            : colorScheme.backgroundElevated,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(24),
         ),
@@ -238,7 +244,7 @@ class _LikesBottomSheetState extends State<LikesBottomSheet> {
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
-                  child: CircularProgressIndicator(),
+                  child: EnteLoadingWidget(size: 24),
                 )
               else if (_hasError)
                 const _ErrorState()
@@ -278,6 +284,7 @@ class _LikesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final textTheme = getEnteTextTheme(context);
 
     return Padding(
@@ -293,7 +300,7 @@ class _LikesHeader extends StatelessWidget {
                     onCollectionSelected: onCollectionSelected,
                   )
                 : Text(
-                    "$likesCount ${likesCount == 1 ? 'like' : 'likes'}",
+                    l10n.likesCount(count: likesCount),
                     style: textTheme.bodyBold,
                   ),
           ),
@@ -313,12 +320,13 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final textTheme = getEnteTextTheme(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Text(
-        "No likes yet",
+        l10n.noLikesYet,
         style: textTheme.smallMuted,
         textAlign: TextAlign.center,
       ),
@@ -331,12 +339,13 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final textTheme = getEnteTextTheme(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Text(
-        "Could not load likes",
+        l10n.couldNotLoadLikes,
         style: textTheme.smallMuted,
         textAlign: TextAlign.center,
       ),
@@ -375,6 +384,8 @@ class _LikesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return ListView.builder(
       shrinkWrap: likes.length <= _shrinkWrapThreshold,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -385,6 +396,7 @@ class _LikesList extends StatelessWidget {
         return _LikeListItem(
           user: user,
           currentUserID: currentUserID,
+          youLabel: l10n.you,
         );
       },
     );
@@ -394,10 +406,12 @@ class _LikesList extends StatelessWidget {
 class _LikeListItem extends StatelessWidget {
   final User user;
   final int currentUserID;
+  final String youLabel;
 
   const _LikeListItem({
     required this.user,
     required this.currentUserID,
+    required this.youLabel,
   });
 
   @override
@@ -418,7 +432,7 @@ class _LikeListItem extends StatelessWidget {
           Expanded(
             child: Text(
               user.id == currentUserID
-                  ? "You"
+                  ? youLabel
                   : (user.displayName ?? user.email),
               style: TextStyle(
                 fontSize: 14,
@@ -431,7 +445,7 @@ class _LikeListItem extends StatelessWidget {
             ),
           ),
           const Icon(
-            Icons.favorite,
+            EnteIcons.likeFilled,
             color: Color(0xFF08C225),
             size: 20,
           ),

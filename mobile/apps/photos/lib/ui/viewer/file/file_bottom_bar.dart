@@ -5,7 +5,6 @@ import "package:collection/collection.dart";
 import "package:ente_icons/ente_icons.dart";
 import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
-import "package:hugeicons/hugeicons.dart";
 import "package:logging/logging.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/db/files_db.dart";
@@ -26,8 +25,8 @@ import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/social/comments_screen.dart";
 import "package:photos/ui/social/like_collection_selector_sheet.dart";
 import "package:photos/ui/social/likes_bottom_sheet.dart";
+import "package:photos/ui/viewer/actions/suggest_delete_sheet.dart";
 import "package:photos/utils/delete_file_util.dart";
-import "package:photos/utils/navigation_util.dart";
 import "package:photos/utils/panorama_util.dart";
 import "package:photos/utils/share_util.dart";
 
@@ -156,15 +155,17 @@ class FileBottomBarState extends State<FileBottomBar> {
             .value ??
         false;
 
+    final Collection? collection = widget.file.collectionID != null
+        ? CollectionsService.instance.getCollectionByID(
+            widget.file.collectionID!,
+          )
+        : null;
     final List<Widget> children = [];
     final bool isOwnedByUser =
         widget.file.ownerID == null || widget.file.ownerID == widget.userID;
     final bool isFileHidden = widget.file.isOwner &&
         widget.file.isUploaded &&
-        (CollectionsService.instance
-                .getCollectionByID(widget.file.collectionID!)
-                ?.isHidden() ??
-            false);
+        (collection?.isHidden() ?? false);
     if (widget.file is TrashFile) {
       _addTrashOptions(children);
     }
@@ -190,6 +191,18 @@ class FileBottomBarState extends State<FileBottomBar> {
             ),
           ),
         );
+      }
+
+      final bool canShowSuggestDelete = collection != null &&
+          flagService.internalUser &&
+          isInSharedCollection &&
+          canSuggestDeleteForFile(
+            file: widget.file,
+            collection: collection,
+          );
+
+      if (canShowSuggestDelete) {
+        children.add(_buildSuggestDeleteButton(collection));
       }
 
       children.add(
@@ -347,19 +360,39 @@ class FileBottomBarState extends State<FileBottomBar> {
     );
   }
 
+  Widget _buildSuggestDeleteButton(Collection collection) {
+    return Tooltip(
+      message: AppLocalizations.of(context).suggestDeletion,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: IconButton(
+          icon: const Icon(
+            Icons.flag_outlined,
+            color: Colors.white,
+          ),
+          onPressed: () => _onSuggestDelete(collection),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeartIcon() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: GestureDetector(
-        onTap: _toggleReaction,
-        onLongPress: _showLikesBottomSheet,
-        child: Icon(
-          _hasLiked
-              ? (Platform.isAndroid ? Icons.favorite : Icons.favorite_rounded)
-              : (Platform.isAndroid
-                  ? Icons.favorite_border
-                  : Icons.favorite_border_rounded),
-          color: _hasLiked ? const Color(0xFF08C225) : Colors.white,
+    return Tooltip(
+      message: AppLocalizations.of(context).like,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: GestureDetector(
+          onLongPress: _showLikesBottomSheet,
+          child: IconButton(
+            style: IconButton.styleFrom(
+              overlayColor: WidgetStateColor.transparent,
+            ),
+            onPressed: _toggleReaction,
+            icon: Icon(
+              _hasLiked ? EnteIcons.likeFilled : EnteIcons.likeStroke,
+              color: _hasLiked ? const Color(0xFF08C225) : Colors.white,
+            ),
+          ),
         ),
       ),
     );
@@ -487,6 +520,22 @@ class FileBottomBarState extends State<FileBottomBar> {
     }
   }
 
+  Future<void> _onSuggestDelete(Collection collection) async {
+    if (widget.file.uploadedFileID == null) {
+      return;
+    }
+    await showSuggestDeleteSheet(
+      context: context,
+      onConfirm: () async {
+        await CollectionsService.instance.suggestDeleteFromCollection(
+          collection.id,
+          [widget.file],
+        );
+        widget.onFileRemoved(widget.file);
+      },
+    );
+  }
+
   void _showLikesBottomSheet() {
     final file = widget.file;
     if (file.uploadedFileID == null || file.collectionID == null) return;
@@ -499,47 +548,50 @@ class FileBottomBarState extends State<FileBottomBar> {
   }
 
   Widget _buildCommentIcon() {
-    return GestureDetector(
-      onTap: _openCommentsScreen,
+    return Tooltip(
+      message: AppLocalizations.of(context).comments,
       child: Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const HugeIcon(
-              icon: HugeIcons.strokeRoundedBubbleChat,
-              color: Colors.white,
-            ),
-            if (_commentCount > 0)
-              Positioned(
-                right: -4,
-                top: -4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.all(Radius.circular(16)),
-                    border: Border.all(
-                      color: Colors.black,
-                      width: 2,
-                      strokeAlign: BorderSide.strokeAlignOutside,
+        child: IconButton(
+          onPressed: _openCommentsScreen,
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                EnteIcons.commentBubbleStroke,
+                color: Colors.white,
+              ),
+              if (_commentCount > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
                     ),
-                  ),
-                  child: Text(
-                    _commentCount > 99 ? '99+' : _commentCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w500,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.all(Radius.circular(16)),
+                      border: Border.all(
+                        color: Colors.black,
+                        width: 2,
+                        strokeAlign: BorderSide.strokeAlignOutside,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
+                    child: Text(
+                      _commentCount > 99 ? '99+' : _commentCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -549,14 +601,12 @@ class FileBottomBarState extends State<FileBottomBar> {
     final file = widget.file;
     if (file.collectionID == null) return;
 
-    routeToPage(
+    showFileCommentsBottomSheet(
       context,
-      FileCommentsScreen(
-        collectionID: file.collectionID!,
-        fileID: file.uploadedFileID!,
-      ),
+      collectionID: file.collectionID!,
+      fileID: file.uploadedFileID!,
     ).then((_) {
-      // Refresh comment count when returning from comments screen
+      // Refresh comment count when returning from comments bottom sheet
       _updateSocialState();
     });
   }

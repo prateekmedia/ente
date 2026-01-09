@@ -1,3 +1,4 @@
+import "package:ente_icons/ente_icons.dart";
 import "package:flutter/material.dart";
 import "package:photos/db/files_db.dart";
 import "package:photos/extensions/user_extension.dart";
@@ -17,11 +18,8 @@ class FeedItemWidget extends StatelessWidget {
   final FeedItem feedItem;
   final int currentUserID;
 
-  /// Called when the user taps on non-thumbnail areas (icon, avatar, text).
+  /// Called when the user taps anywhere on the feed item.
   final VoidCallback? onTap;
-
-  /// Called when the user taps on the photo thumbnail.
-  final VoidCallback? onThumbnailTap;
 
   /// Map of anonUserID -> decrypted display name for the collection.
   final Map<String, String> anonDisplayNames;
@@ -33,7 +31,6 @@ class FeedItemWidget extends StatelessWidget {
     required this.feedItem,
     required this.currentUserID,
     this.onTap,
-    this.onThumbnailTap,
     this.anonDisplayNames = const {},
     this.isLastItem = false,
     super.key,
@@ -90,10 +87,10 @@ class FeedItemWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Photo thumbnail - separate tap target
+          // Photo thumbnail
           if (feedItem.fileID != null)
             GestureDetector(
-              onTap: onThumbnailTap,
+              onTap: onTap,
               child: _FeedThumbnail(
                 fileID: feedItem.fileID!,
                 collectionID: feedItem.collectionID,
@@ -162,7 +159,9 @@ class _FeedTypeIconWithTimeline extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: colorScheme.backgroundElevated,
+              color: isDarkMode
+                  ? colorScheme.backgroundElevated
+                  : const Color(0xFFFFFFFF),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -178,19 +177,19 @@ class _FeedTypeIconWithTimeline extends StatelessWidget {
     switch (type) {
       case FeedItemType.photoLike:
         return const Icon(
-          Icons.favorite,
+          EnteIcons.likeFilled,
           size: 18,
           color: Color(0xFF00B33C),
         );
       case FeedItemType.comment:
         return Icon(
-          Icons.chat_bubble_outline,
+          EnteIcons.commentBubbleStroke,
           size: 18,
           color: getEnteColorScheme(context).textMuted,
         );
       case FeedItemType.reply:
         return Icon(
-          Icons.reply,
+          EnteIcons.reply,
           size: 18,
           color: getEnteColorScheme(context).textMuted,
         );
@@ -199,15 +198,15 @@ class _FeedTypeIconWithTimeline extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Icon(
-              Icons.chat_bubble_outline,
+              EnteIcons.commentBubbleStroke,
               size: 18,
               color: getEnteColorScheme(context).textMuted,
             ),
             const Positioned(
-              right: -4,
-              bottom: -4,
+              right: -2,
+              bottom: -2,
               child: Icon(
-                Icons.favorite,
+                EnteIcons.likeFilled,
                 size: 10,
                 color: Color(0xFF00B33C),
               ),
@@ -219,15 +218,15 @@ class _FeedTypeIconWithTimeline extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Icon(
-              Icons.reply,
+              EnteIcons.reply,
               size: 18,
               color: getEnteColorScheme(context).textMuted,
             ),
             const Positioned(
-              right: -4,
-              bottom: -4,
+              right: -2,
+              bottom: -2,
               child: Icon(
-                Icons.favorite,
+                EnteIcons.likeFilled,
                 size: 10,
                 color: Color(0xFF00B33C),
               ),
@@ -252,11 +251,12 @@ class _StackedAvatars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = getEnteColorScheme(context);
     final actors = _getActors();
     final displayCount = actors.length.clamp(1, 2);
 
     if (displayCount == 1) {
-      return _buildSingleAvatar(actors.first);
+      return _buildSingleAvatar(actors.first, colorScheme);
     }
 
     // Stacked avatars with overlap
@@ -273,7 +273,7 @@ class _StackedAvatars extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white,
+                  color: colorScheme.backgroundBase,
                   width: 1.167,
                 ),
               ),
@@ -288,11 +288,20 @@ class _StackedAvatars extends StatelessWidget {
           // Second (back) avatar
           Positioned(
             left: 21, // Overlap by 7px (28 - 21 = 7)
-            child: UserAvatarWidget(
-              actors[1],
-              type: AvatarType.lg,
-              currentUserID: currentUserID,
-              addStroke: false,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: colorScheme.backgroundBase,
+                  width: 1.167,
+                ),
+              ),
+              child: UserAvatarWidget(
+                actors[1],
+                type: AvatarType.lg,
+                currentUserID: currentUserID,
+                addStroke: false,
+              ),
             ),
           ),
         ],
@@ -300,12 +309,12 @@ class _StackedAvatars extends StatelessWidget {
     );
   }
 
-  Widget _buildSingleAvatar(User user) {
+  Widget _buildSingleAvatar(User user, EnteColorScheme colorScheme) {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white,
+          color: colorScheme.backgroundBase,
           width: 1.167,
         ),
       ),

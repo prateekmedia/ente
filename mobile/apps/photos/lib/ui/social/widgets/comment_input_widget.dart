@@ -1,9 +1,14 @@
+import "package:ente_icons/ente_icons.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
+import "package:photos/generated/l10n.dart";
 import "package:photos/models/api/collection/user.dart";
 import "package:photos/models/social/comment.dart";
 import "package:photos/theme/ente_theme.dart";
+import "package:photos/ui/common/loading_widget.dart";
 import "package:photos/ui/social/widgets/reply_preview_widget.dart";
+
+enum SendButtonState { idle, sending, error }
 
 class CommentInputWidget extends StatefulWidget {
   final Comment? replyingTo;
@@ -13,6 +18,7 @@ class CommentInputWidget extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onSend;
+  final SendButtonState sendState;
 
   const CommentInputWidget({
     this.replyingTo,
@@ -22,6 +28,7 @@ class CommentInputWidget extends StatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.onSend,
+    this.sendState = SendButtonState.idle,
     super.key,
   });
 
@@ -78,13 +85,14 @@ class _CommentInputWidgetState extends State<CommentInputWidget>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = getEnteColorScheme(context);
     final textTheme = getEnteTextTheme(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final textFieldFillColor =
         isDarkMode ? const Color(0xFF212121) : const Color(0xFFF3F3F3);
     final textFieldBorderColor = isDarkMode
-        ? colorScheme.backgroundBase
+        ? const Color(0xFF0E0E0E)
         : const Color(0xFF000000).withValues(alpha: 0.02);
 
     return Container(
@@ -94,7 +102,8 @@ class _CommentInputWidgetState extends State<CommentInputWidget>
         right: 18,
         top: 20,
       ),
-      color: colorScheme.backgroundBase,
+      color:
+          isDarkMode ? const Color(0xFF0E0E0E) : colorScheme.backgroundElevated,
       child: SafeArea(
         top: false,
         child: Container(
@@ -140,7 +149,7 @@ class _CommentInputWidgetState extends State<CommentInputWidget>
                   color: colorScheme.textBase.withValues(alpha: 0.8),
                 ),
                 decoration: InputDecoration(
-                  hintText: "Say something nice!",
+                  hintText: l10n.commentHint,
                   hintStyle: textTheme.body.copyWith(
                     color: colorScheme.textMuted,
                   ),
@@ -151,16 +160,51 @@ class _CommentInputWidgetState extends State<CommentInputWidget>
                     horizontal: 18,
                     vertical: 14,
                   ),
-                  suffixIcon: Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: GestureDetector(
-                      onTap: widget.onSend,
-                      child: Icon(
-                        Icons.send_rounded,
-                        color: colorScheme.textBase.withValues(alpha: 0.8),
-                        size: 24,
-                      ),
-                    ),
+                  suffixIcon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeOut,
+                    transitionBuilder: (child, animation) {
+                      final curvedAnimation = CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeInOutExpo,
+                      );
+                      final scale = Tween<double>(begin: 0.5, end: 1.0)
+                          .animate(curvedAnimation);
+                      return FadeTransition(
+                        opacity: curvedAnimation,
+                        child: ScaleTransition(scale: scale, child: child),
+                      );
+                    },
+                    child: switch (widget.sendState) {
+                      SendButtonState.sending => const Padding(
+                          key: ValueKey('loading'),
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: EnteLoadingWidget(size: 20, padding: 0),
+                          ),
+                        ),
+                      SendButtonState.error => Padding(
+                          key: const ValueKey('error'),
+                          padding: const EdgeInsets.all(12),
+                          child: Icon(
+                            Icons.error_outline,
+                            color: colorScheme.warning500,
+                            size: 24,
+                          ),
+                        ),
+                      SendButtonState.idle => IconButton(
+                          key: const ValueKey('send'),
+                          onPressed: widget.onSend,
+                          icon: Icon(
+                            EnteIcons.sendStroke,
+                            color: colorScheme.textBase.withValues(alpha: 0.8),
+                            size: 24,
+                          ),
+                        ),
+                    },
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),

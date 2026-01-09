@@ -1,21 +1,25 @@
 import "dart:async";
 
+import "package:ente_icons/ente_icons.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:logging/logging.dart";
 import "package:photos/core/event_bus.dart";
 import "package:photos/events/comment_deleted_event.dart";
 import "package:photos/extensions/user_extension.dart";
+import "package:photos/generated/l10n.dart";
 import "package:photos/models/api/collection/user.dart";
 import "package:photos/models/social/comment.dart";
 import "package:photos/models/social/reaction.dart";
 import "package:photos/models/social/social_data_provider.dart";
 import "package:photos/theme/colors.dart";
 import "package:photos/theme/ente_theme.dart";
+import "package:photos/ui/common/loading_widget.dart";
 import "package:photos/ui/notification/toast.dart";
 import "package:photos/ui/sharing/user_avator_widget.dart";
-import "package:photos/ui/social/widgets/comment_actions_capsule.dart";
+import "package:photos/ui/social/comment_likes_bottom_sheet.dart";
 import "package:photos/ui/social/widgets/comment_actions_popup.dart";
+import "package:photos/ui/social/widgets/comment_like_count_capsule.dart";
 import "package:photos/ui/social/widgets/delete_comment_confirmation_dialog.dart";
 import "package:photos/utils/social/relative_time_formatter.dart";
 
@@ -37,6 +41,9 @@ class CommentBubbleWidget extends StatefulWidget {
   /// Whether this comment should be visually highlighted.
   final bool isHighlighted;
 
+  /// Callback invoked when auto-highlight animation completes (dismissed).
+  final VoidCallback? onAutoHighlightDismissed;
+
   const CommentBubbleWidget({
     required this.comment,
     required this.user,
@@ -50,6 +57,7 @@ class CommentBubbleWidget extends StatefulWidget {
     required this.userResolver,
     this.onCommentDeleted,
     this.isHighlighted = false,
+    this.onAutoHighlightDismissed,
     super.key,
   });
 
@@ -66,6 +74,8 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
   Comment? _parentComment;
   List<Reaction> _reactions = [];
   bool _isLiked = false;
+  int _optimisticLikeDelta = 0;
+  int _lastNonZeroLikeCount = 0;
   bool _isLoadingParent = false;
   bool _isLoadingReactions = false;
   double _dragOffset = 0.0;
@@ -75,6 +85,7 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
   final LayerLink _layerLink = LayerLink();
   final GlobalKey _contentKey = GlobalKey();
   Size? _contentSize;
+  bool _isAutoHighlight = false;
 
   late final AnimationController _overlayAnimationController;
   late final Animation<double> _overlayAnimation;
@@ -104,6 +115,15 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
     });
     _loadData();
     _measureContent();
+
+    // Trigger auto-highlight if widget is created with isHighlighted = true
+    if (widget.isHighlighted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _triggerAutoHighlight();
+        }
+      });
+    }
   }
 
   @override
@@ -113,9 +133,15 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
       _parentComment = null;
       _reactions = [];
       _isLiked = false;
+      _optimisticLikeDelta = 0;
       _contentSize = null;
       _loadData();
       _measureContent();
+    }
+
+    // Trigger auto-highlight when isHighlighted becomes true
+    if (widget.isHighlighted && !oldWidget.isHighlighted) {
+      _triggerAutoHighlight();
     }
   }
 
@@ -148,6 +174,7 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
     _isLiked = _reactions.any(
       (r) => r.userID == widget.currentUserID && !r.isDeleted,
     );
+    _optimisticLikeDelta = 0;
     if (mounted) setState(() => _isLoadingReactions = false);
   }
 
@@ -173,7 +200,12 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
 
   Future<void> _toggleLike() async {
     final previousState = _isLiked;
-    setState(() => _isLiked = !_isLiked);
+    final previousDelta = _optimisticLikeDelta;
+
+    setState(() {
+      _isLiked = !_isLiked;
+      _optimisticLikeDelta = _isLiked ? 1 : -1;
+    });
 
     try {
       await SocialDataProvider.instance.toggleReaction(
@@ -185,18 +217,31 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
     } catch (e) {
       _logger.severe('Failed to toggle comment like', e);
       if (mounted) {
-        setState(() => _isLiked = previousState);
-        showShortToast(context, "Failed to like comment");
+        setState(() {
+          _isLiked = previousState;
+          _optimisticLikeDelta = previousDelta;
+        });
+        showShortToast(
+          context,
+          AppLocalizations.of(context).failedToLikeComment,
+        );
       }
       return;
     }
 
     // Refresh reactions after successful toggle (best-effort, no rollback if fails)
     _reactions = await widget.onFetchReactions();
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        _optimisticLikeDelta = 0;
+      });
+    }
   }
 
   void _showHighlight() {
+    if (_isAutoHighlight) {
+      return; // Don't allow long-press during auto-highlight
+    }
     HapticFeedback.mediumImpact();
     setState(() => _dragOffset = 0.0);
     _overlayController.show();
@@ -206,6 +251,29 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
   Future<void> _hideHighlight() async {
     await _overlayAnimationController.reverse();
     if (mounted) _overlayController.hide();
+  }
+
+  void _triggerAutoHighlight() {
+    _isAutoHighlight = true;
+    setState(() => _dragOffset = 0.0);
+    _overlayController.show();
+    _overlayAnimationController.forward();
+
+    // Auto-dismiss after 700ms
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted && _isAutoHighlight) {
+        _hideAutoHighlight();
+      }
+    });
+  }
+
+  Future<void> _hideAutoHighlight() async {
+    await _overlayAnimationController.reverse();
+    if (mounted) {
+      _overlayController.hide();
+      _isAutoHighlight = false;
+      widget.onAutoHighlightDismissed?.call();
+    }
   }
 
   void _onHorizontalDragStart(DragStartDetails details) {
@@ -236,7 +304,10 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
     await _hideHighlight();
     if (!mounted) return;
 
-    final confirmed = await showDeleteCommentConfirmationDialog(context);
+    final confirmed = await showDeleteCommentConfirmationDialog(
+      context,
+      commentText: widget.comment.data,
+    );
 
     if (confirmed == true) {
       try {
@@ -247,17 +318,29 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
       } catch (e) {
         _logger.severe("Failed to delete comment", e);
         if (mounted) {
-          showShortToast(context, "Failed to delete comment");
+          showShortToast(
+            context,
+            AppLocalizations.of(context).failedToDeleteComment,
+          );
         }
       }
     }
+  }
+
+  void _showCommentLikesSheet() {
+    showCommentLikesBottomSheet(
+      context,
+      reactions: _reactions,
+      collectionID: widget.collectionID,
+      currentUserID: widget.currentUserID,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = getEnteColorScheme(context);
 
-    Widget content = OverlayPortal(
+    final content = OverlayPortal(
       controller: _overlayController,
       overlayChildBuilder: _buildOverlayContent,
       child: GestureDetector(
@@ -291,9 +374,9 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
                           opacity:
                               (_dragOffset / _replyThreshold).clamp(0.0, 1.0),
                           child: Icon(
-                            Icons.reply,
+                            EnteIcons.reply,
                             color: colorScheme.textMuted,
-                            size: 24,
+                            size: 20,
                           ),
                         ),
                       ),
@@ -316,18 +399,6 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
       ),
     );
 
-    // Add highlight effect if needed
-    if (widget.isHighlighted) {
-      content = AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
-        decoration: BoxDecoration(
-          color: colorScheme.fillFaint,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: content,
-      );
-    }
-
     return content;
   }
 
@@ -340,11 +411,19 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
             _overlayAnimationController.status == AnimationStatus.reverse;
         return Stack(
           children: [
-            // Full-screen barrier with black opacity 0.7
+            // Full-screen barrier with black opacity
             GestureDetector(
-              onTap: _hideHighlight,
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.7 * value),
+              onTap: _isAutoHighlight ? _hideAutoHighlight : _hideHighlight,
+              child: Builder(
+                builder: (context) {
+                  final isDarkMode =
+                      Theme.of(context).brightness == Brightness.dark;
+                  return Container(
+                    color: Colors.black.withValues(
+                      alpha: (isDarkMode ? 0.65 : 0.3) * value,
+                    ),
+                  );
+                },
               ),
             ),
             // Highlighted comment + popup menu
@@ -355,31 +434,31 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
                   widget.isOwnComment ? Alignment.topRight : Alignment.topLeft,
               followerAnchor:
                   widget.isOwnComment ? Alignment.topRight : Alignment.topLeft,
-              child:
-                  _contentSize != null && _contentSize!.width >= _minPopupWidth
-                      ? SizedBox(
-                          width: _contentSize!.width,
-                          child: Opacity(
-                            opacity: isReversing ? 1.0 : value,
-                            child: _buildCommentContent(
-                              showActionsCapsule: isReversing,
-                              showActionsPopup: !isReversing,
-                              showHeader: false,
-                              bubbleScale: 1 + (0.025 * value),
-                              capsuleOpacity: 1 - value,
-                            ),
-                          ),
-                        )
-                      : Opacity(
-                          opacity: isReversing ? 1.0 : value,
-                          child: _buildCommentContent(
-                            showActionsCapsule: isReversing,
-                            showActionsPopup: !isReversing,
-                            showHeader: false,
-                            bubbleScale: 1 + (0.025 * value),
-                            capsuleOpacity: 1 - value,
-                          ),
+              child: _contentSize != null &&
+                      _contentSize!.width >= _minPopupWidth
+                  ? SizedBox(
+                      width: _contentSize!.width,
+                      child: Opacity(
+                        opacity: isReversing ? 1.0 : value,
+                        child: _buildCommentContent(
+                          showActionsCapsule: isReversing,
+                          showActionsPopup: !isReversing && !_isAutoHighlight,
+                          showHeader: false,
+                          bubbleScale: 1 + (0.025 * value),
+                          capsuleOpacity: 1 - value,
                         ),
+                      ),
+                    )
+                  : Opacity(
+                      opacity: isReversing ? 1.0 : value,
+                      child: _buildCommentContent(
+                        showActionsCapsule: isReversing,
+                        showActionsPopup: !isReversing && !_isAutoHighlight,
+                        showHeader: false,
+                        bubbleScale: 1 + (0.025 * value),
+                        capsuleOpacity: 1 - value,
+                      ),
+                    ),
             ),
           ],
         );
@@ -398,97 +477,118 @@ class _CommentBubbleWidgetState extends State<CommentBubbleWidget>
     final canDeleteComment = widget.isOwnComment ||
         (widget.canModerateAnonComments && widget.comment.isAnonymous);
 
+    final actualCount = _reactions.where((r) => !r.isDeleted).length;
+    final likeCount = (actualCount + _optimisticLikeDelta).clamp(0, 999999);
+    if (likeCount > 0) {
+      _lastNonZeroLikeCount = likeCount;
+    }
+    final displayCount = likeCount > 0 ? likeCount : _lastNonZeroLikeCount;
+    final showCapsule = !_isLoadingReactions &&
+        showActionsCapsule &&
+        likeCount > 0 &&
+        _isOverlayDismissed;
+
     return Padding(
       padding: EdgeInsets.only(
         right: widget.isOwnComment ? 6 : 0,
         top: includePadding ? 8 : 0,
         bottom: includePadding ? 8 : 0,
       ),
-      child: IntrinsicWidth(
-        child: Column(
-          crossAxisAlignment: widget.isOwnComment
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            Opacity(
-              opacity: showHeader ? 1 : 0,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  right: widget.isOwnComment ? 18 : 0,
-                ),
-                child: _Header(
-                  isOwnComment: widget.isOwnComment,
-                  user: widget.user,
-                  createdAt: widget.comment.createdAt,
-                  currentUserID: widget.currentUserID,
-                ),
+      child: Column(
+        crossAxisAlignment: widget.isOwnComment
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
+        children: [
+          Opacity(
+            opacity: showHeader ? 1 : 0,
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: widget.isOwnComment ? 18 : 0,
+              ),
+              child: _Header(
+                isOwnComment: widget.isOwnComment,
+                user: widget.user,
+                createdAt: widget.comment.createdAt,
+                currentUserID: widget.currentUserID,
               ),
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: EdgeInsets.only(left: widget.isOwnComment ? 0 : 24),
-              child: Transform.scale(
-                scale: bubbleScale,
-                alignment: widget.isOwnComment
-                    ? Alignment.topRight
-                    : Alignment.topLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Stack(
-                      children: [
-                        Padding(
-                          padding: showActionsCapsule
-                              ? const EdgeInsets.only(right: 16, bottom: 17)
-                              : const EdgeInsets.only(right: 16),
-                          child: _CommentBubble(
-                            comment: widget.comment,
-                            isOwnComment: widget.isOwnComment,
-                            isLoadingParent: _isLoadingParent,
-                            parentComment: _parentComment,
-                            currentUserID: widget.currentUserID,
-                            userResolver: widget.userResolver,
-                          ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: EdgeInsets.only(left: widget.isOwnComment ? 0 : 24),
+            child: Transform.scale(
+              scale: bubbleScale,
+              alignment:
+                  widget.isOwnComment ? Alignment.topRight : Alignment.topLeft,
+              child: Column(
+                crossAxisAlignment: widget.isOwnComment
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Stack(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(
+                          right: 16,
+                          bottom: showActionsPopup ? 0 : 12,
                         ),
-                        if (!_isLoadingReactions && showActionsCapsule)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Opacity(
-                              opacity: capsuleOpacity,
-                              child: CommentActionsCapsule(
-                                isLiked: _isLiked,
-                                onLikeTap: _toggleLike,
-                                onReplyTap: widget.onReplyTap,
+                        child: _CommentBubble(
+                          comment: widget.comment,
+                          isOwnComment: widget.isOwnComment,
+                          isLoadingParent: _isLoadingParent,
+                          parentComment: _parentComment,
+                          currentUserID: widget.currentUserID,
+                          userResolver: widget.userResolver,
+                        ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: AnimatedSize(
+                          duration: const Duration(milliseconds: 175),
+                          curve: Curves.easeInOut,
+                          child: AnimatedScale(
+                            scale: showCapsule ? 1.0 : 0.8,
+                            duration: const Duration(milliseconds: 100),
+                            child: AnimatedOpacity(
+                              opacity: showCapsule ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 100),
+                              child: IgnorePointer(
+                                ignoring: !showCapsule,
+                                child: CommentLikeCountCapsule(
+                                  likeCount: displayCount,
+                                  onTap: _showCommentLikesSheet,
+                                ),
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    if (showActionsPopup)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: CommentActionsPopup(
-                          isLiked: _isLiked,
-                          onLikeTap: () {
-                            _hideHighlight();
-                            _toggleLike();
-                          },
-                          onReplyTap: () {
-                            _hideHighlight();
-                            widget.onReplyTap();
-                          },
-                          onDeleteTap: canDeleteComment ? _handleDelete : null,
-                          showDelete: canDeleteComment,
                         ),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
+                  if (showActionsPopup)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: CommentActionsPopup(
+                        isLiked: _isLiked,
+                        onLikeTap: () {
+                          _hideHighlight();
+                          _toggleLike();
+                        },
+                        onReplyTap: () {
+                          _hideHighlight();
+                          widget.onReplyTap();
+                        },
+                        onDeleteTap: canDeleteComment ? _handleDelete : null,
+                        showDelete: canDeleteComment,
+                      ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -511,6 +611,7 @@ class _InlineParentQuote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final textTheme = getEnteTextTheme(context);
 
     if (isLoading) {
@@ -519,21 +620,18 @@ class _InlineParentQuote extends StatelessWidget {
         height: 16,
         width: 16,
         alignment: Alignment.centerLeft,
-        child: const SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        child: const EnteLoadingWidget(padding: 0),
       );
     }
 
     final isParentDeleted = parentComment == null;
-    final parentText = isParentDeleted ? "(deleted)" : parentComment!.data;
+    final parentText =
+        isParentDeleted ? l10n.deletedComment : parentComment!.data;
     final parentUser =
         parentComment != null ? userResolver(parentComment!) : null;
     final parentAuthor = parentComment != null
         ? (parentUser!.id == currentUserID
-            ? 'You'
+            ? l10n.you
             : (parentUser.displayName ?? parentUser.email))
         : null;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
