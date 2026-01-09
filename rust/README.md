@@ -64,7 +64,9 @@ rust/
     │   │   └── lib.rs
     │   └── Cargo.toml      # crate name: ente-validation-wasm
     ├── js/                 # JS + WASM benchmarks
-    │   └── bench-wasm.mjs
+    │   ├── bench-wasm.mjs
+    │   ├── bench-wasm-browser.mjs
+    │   └── bench-wasm-browser.html
     └── Cargo.toml          # crate name: ente-validation
 
 web/packages/wasm/          # WASM bindings (lives in web workspace)
@@ -152,11 +154,27 @@ cargo run -p ente-validation --bin bench --release    # benchmarks (release)
 
 **ente-validation wasm benchmarks (rust/validation/):**
 
+Node (rust-core wasm vs libsodium-wrappers-sumo wasm):
+
 ```sh
 wasm-pack build --target nodejs rust/validation/wasm  # wasm bench build
 cd rust/validation/js
 npm install
 node bench-wasm.mjs                                   # wasm benchmarks
+```
+
+Browser (Chrome):
+
+```sh
+wasm-pack build --target web rust/validation/wasm
+cd rust/validation
+python3 -m http.server 8000
+```
+
+Open:
+
+```text
+http://localhost:8000/js/bench-wasm-browser.html
 ```
 
 **ente-wasm (web/packages/wasm/):**

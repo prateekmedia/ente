@@ -54,6 +54,30 @@ To write JSON output:
 BENCH_JSON=bench-wasm.json node rust/validation/js/bench-wasm.mjs
 ```
 
+## WASM Benchmarks (Browser)
+
+Build the wasm bench crate for the browser:
+
+```bash
+wasm-pack build --target web rust/validation/wasm
+```
+
+Start a local static server from `rust/validation/` (required for WASM loading):
+
+```bash
+cd rust/validation
+python3 -m http.server 8000
+```
+
+Open the benchmark page in Chrome (results render on the page):
+
+```text
+http://localhost:8000/js/bench-wasm-browser.html
+```
+
+The page includes warmup/iteration controls and a toggle to run Rust WASM,
+libsodium WASM, or both. It loads libsodium from a CDN (no bundler required).
+
 ## Requirements
 
 The validation suite uses `libsodium-sys-stable`. Ensure libsodium builds
