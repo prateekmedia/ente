@@ -6,7 +6,7 @@ Common Rust code for Ente apps.
 
 | Module | Description |
 |--------|-------------|
-| `auth` | Authentication (login, signup, recovery, SRP) |
+| `auth` | Authentication (login, signup, recovery, SRP credentials) |
 | `crypto` | Cryptographic utilities (pure Rust) |
 | `http` | HTTP client for Ente API |
 | `urls` | URL construction utilities |
@@ -17,7 +17,6 @@ High-level authentication API for Ente clients.
 
 | Function | Description |
 |----------|-------------|
-| `start_srp_session()` | Start SRP session for password authentication (feature: `srp`) |
 | `derive_srp_credentials()` | Derive KEK and login key from password |
 | `derive_kek()` | Derive key-encryption-key only (for email MFA flow) |
 | `decrypt_secrets()` | Decrypt master key, secret key, and token |
@@ -26,31 +25,23 @@ High-level authentication API for Ente clients.
 
 ### Quick Start - SRP Login
 
-Requires the `srp` feature:
-
-```toml
-[dependencies]
-ente-core = { path = "../core", features = ["srp"] }
-```
-
 ```rust
 use ente_core::auth;
 
-// 1. Start SRP session (derives keys from password)
-let (mut srp_session, kek) = auth::start_srp_session(password, &srp_attrs)?;
+// 1. Derive SRP credentials (KEK + login key)
+let creds = auth::derive_srp_credentials(password, &srp_attrs)?;
 
-// 2. Get client's public value, send to server
-let a_pub = srp_session.public_a();
+// 2. Use login_key with your SRP client to compute srpA/srpM1
+let mut srp = SrpClient::new(&srp_attrs.srp_user_id, &srp_attrs.srp_salt, &creds.login_key)?;
+let a_pub = srp.public_a();
 let session = api.create_srp_session(&a_pub).await?;
+let m1 = srp.compute_m1(&session.srp_b)?;
 
-// 3. Compute client proof using server response
-let m1 = srp_session.compute_m1(&session.srp_b)?;
-
-// 4. Verify with server, get key attributes
+// 3. Verify with server, get key attributes
 let auth_response = api.verify_srp_session(&m1).await?;
 
-// 5. Decrypt secrets
-let secrets = auth::decrypt_secrets(&kek, &key_attrs, &encrypted_token)?;
+// 4. Decrypt secrets
+let secrets = auth::decrypt_secrets(&creds.kek, &key_attrs, &encrypted_token)?;
 // secrets.master_key, secrets.secret_key, secrets.token
 ```
 

@@ -4,27 +4,20 @@
 //! - Key generation (signup)
 //! - Key decryption (login)
 //! - Account recovery
-//! - SRP protocol (password-based authentication)
+//! - SRP credentials (password-based authentication)
 //!
 //! ## Quick Start
 //!
 //! For SRP login flow:
 //! ```ignore
-//! // 1. Derive credentials and start SRP session
-//! let (mut srp_session, kek) = auth::start_srp_session(password, &srp_attrs)?;
+//! // 1. Derive SRP credentials from password
+//! let creds = auth::derive_srp_credentials(password, &srp_attrs)?;
 //!
-//! // 2. Get client's public value and send to server
-//! let a_pub = srp_session.public_a();
-//! let session = api.create_srp_session(&a_pub).await?;
+//! // 2. Use creds.login_key with your SRP client to complete the SRP exchange
+//! //    (create session with srpA, then verify with srpM1)
 //!
-//! // 3. Process server's response and compute proof
-//! let m1 = srp_session.compute_m1(&session.srp_b)?;
-//!
-//! // 4. Verify with server
-//! let auth_response = api.verify_srp_session(&m1).await?;
-//!
-//! // 5. Decrypt secrets
-//! let secrets = auth::decrypt_secrets(&kek, &key_attrs, &encrypted_token)?;
+//! // 3. Decrypt secrets
+//! let secrets = auth::decrypt_secrets(&creds.kek, &key_attrs, &encrypted_token)?;
 //! ```
 //!
 //! For email MFA flow (no SRP):
@@ -49,11 +42,6 @@ mod types;
 // High-level API (recommended for applications)
 pub use api::{DecryptedSecrets, SrpCredentials};
 pub use api::{decrypt_secrets, derive_kek, derive_srp_credentials};
-
-#[cfg(any(test, feature = "srp"))]
-pub use api::start_srp_session;
-#[cfg(any(test, feature = "srp"))]
-pub use srp::SrpSession;
 
 // Key generation (for signup)
 pub use key_gen::{
