@@ -38,7 +38,7 @@
 //! ```rust
 //! use ente_core::crypto;
 //!
-//! // Initialize crypto backend (must be called once)
+//! // Initialize crypto backend (no-op for the pure Rust backend)
 //! crypto::init().unwrap();
 //!
 //! // Generate a key and encrypt some data
@@ -53,11 +53,14 @@
 //! // Blob encryption (for metadata)
 //! let key = crypto::keys::generate_stream_key();
 //! let encrypted = crypto::blob::encrypt(plaintext, &key).unwrap();
-//! let decrypted = crypto::blob::decrypt_blob(&encrypted, &key).unwrap();
+//! let decrypted = crypto::blob::decrypt(&encrypted.encrypted_data, &encrypted.decryption_header, &key).unwrap();
 //! assert_eq!(decrypted, plaintext);
 //! ```
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use base64::{
+    Engine,
+    engine::general_purpose::{STANDARD as BASE64, URL_SAFE as BASE64_URL_SAFE},
+};
 
 mod error;
 
@@ -82,6 +85,9 @@ pub fn decode_b64(input: &str) -> Result<Vec<u8>> {
 
 /// Encode bytes to a base64 string.
 ///
+/// This is standard base64 (RFC 4648 §4), matching libsodium's
+/// `sodium_base64_VARIANT_ORIGINAL`.
+///
 /// # Arguments
 /// * `input` - Bytes to encode.
 ///
@@ -89,6 +95,28 @@ pub fn decode_b64(input: &str) -> Result<Vec<u8>> {
 /// Base64 encoded string.
 pub fn encode_b64(input: &[u8]) -> String {
     BASE64.encode(input)
+}
+
+/// Decode a base64 string to bytes.
+///
+/// Alias for [`decode_b64`], matching libsodium's `base642bin()` naming.
+pub fn base642bin(input: &str) -> Result<Vec<u8>> {
+    decode_b64(input)
+}
+
+/// Encode bytes to a base64 string.
+///
+/// Matches libsodium's `bin2base64()` naming.
+///
+/// When `url_safe` is true, this uses the URL-safe alphabet (RFC 4648 §5),
+/// matching libsodium's `sodium_base64_VARIANT_URLSAFE` and Go's
+/// `base64.URLEncoding`.
+pub fn bin2base64(input: &[u8], url_safe: bool) -> String {
+    if url_safe {
+        BASE64_URL_SAFE.encode(input)
+    } else {
+        BASE64.encode(input)
+    }
 }
 
 /// Decode a hex string to bytes.

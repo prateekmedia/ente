@@ -74,7 +74,12 @@ mod rust_to_js {
         println!("Ciphertext (b64): {}", ciphertext_b64);
 
         // Verify roundtrip
-        let decrypted = crypto::blob::decrypt_blob(&encrypted, &key).unwrap();
+        let decrypted = crypto::blob::decrypt(
+            &encrypted.encrypted_data,
+            &encrypted.decryption_header,
+            &key,
+        )
+        .unwrap();
         assert_eq!(decrypted, plaintext);
     }
 
@@ -356,7 +361,12 @@ mod bidirectional {
         // Test single-chunk encryption (simple encrypt function)
         let plaintext = vec![0x42u8; 1000];
         let encrypted = crypto::stream::encrypt(&plaintext, &key).unwrap();
-        let decrypted = crypto::stream::decrypt_stream(&encrypted, &key).unwrap();
+        let decrypted = crypto::stream::decrypt(
+            &encrypted.encrypted_data,
+            &encrypted.decryption_header,
+            &key,
+        )
+        .unwrap();
         assert_eq!(decrypted, plaintext);
 
         // Simple encrypt is single-chunk: size = plaintext + ABYTES
@@ -465,8 +475,12 @@ mod bidirectional {
         assert_eq!(decrypted_file_key, file_key);
 
         // 14. Decrypt file content
-        let decrypted_file =
-            crypto::stream::decrypt_stream(&encrypted_file, &decrypted_file_key).unwrap();
+        let decrypted_file = crypto::stream::decrypt(
+            &encrypted_file.encrypted_data,
+            &encrypted_file.decryption_header,
+            &decrypted_file_key,
+        )
+        .unwrap();
         assert_eq!(decrypted_file, file_content);
 
         // 15. Decrypt metadata
@@ -572,6 +586,23 @@ mod public_api_coverage {
         setup();
         let encoded = crypto::encode_b64(b"Hello");
         assert_eq!(encoded, "SGVsbG8=");
+    }
+
+    #[test]
+    fn test_base642bin() {
+        setup();
+        let decoded = crypto::base642bin("SGVsbG8=").unwrap();
+        assert_eq!(decoded, b"Hello");
+    }
+
+    #[test]
+    fn test_bin2base64() {
+        setup();
+        let standard = crypto::bin2base64(b"\xfb\xef", false);
+        assert_eq!(standard, "++8=");
+
+        let url_safe = crypto::bin2base64(b"\xfb\xef", true);
+        assert_eq!(url_safe, "--8=");
     }
 
     #[test]
@@ -710,15 +741,6 @@ mod public_api_coverage {
     }
 
     #[test]
-    fn test_blob_decrypt_blob() {
-        setup();
-        let key = crypto::keys::generate_stream_key();
-        let encrypted = crypto::blob::encrypt(b"test", &key).unwrap();
-        let plaintext = crypto::blob::decrypt_blob(&encrypted, &key).unwrap();
-        assert_eq!(plaintext, b"test");
-    }
-
-    #[test]
     fn test_blob_encrypt_json() {
         setup();
         let key = crypto::keys::generate_stream_key();
@@ -758,15 +780,6 @@ mod public_api_coverage {
             &key,
         )
         .unwrap();
-        assert_eq!(plaintext, b"test data");
-    }
-
-    #[test]
-    fn test_stream_decrypt_stream() {
-        setup();
-        let key = crypto::keys::generate_stream_key();
-        let encrypted = crypto::stream::encrypt(b"test data", &key).unwrap();
-        let plaintext = crypto::stream::decrypt_stream(&encrypted, &key).unwrap();
         assert_eq!(plaintext, b"test data");
     }
 
@@ -1121,7 +1134,11 @@ mod error_handling {
         let plaintext = b"secret data";
 
         let encrypted = crypto::blob::encrypt(plaintext, &correct_key).unwrap();
-        let result = crypto::blob::decrypt_blob(&encrypted, &wrong_key);
+        let result = crypto::blob::decrypt(
+            &encrypted.encrypted_data,
+            &encrypted.decryption_header,
+            &wrong_key,
+        );
         assert!(
             result.is_err(),
             "Should error when decrypting blob with wrong key"
@@ -1136,7 +1153,11 @@ mod error_handling {
         let plaintext = b"secret data";
 
         let encrypted = crypto::stream::encrypt(plaintext, &correct_key).unwrap();
-        let result = crypto::stream::decrypt_stream(&encrypted, &wrong_key);
+        let result = crypto::stream::decrypt(
+            &encrypted.encrypted_data,
+            &encrypted.decryption_header,
+            &wrong_key,
+        );
         assert!(
             result.is_err(),
             "Should error when decrypting stream with wrong key"
@@ -1296,7 +1317,12 @@ mod dart_compatibility {
         let key = crypto::keys::generate_stream_key();
 
         let encrypted = crypto::blob::encrypt(source, &key).unwrap();
-        let decrypted = crypto::blob::decrypt_blob(&encrypted, &key).unwrap();
+        let decrypted = crypto::blob::decrypt(
+            &encrypted.encrypted_data,
+            &encrypted.decryption_header,
+            &key,
+        )
+        .unwrap();
 
         assert_eq!(decrypted, source);
     }
