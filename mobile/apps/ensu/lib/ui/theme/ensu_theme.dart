@@ -26,7 +26,8 @@ class EnsuColors {
 
 /// Builds EnteTextTheme with serif font for headings (h1, h2, h3).
 /// Body text and other styles remain unchanged with Inter font.
-EnteTextTheme _buildEnsuTextTheme(Color textBase, Color textMuted, Color textFaint) {
+EnteTextTheme _buildEnsuTextTheme(
+    Color textBase, Color textMuted, Color textFaint) {
   const String serifFamily = 'CormorantGaramond';
   const FontWeight regularWeight = FontWeight.w500;
   const FontWeight boldWeight = FontWeight.w600;
@@ -160,7 +161,9 @@ final EnteTextTheme ensuDarkTextTheme = _buildEnsuTextTheme(
 /// Falls back to standard EnteTextTheme if not in Ensu theme context.
 EnteTextTheme getEnsuTextTheme(BuildContext context) {
   final brightness = Theme.of(context).brightness;
-  return brightness == Brightness.light ? ensuLightTextTheme : ensuDarkTextTheme;
+  return brightness == Brightness.light
+      ? ensuLightTextTheme
+      : ensuDarkTextTheme;
 }
 
 class EnsuTheme {
@@ -178,6 +181,11 @@ class EnsuTheme {
       textMuted: EnsuColors.muted,
       fillFaint: EnsuColors.codeBg,
       strokeMuted: EnsuColors.rule,
+      gradientButtonBgColor: EnsuColors.accent,
+      gradientButtonBgColors: const [
+        EnsuColors.accent,
+        Color(0xFFB89A1F),
+      ],
     );
   }
 
@@ -195,6 +203,11 @@ class EnsuTheme {
       textMuted: EnsuColors.mutedDark,
       fillFaint: EnsuColors.codeBgDark,
       strokeMuted: EnsuColors.ruleDark,
+      gradientButtonBgColor: EnsuColors.accentDark,
+      gradientButtonBgColors: const [
+        EnsuColors.accentDark,
+        Color(0xFFE6C200),
+      ],
     );
   }
 

@@ -12,8 +12,23 @@ dependencies:
   connectivity_plus: ^6.0.5
   dio: ^5.8.0+1
   email_validator: ^3.0.0
+  ente_accounts:
+    path: ../../packages/accounts
   ente_base:
     path: ../../packages/base
+  ente_configuration:
+    path: ../../packages/configuration
+  ente_crypto_api:
+    path: ../../packages/ente_crypto_api
+  ente_crypto_cross_check_adapter:
+    path: ../../packages/ente_crypto_cross_check_adapter
+  ente_crypto_dart:
+    git:
+      url: https://github.com/ente-io/ente_crypto_dart.git
+  ente_crypto_dart_adapter:
+    path: ../../packages/ente_crypto_dart_adapter
+  ente_crypto_rust_adapter:
+    path: ../../packages/ente_crypto_rust_adapter
   ente_events:
     path: ../../packages/events
   ente_logging:
@@ -29,11 +44,13 @@ dependencies:
   ente_utils:
     path: ../../packages/utils
   event_bus: ^2.0.0
-  fllama: ^0.0.1
+  fllama:
+    path: /Users/prateek/Documents/gits/fllama
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_rust_bridge: 2.11.1
   flutter_secure_storage: 9.0.0
   google_fonts: ^6.3.2
   google_generative_ai: ^0.4.7
@@ -56,6 +73,8 @@ dev_dependencies:
   build_runner: ^2.1.11
   flutter_launcher_icons: ^0.14.4
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   lints: ^5.1.1
 

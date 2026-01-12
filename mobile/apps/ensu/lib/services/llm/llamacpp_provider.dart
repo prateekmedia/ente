@@ -19,13 +19,15 @@ class LlamaCppProvider implements LLMProvider {
   LlamaParent? _llama;
   String? _modelsDir;
 
-  final _downloadProgressController = StreamController<DownloadProgress>.broadcast();
-  
+  final _downloadProgressController =
+      StreamController<DownloadProgress>.broadcast();
+
   bool _downloadCancelled = false;
   http.Client? _httpClient;
 
   // Llama 3.2 1B - smaller model for mobile
-  static const _modelUrl = 'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf';
+  static const _modelUrl =
+      'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf';
   static const _modelFilename = 'Llama-3.2-1B-Instruct-Q4_K_M.gguf';
   static const _modelInfo = ModelInfo(
     id: 'llama-3.2-1b',
@@ -42,6 +44,9 @@ class LlamaCppProvider implements LLMProvider {
 
   @override
   ModelInfo? get currentModel => _isReady ? _modelInfo : null;
+
+  @override
+  ModelInfo get targetModel => _modelInfo;
 
   @override
   bool get isReady => _isReady;
@@ -64,8 +69,8 @@ class LlamaCppProvider implements LLMProvider {
     await Directory(_modelsDir!).create(recursive: true);
 
     _isInitialized = true;
-    _logger.info('LlamaCpp provider initialized');
-    
+    _logger.fine('LlamaCpp provider initialized');
+
     // Don't auto-load - let user trigger it when sending first message
   }
 
@@ -84,12 +89,12 @@ class LlamaCppProvider implements LLMProvider {
   @override
   Future<void> ensureModelReady() async {
     if (_isReady) return;
-    
+
     final modelFile = File(_modelPath);
     final exists = await modelFile.exists();
-    
-    _logger.info('Model path: $_modelPath, exists: $exists');
-    
+
+    _logger.fine('Model path: $_modelPath, exists: $exists');
+
     if (!exists) {
       await downloadModel(_modelInfo);
     } else {
@@ -98,9 +103,9 @@ class LlamaCppProvider implements LLMProvider {
         percent: 100,
         status: 'Loading model...',
       ));
-      
+
       await _loadModel();
-      
+
       _downloadProgressController.add(const DownloadProgress(
         percent: 100,
         status: 'Ready',
@@ -118,7 +123,7 @@ class LlamaCppProvider implements LLMProvider {
 
   @override
   Future<void> downloadModel(ModelInfo model) async {
-    _logger.info('Downloading Llama 3.2 3B...');
+    _logger.fine('Downloading Llama 3.2 3B...');
     _downloadCancelled = false;
     _downloadProgressController.add(const DownloadProgress(
       percent: 0,
@@ -153,7 +158,7 @@ class LlamaCppProvider implements LLMProvider {
           ));
           return;
         }
-        
+
         sink.add(chunk);
         downloadedBytes += chunk.length;
 
@@ -163,7 +168,8 @@ class LlamaCppProvider implements LLMProvider {
             percent: percent,
             bytesDownloaded: downloadedBytes,
             totalBytes: totalBytes,
-            status: '${_formatBytes(downloadedBytes)} / ${_formatBytes(totalBytes)}',
+            status:
+                '${_formatBytes(downloadedBytes)} / ${_formatBytes(totalBytes)}',
           ));
         }
       }
@@ -183,9 +189,9 @@ class LlamaCppProvider implements LLMProvider {
         status: 'Loading model...',
       ));
 
-      _logger.info('Model downloaded, loading...');
+      _logger.fine('Model downloaded, loading...');
       await _loadModel();
-      
+
       _downloadProgressController.add(const DownloadProgress(
         percent: 100,
         status: 'Ready',
@@ -213,19 +219,20 @@ class LlamaCppProvider implements LLMProvider {
 
   Future<void> _loadModel() async {
     try {
-      _logger.info('Loading Llama 3.2 3B from: $_modelPath');
-      
+      _logger.fine('Loading Llama 3.2 3B from: $_modelPath');
+
       // Verify model file exists and has size
       final modelFile = File(_modelPath);
       if (!await modelFile.exists()) {
         throw Exception('Model file not found at $_modelPath');
       }
       final fileSize = await modelFile.length();
-      _logger.info('Model file size: ${_formatBytes(fileSize)}');
-      
+      _logger.fine('Model file size: ${_formatBytes(fileSize)}');
+
       if (fileSize < 1000000) {
         // Less than 1MB - probably corrupted/incomplete
-        throw Exception('Model file appears incomplete (${_formatBytes(fileSize)})');
+        throw Exception(
+            'Model file appears incomplete (${_formatBytes(fileSize)})');
       }
 
       _llama?.dispose();
@@ -254,11 +261,11 @@ class LlamaCppProvider implements LLMProvider {
         format: ChatMLFormat(),
       );
 
-      _logger.info('Creating LlamaParent...');
+      _logger.fine('Creating LlamaParent...');
       _llama = LlamaParent(loadCommand);
-      
-      _logger.info('Initializing model (this may take a while)...');
-      
+
+      _logger.fine('Initializing model (this may take a while)...');
+
       // Add timeout to prevent infinite hang
       await _llama!.init().timeout(
         const Duration(minutes: 5),
@@ -268,7 +275,7 @@ class LlamaCppProvider implements LLMProvider {
       );
 
       _isReady = true;
-      _logger.info('Model loaded successfully');
+      _logger.fine('Model loaded successfully');
     } catch (e, stack) {
       _logger.severe('Failed to load model: $e\n$stack');
       _isReady = false;
@@ -292,7 +299,7 @@ class LlamaCppProvider implements LLMProvider {
     if (await file.exists()) {
       await file.delete();
     }
-    _logger.info('Model deleted');
+    _logger.fine('Model deleted');
   }
 
   @override

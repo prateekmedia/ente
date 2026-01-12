@@ -28,9 +28,11 @@ pub fn generate_stream_key() -> Vec<u8> {
 // ============================================================================
 
 /// Base64 encode bytes (CryptoUtil.bin2base64 compatible).
+///
+/// Set `url_safe` to true to use the URL-safe alphabet.
 #[frb(sync)]
-pub fn bin2base64(data: Vec<u8>) -> String {
-    ente_core::crypto::encode_b64(&data)
+pub fn bin2base64(data: Vec<u8>, url_safe: bool) -> String {
+    ente_core::crypto::bin2base64(&data, url_safe)
 }
 
 /// Base64 decode string to bytes (CryptoUtil.base642bin compatible).
@@ -54,7 +56,7 @@ pub fn bin2hex(data: Vec<u8>) -> String {
 // Aliases for the new naming convention
 #[frb(sync)]
 pub fn encode_b64(data: Vec<u8>) -> String {
-    bin2base64(data)
+    ente_core::crypto::encode_b64(&data)
 }
 
 #[frb(sync)]

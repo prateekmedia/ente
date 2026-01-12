@@ -1,0 +1,132 @@
+package ensuchat
+
+type Key struct {
+	UserID       int64  `json:"-"`
+	EncryptedKey string `json:"encrypted_key"`
+	Header       string `json:"header"`
+	CreatedAt    int64  `json:"created_at"`
+	UpdatedAt    int64  `json:"updated_at"`
+}
+
+type Session struct {
+	SessionUUID   string  `json:"session_uuid"`
+	UserID        int64   `json:"-"`
+	EncryptedData *string `json:"encrypted_data"`
+	Header        *string `json:"header"`
+	IsDeleted     bool    `json:"is_deleted"`
+	CreatedAt     int64   `json:"created_at"`
+	UpdatedAt     int64   `json:"updated_at"`
+}
+
+type Message struct {
+	MessageUUID       string  `json:"message_uuid"`
+	UserID            int64   `json:"-"`
+	SessionUUID       string  `json:"session_uuid"`
+	ParentMessageUUID *string `json:"parent_message_uuid"`
+	EncryptedData     *string `json:"encrypted_data"`
+	Header            *string `json:"header"`
+	IsDeleted         bool    `json:"is_deleted"`
+	CreatedAt         int64   `json:"created_at"`
+	UpdatedAt         int64   `json:"updated_at"`
+}
+
+type UpsertKeyRequest struct {
+	EncryptedKey string `json:"encrypted_key" binding:"required"`
+	Header       string `json:"header" binding:"required"`
+}
+
+type UpsertSessionRequest struct {
+	SessionUUID   string `json:"session_uuid" binding:"required"`
+	EncryptedData string `json:"encrypted_data" binding:"required"`
+	Header        string `json:"header" binding:"required"`
+}
+
+type UpsertMessageRequest struct {
+	MessageUUID       string  `json:"message_uuid" binding:"required"`
+	SessionUUID       string  `json:"session_uuid" binding:"required"`
+	ParentMessageUUID *string `json:"parent_message_uuid"`
+	EncryptedData     string  `json:"encrypted_data" binding:"required"`
+	Header            string  `json:"header" binding:"required"`
+}
+
+type KeyResponse struct {
+	EncryptedKey string `json:"encrypted_key"`
+	Header       string `json:"header"`
+	CreatedAt    int64  `json:"created_at"`
+	UpdatedAt    int64  `json:"updated_at"`
+}
+
+type SessionResponse struct {
+	SessionUUID   string `json:"session_uuid"`
+	EncryptedData string `json:"encrypted_data"`
+	Header        string `json:"header"`
+	CreatedAt     int64  `json:"created_at"`
+	UpdatedAt     int64  `json:"updated_at"`
+	IsDeleted     bool   `json:"is_deleted"`
+}
+
+type MessageResponse struct {
+	MessageUUID       string  `json:"message_uuid"`
+	SessionUUID       string  `json:"session_uuid"`
+	ParentMessageUUID *string `json:"parent_message_uuid"`
+	EncryptedData     string  `json:"encrypted_data"`
+	Header            string  `json:"header"`
+	CreatedAt         int64   `json:"created_at"`
+	UpdatedAt         int64   `json:"updated_at"`
+	IsDeleted         bool    `json:"is_deleted"`
+}
+
+type DeleteSessionResponse struct {
+	SessionUUID string `json:"session_uuid"`
+	DeletedAt   int64  `json:"deleted_at"`
+}
+
+type DeleteMessageResponse struct {
+	MessageUUID string `json:"message_uuid"`
+	DeletedAt   int64  `json:"deleted_at"`
+}
+
+type GetDiffRequest struct {
+	SinceTime *int64 `form:"sinceTime" binding:"required"`
+	Limit     int16  `form:"limit"`
+}
+
+type SessionDiffEntry struct {
+	SessionUUID   string `json:"session_uuid"`
+	EncryptedData string `json:"encrypted_data"`
+	Header        string `json:"header"`
+	CreatedAt     int64  `json:"created_at"`
+	UpdatedAt     int64  `json:"updated_at"`
+}
+
+type MessageDiffEntry struct {
+	MessageUUID       string  `json:"message_uuid"`
+	SessionUUID       string  `json:"session_uuid"`
+	ParentMessageUUID *string `json:"parent_message_uuid"`
+	EncryptedData     string  `json:"encrypted_data"`
+	Header            string  `json:"header"`
+	CreatedAt         int64   `json:"created_at"`
+	UpdatedAt         int64   `json:"updated_at"`
+}
+
+type SessionTombstone struct {
+	SessionUUID string `json:"session_uuid"`
+	DeletedAt   int64  `json:"deleted_at"`
+}
+
+type MessageTombstone struct {
+	MessageUUID string `json:"message_uuid"`
+	DeletedAt   int64  `json:"deleted_at"`
+}
+
+type DiffTombstones struct {
+	Sessions []SessionTombstone `json:"sessions"`
+	Messages []MessageTombstone `json:"messages"`
+}
+
+type GetDiffResponse struct {
+	Sessions   []SessionDiffEntry `json:"sessions"`
+	Messages   []MessageDiffEntry `json:"messages"`
+	Tombstones DiffTombstones     `json:"tombstones"`
+	Timestamp  int64              `json:"timestamp"`
+}

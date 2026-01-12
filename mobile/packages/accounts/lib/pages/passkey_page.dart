@@ -23,6 +23,7 @@ class PasskeyPage extends StatefulWidget {
   final String accountsUrl;
   final String redirectUrl;
   final String clientPackage;
+  final Widget? appBarTitle;
 
   const PasskeyPage(
     this.config,
@@ -31,6 +32,7 @@ class PasskeyPage extends StatefulWidget {
     required this.accountsUrl,
     required this.redirectUrl,
     required this.clientPackage,
+    this.appBarTitle,
     super.key,
   });
 
@@ -152,13 +154,14 @@ class _PasskeyPageState extends State<PasskeyPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,

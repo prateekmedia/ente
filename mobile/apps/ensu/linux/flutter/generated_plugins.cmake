@@ -4,7 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   file_saver
+  flutter_local_authentication
   flutter_secure_storage_linux
+  gtk
   screen_retriever_linux
   sentry_flutter
   sodium_libs
@@ -15,6 +17,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   ente_rust
+  fllama
   jni
 )
 

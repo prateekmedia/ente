@@ -28,11 +28,13 @@ class PasswordEntryPage extends StatefulWidget {
   final BaseConfiguration config;
   final PasswordEntryMode mode;
   final BaseHomePage homePage;
+  final Widget? appBarTitle;
 
   const PasswordEntryPage(
     this.config,
     this.mode,
     this.homePage, {
+    this.appBarTitle,
     super.key,
   });
 
@@ -118,13 +120,14 @@ class _PasswordEntryPageState extends State<PasswordEntryPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: widget.mode == PasswordEntryMode.reset
             ? Container()
             : IconButton(

@@ -10,8 +10,13 @@ import 'package:pinput/pinput.dart';
 
 class TwoFactorAuthenticationPage extends StatefulWidget {
   final String sessionID;
+  final Widget? appBarTitle;
 
-  const TwoFactorAuthenticationPage(this.sessionID, {super.key});
+  const TwoFactorAuthenticationPage(
+    this.sessionID, {
+    this.appBarTitle,
+    super.key,
+  });
 
   @override
   State<TwoFactorAuthenticationPage> createState() =>
@@ -68,13 +73,14 @@ class _TwoFactorAuthenticationPageState
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,

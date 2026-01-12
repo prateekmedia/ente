@@ -15,8 +15,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 class RecoveryPage extends StatefulWidget {
   final BaseConfiguration config;
   final BaseHomePage homePage;
+  final Widget? appBarTitle;
 
-  const RecoveryPage(this.config, this.homePage, {super.key});
+  const RecoveryPage(
+    this.config,
+    this.homePage, {
+    this.appBarTitle,
+    super.key,
+  });
 
   @override
   State<RecoveryPage> createState() => _RecoveryPageState();
@@ -84,13 +90,14 @@ class _RecoveryPageState extends State<RecoveryPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,

@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "io.ente.ensu"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.0.12433566"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -28,6 +28,9 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     flavorDimensions += "default"

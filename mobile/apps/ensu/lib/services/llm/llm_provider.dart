@@ -66,6 +66,9 @@ abstract class LLMProvider {
   /// Get currently loaded model info
   ModelInfo? get currentModel;
 
+  /// Get selected model (may not be loaded yet)
+  ModelInfo get targetModel;
+
   /// Check if a model is installed
   Future<bool> isModelInstalled(ModelInfo model);
 
@@ -142,6 +145,9 @@ class LLMService {
 
   /// Current model info
   ModelInfo? get currentModel => _provider?.currentModel;
+
+  /// Selected model (may not be loaded yet)
+  ModelInfo? get targetModel => _provider?.targetModel;
 
   /// Available models
   List<ModelInfo> get availableModels => _provider?.availableModels ?? [];

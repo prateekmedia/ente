@@ -60,14 +60,7 @@ class CryptoUtil {
 
   /// Convert bytes to base64 string.
   static String bin2base64(Uint8List data, {bool urlSafe = false}) {
-    final result = crypto.bin2Base64(data: data);
-    if (urlSafe) {
-      return result
-          .replaceAll('+', '-')
-          .replaceAll('/', '_')
-          .replaceAll('=', '');
-    }
-    return result;
+    return crypto.bin2Base64(data: data, urlSafe: urlSafe);
   }
 
   /// Convert base64 string to bytes.

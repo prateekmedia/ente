@@ -12,12 +12,14 @@ class OTTVerificationPage extends StatefulWidget {
   final bool isChangeEmail;
   final bool isCreateAccountScreen;
   final bool isResetPasswordScreen;
+  final Widget? appBarTitle;
 
   const OTTVerificationPage(
     this.email, {
     this.isChangeEmail = false,
     this.isCreateAccountScreen = false,
     this.isResetPasswordScreen = false,
+    this.appBarTitle,
     super.key,
   });
 
@@ -40,6 +42,7 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
         context,
         _pinController.text,
         isResettingPasswordScreen: widget.isResetPasswordScreen,
+        appBarTitle: widget.appBarTitle,
       );
     }
     FocusScope.of(context).unfocus();
@@ -72,13 +75,14 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,
@@ -222,6 +226,7 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
                       isCreateAccountScreen: widget.isCreateAccountScreen,
                       isChangeEmail: widget.isChangeEmail,
                       isResetPasswordScreen: widget.isResetPasswordScreen,
+                      appBarTitle: widget.appBarTitle,
                     );
                   },
                   child: Text(

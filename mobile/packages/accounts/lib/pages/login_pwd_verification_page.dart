@@ -21,9 +21,11 @@ import "package:logging/logging.dart";
 class LoginPasswordVerificationPage extends StatefulWidget {
   final BaseConfiguration config;
   final SrpAttributes srpAttributes;
+  final Widget? appBarTitle;
   const LoginPasswordVerificationPage(
     this.config,
     this.srpAttributes, {
+    this.appBarTitle,
     super.key,
   });
 
@@ -78,13 +80,14 @@ class _LoginPasswordVerificationPageState
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,
@@ -119,6 +122,7 @@ class _LoginPasswordVerificationPageState
         widget.srpAttributes,
         password,
         dialog,
+        appBarTitle: widget.appBarTitle,
       );
     } on DioException catch (e, s) {
       await dialog.hide();
@@ -157,6 +161,7 @@ class _LoginPasswordVerificationPageState
           context,
           email!,
           isCreateAccountScreen: true,
+          appBarTitle: widget.appBarTitle,
         );
         return;
       } else if (e is KeyDerivationError) {
@@ -180,6 +185,7 @@ class _LoginPasswordVerificationPageState
             context,
             email!,
             isResetPasswordScreen: true,
+            appBarTitle: widget.appBarTitle,
           );
         }
         return;
@@ -340,6 +346,7 @@ class _LoginPasswordVerificationPageState
                                 context,
                                 email!,
                                 isResetPasswordScreen: true,
+                                appBarTitle: widget.appBarTitle,
                               );
                             },
                             child: Text(

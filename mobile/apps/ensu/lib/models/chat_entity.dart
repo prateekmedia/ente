@@ -1,5 +1,5 @@
-/// Entity returned from the server (using auth's entity format).
-/// We store chat data as encrypted JSON in the same format as auth codes.
+/// Entity returned from the ensu chat API.
+/// Supports both legacy camelCase and new snake_case fields.
 class ChatEntity {
   final String id;
   final String encryptedData;
@@ -18,13 +18,42 @@ class ChatEntity {
   });
 
   factory ChatEntity.fromMap(Map<String, dynamic> map) {
+    int readInt(dynamic value, {int fallback = 0}) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return fallback;
+    }
+
+    bool readBool(dynamic value) {
+      if (value is bool) return value;
+      if (value is int) return value != 0;
+      return false;
+    }
+
+    final idValue = map['id'] ?? map['session_uuid'] ?? map['message_uuid'];
+    if (idValue == null) {
+      throw ArgumentError('ChatEntity id is missing');
+    }
+
+    final deletedAt = map['deleted_at'];
+    final createdAt = readInt(
+      map['createdAt'] ?? map['created_at'] ?? deletedAt,
+    );
+    final updatedAt = readInt(
+      map['updatedAt'] ?? map['updated_at'] ?? deletedAt,
+      fallback: createdAt,
+    );
+    final isDeleted =
+        readBool(map['isDeleted'] ?? map['is_deleted']) || deletedAt != null;
+
     return ChatEntity(
-      id: map['id'] as String,
-      encryptedData: map['encryptedData'] as String,
-      header: map['header'] as String,
-      createdAt: map['createdAt'] as int,
-      updatedAt: map['updatedAt'] as int,
-      isDeleted: map['isDeleted'] as bool? ?? false,
+      id: idValue as String,
+      encryptedData:
+          (map['encryptedData'] ?? map['encrypted_data'] ?? '') as String,
+      header: (map['header'] ?? '') as String,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      isDeleted: isDeleted,
     );
   }
 
@@ -40,6 +69,23 @@ class ChatEntity {
   }
 }
 
+/// Incremental diff from the ensu chat API.
+class ChatDiff {
+  final List<ChatEntity> sessions;
+  final List<ChatEntity> messages;
+  final List<ChatEntity> sessionTombstones;
+  final List<ChatEntity> messageTombstones;
+  final int? timestamp;
+
+  const ChatDiff({
+    required this.sessions,
+    required this.messages,
+    required this.sessionTombstones,
+    required this.messageTombstones,
+    required this.timestamp,
+  });
+}
+
 /// The key used to encrypt/decrypt chat data (stored on server).
 class ChatKey {
   final String encryptedKey;
@@ -52,7 +98,7 @@ class ChatKey {
 
   factory ChatKey.fromMap(Map<String, dynamic> map) {
     return ChatKey(
-      encryptedKey: map['encryptedKey'] as String,
+      encryptedKey: (map['encryptedKey'] ?? map['encrypted_key']) as String,
       header: map['header'] as String,
     );
   }

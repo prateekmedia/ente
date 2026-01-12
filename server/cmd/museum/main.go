@@ -45,6 +45,7 @@ import (
 	dataCleanupCtrl "github.com/ente-io/museum/pkg/controller/data_cleanup"
 	"github.com/ente-io/museum/pkg/controller/email"
 	embeddingCtrl "github.com/ente-io/museum/pkg/controller/embedding"
+	ensuChatCtrl "github.com/ente-io/museum/pkg/controller/ensuchat"
 	"github.com/ente-io/museum/pkg/controller/family"
 	"github.com/ente-io/museum/pkg/controller/lock"
 	remoteStoreCtrl "github.com/ente-io/museum/pkg/controller/remotestore"
@@ -59,6 +60,7 @@ import (
 	"github.com/ente-io/museum/pkg/repo/datacleanup"
 	discountCouponRepo "github.com/ente-io/museum/pkg/repo/discountcoupon"
 	"github.com/ente-io/museum/pkg/repo/embedding"
+	ensuChatRepo "github.com/ente-io/museum/pkg/repo/ensuchat"
 	fileDataRepo "github.com/ente-io/museum/pkg/repo/filedata"
 	"github.com/ente-io/museum/pkg/repo/passkey"
 	"github.com/ente-io/museum/pkg/repo/remotestore"
@@ -168,6 +170,7 @@ func main() {
 	billingRepo := &repo.BillingRepository{DB: db}
 	userEntityRepo := &userEntityRepo.Repository{DB: db}
 	authRepo := &authenticatorRepo.Repository{DB: db}
+	ensuChatRepository := &ensuChatRepo.Repository{DB: db}
 	remoteStoreRepository := &remotestore.Repository{DB: db}
 	dataCleanupRepository := &datacleanup.Repository{DB: db}
 
@@ -874,6 +877,17 @@ func main() {
 	privateAPI.PUT("/authenticator/entity", authenticatorHandler.UpdateEntity)
 	privateAPI.DELETE("/authenticator/entity", authenticatorHandler.DeleteEntity)
 	privateAPI.GET("/authenticator/entity/diff", authenticatorHandler.GetDiff)
+
+	ensuChatController := &ensuChatCtrl.Controller{Repo: ensuChatRepository}
+	ensuChatHandler := &api.EnsuChatHandler{Controller: ensuChatController}
+
+	privateAPI.POST("/ensu/chat/key", ensuChatHandler.UpsertKey)
+	privateAPI.GET("/ensu/chat/key", ensuChatHandler.GetKey)
+	privateAPI.POST("/ensu/chat/session", ensuChatHandler.UpsertSession)
+	privateAPI.POST("/ensu/chat/message", ensuChatHandler.UpsertMessage)
+	privateAPI.DELETE("/ensu/chat/session", ensuChatHandler.DeleteSession)
+	privateAPI.DELETE("/ensu/chat/message", ensuChatHandler.DeleteMessage)
+	privateAPI.GET("/ensu/chat/diff", ensuChatHandler.GetDiff)
 
 	dataCleanupController := &dataCleanupCtrl.DeleteUserCleanupController{
 		Repo:           dataCleanupRepository,

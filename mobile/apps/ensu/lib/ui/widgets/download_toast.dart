@@ -79,12 +79,14 @@ class _DownloadToastState extends State<DownloadToast>
     _subscription = _llm.downloadProgress.listen((progress) {
       if (!mounted) return;
 
-      final isLoadingModel = progress.status?.contains('Loading') ?? false;
-      final isReady = progress.status == 'Ready';
+      final rawStatus = progress.status ?? '';
+      final isLoadingModel = rawStatus.contains('Loading');
+      final isReady = rawStatus == 'Ready';
+      final status = progress.hasError ? _formatError(rawStatus) : rawStatus;
 
       setState(() {
         _percent = progress.percent;
-        _status = progress.status ?? '';
+        _status = status;
         _hasError = progress.hasError;
         _isLoading = isLoadingModel;
         _isComplete = isReady;
@@ -114,10 +116,20 @@ class _DownloadToastState extends State<DownloadToast>
 
   String _formatError(dynamic e) {
     final msg = e.toString();
+    if (_isNoSpaceError(msg)) {
+      return 'No space left on device';
+    }
     if (msg.length > 50) {
       return '${msg.substring(0, 47)}...';
     }
     return msg;
+  }
+
+  bool _isNoSpaceError(String msg) {
+    final lower = msg.toLowerCase();
+    return lower.contains('no space left on device') ||
+        lower.contains('errno = 28') ||
+        lower.contains('enospc');
   }
 
   void _handleComplete() {
@@ -200,7 +212,7 @@ class _DownloadToastState extends State<DownloadToast>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Llama 3.2 1B',
+                      'Preparing model',
                       style: GoogleFonts.cormorantGaramond(
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
@@ -338,7 +350,8 @@ class DownloadToastOverlay {
 
     _entry = OverlayEntry(
       builder: (context) {
-        final topOffset = MediaQuery.of(context).padding.top + kToolbarHeight + 8;
+        final topOffset =
+            MediaQuery.of(context).padding.top + kToolbarHeight + 8;
         return Positioned(
           left: 0,
           right: 0,

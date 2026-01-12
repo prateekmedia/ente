@@ -14,8 +14,13 @@ import "package:styled_text/widgets/styled_text.dart";
 
 class LoginPage extends StatefulWidget {
   final BaseConfiguration config;
+  final Widget? appBarTitle;
 
-  const LoginPage(this.config, {super.key});
+  const LoginPage(
+    this.config, {
+    this.appBarTitle,
+    super.key,
+  });
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -47,6 +52,7 @@ class _LoginPageState extends State<LoginPage> {
             return LoginPasswordVerificationPage(
               widget.config,
               attr!,
+              appBarTitle: widget.appBarTitle,
             );
           },
         ),
@@ -57,6 +63,7 @@ class _LoginPageState extends State<LoginPage> {
         _email!,
         isCreateAccountScreen: false,
         purpose: 'login',
+        appBarTitle: widget.appBarTitle,
       );
     }
     FocusScope.of(context).unfocus();
@@ -89,13 +96,14 @@ class _LoginPageState extends State<LoginPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle ??
+            SvgPicture.asset(
+              'assets/svg/app-logo.svg',
+              colorFilter: ColorFilter.mode(
+                colorScheme.primary700,
+                BlendMode.srcIn,
+              ),
+            ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,

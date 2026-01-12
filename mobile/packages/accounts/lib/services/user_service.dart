@@ -90,6 +90,7 @@ class UserService {
     bool isCreateAccountScreen = false,
     bool isResetPasswordScreen = false,
     String? purpose,
+    Widget? appBarTitle,
   }) async {
     final dialog = createProgressDialog(context, context.strings.pleaseWait);
     await dialog.show();
@@ -113,6 +114,7 @@ class UserService {
                   isChangeEmail: isChangeEmail,
                   isCreateAccountScreen: isCreateAccountScreen,
                   isResetPasswordScreen: isResetPasswordScreen,
+                  appBarTitle: appBarTitle,
                 );
               },
             ),
@@ -438,6 +440,7 @@ class UserService {
     BuildContext context,
     String ott, {
     bool isResettingPasswordScreen = false,
+    Widget? appBarTitle,
   }) async {
     final dialog = createProgressDialog(context, context.strings.pleaseWait);
     await dialog.show();
@@ -471,9 +474,13 @@ class UserService {
             accountsUrl: accountsUrl,
             redirectUrl: _passkeyRedirectUrl,
             clientPackage: _clientPackageName,
+            appBarTitle: appBarTitle,
           );
         } else if (twoFASessionID.isNotEmpty) {
-          page = TwoFactorAuthenticationPage(twoFASessionID);
+          page = TwoFactorAuthenticationPage(
+            twoFASessionID,
+            appBarTitle: appBarTitle,
+          );
         } else {
           await _saveConfiguration(response);
           if (_config.getEncryptedToken() != null) {
@@ -481,11 +488,13 @@ class UserService {
               page = RecoveryPage(
                 _config,
                 _homePage,
+                appBarTitle: appBarTitle,
               );
             } else {
               page = PasswordReentryPage(
                 _config,
                 _homePage,
+                appBarTitle: appBarTitle,
               );
             }
           } else {
@@ -493,6 +502,7 @@ class UserService {
               _config,
               PasswordEntryMode.set,
               _homePage,
+              appBarTitle: appBarTitle,
             );
           }
         }
@@ -733,8 +743,9 @@ class UserService {
     BuildContext context,
     SrpAttributes srpAttributes,
     String userPassword,
-    ProgressDialog dialog,
-  ) async {
+    ProgressDialog dialog, {
+    Widget? appBarTitle,
+  }) async {
     late Uint8List keyEncryptionKey;
     _logger.finest('Start deriving key');
     keyEncryptionKey = await CryptoUtil.deriveKey(
@@ -801,9 +812,13 @@ class UserService {
           accountsUrl: accountsUrl,
           redirectUrl: _passkeyRedirectUrl,
           clientPackage: _clientPackageName,
+          appBarTitle: appBarTitle,
         );
       } else if (twoFASessionID.isNotEmpty) {
-        page = TwoFactorAuthenticationPage(twoFASessionID);
+        page = TwoFactorAuthenticationPage(
+          twoFASessionID,
+          appBarTitle: appBarTitle,
+        );
       } else {
         await _saveConfiguration(response);
         if (_config.getEncryptedToken() != null) {

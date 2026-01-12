@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:ente_rust/ente_rust.dart' as rust;
 import 'package:ensu/core/configuration.dart';
+import 'package:ente_crypto_cross_check_adapter/ente_crypto_cross_check_adapter.dart'
+    show CryptoCrossCheckAuthVerifier;
 import 'package:logging/logging.dart';
 
 /// Simplified authentication service for Ensu app.
@@ -13,13 +15,17 @@ class AuthService {
 
   final _logger = Logger('AuthService');
   final _dio = Dio(BaseOptions(
-    baseUrl: 'https://api.ente.io',
+    baseUrl: Configuration.instance.getHttpEndpoint(),
     connectTimeout: const Duration(seconds: 30),
     receiveTimeout: const Duration(seconds: 30),
     headers: {
-      'X-Client-Package': 'io.ente.auth',
+      'X-Client-Package': 'io.ente.ensu',
     },
   ));
+
+  void updateEndpoint(String endpoint) {
+    _dio.options.baseUrl = endpoint;
+  }
 
   /// Get SRP attributes to determine auth flow.
   Future<ServerSrpAttributes> getSrpAttributes(String email) async {
@@ -95,7 +101,7 @@ class AuthService {
 
       final sessionId = sessionResponse.data['sessionID'] as String;
       final srpB = sessionResponse.data['srpB'] as String;
-      _logger.info('SRP session created: $sessionId');
+      _logger.info('SRP session created');
 
       // Step 3: Finish SRP - process server's B and compute M1
       final verifyResult = await rust.srpFinish(srpB: srpB);
@@ -125,10 +131,21 @@ class AuthService {
       );
 
       // Server may return either encryptedToken (sealed box) or token (plain base64)
+      final encryptedToken = responseData['encryptedToken'] as String?;
+      final plainToken = responseData['token'] as String?;
       final secrets = await rust.srpDecryptSecrets(
         keyAttrs: keyAttrs,
-        encryptedToken: responseData['encryptedToken'] as String?,
-        plainToken: responseData['token'] as String?,
+        encryptedToken: encryptedToken,
+        plainToken: plainToken,
+      );
+      await CryptoCrossCheckAuthVerifier.instance
+          .verifyAuthSecretsWithMasterKey(
+        masterKey: secrets.masterKey,
+        keyAttrs: keyAttrs,
+        encryptedToken: encryptedToken,
+        plainToken: plainToken,
+        rustSecrets: secrets,
+        label: 'srpDecryptSecrets',
       );
       _logger.info('Secrets decrypted');
 
@@ -164,6 +181,14 @@ class AuthService {
       memLimit: srpAttributes.memLimit,
       opsLimit: srpAttributes.opsLimit,
     );
+    await CryptoCrossCheckAuthVerifier.instance.verifyKekForLogin(
+      password: password,
+      kekSaltB64: srpAttributes.kekSalt,
+      memLimit: srpAttributes.memLimit,
+      opsLimit: srpAttributes.opsLimit,
+      rustKek: kek,
+      label: 'deriveKekForLogin',
+    );
 
     // Decrypt secrets
     final rustKeyAttrs = rust.KeyAttributes(
@@ -182,6 +207,14 @@ class AuthService {
       keyAttrs: rustKeyAttrs,
       encryptedToken: encryptedToken,
       plainToken: plainToken,
+    );
+    await CryptoCrossCheckAuthVerifier.instance.verifyAuthSecretsWithKek(
+      kek: kek,
+      keyAttrs: rustKeyAttrs,
+      encryptedToken: encryptedToken,
+      plainToken: plainToken,
+      rustSecrets: secrets,
+      label: 'decryptSecretsWithKek',
     );
 
     await _storeSecrets(
@@ -204,7 +237,7 @@ class AuthService {
     final masterKeyB64 = base64Encode(secrets.masterKey);
     final secretKeyB64 = base64Encode(secrets.secretKey);
     // Token is stored as URL-safe base64 (not UTF-8 decoded)
-    final tokenB64 = base64Url.encode(secrets.token).replaceAll('=', '');
+    final tokenB64 = base64Url.encode(secrets.token);
 
     await config.setEmail(email);
     await config.setUserId(userId);

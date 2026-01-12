@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:ensu/core/configuration.dart';
 import 'package:ensu/models/chat_entity.dart';
+import 'package:uuid/uuid.dart';
 
 /// Error thrown when chat key is not found on server.
 class ChatKeyNotFound implements Exception {
@@ -11,21 +12,23 @@ class ChatKeyNotFound implements Exception {
 /// Error thrown on unauthorized access.
 class UnauthorizedError implements Exception {}
 
-/// Gateway for chat API calls.
-/// Uses the same /authenticator endpoints as Auth app.
+/// Gateway for ensu chat API calls.
+/// Targets the dedicated /ensu/chat endpoints.
 class ChatGateway {
   late Dio _dio;
 
   // Default to production API
-  static const String _baseUrl = "https://api.ente.io";
+  static const String _defaultBaseUrl = "https://api.ente.io";
+  static final Uuid _uuid = Uuid();
 
   ChatGateway() {
+    final endpoint = Configuration.instance.getHttpEndpoint();
     _dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
+      baseUrl: endpoint.isEmpty ? _defaultBaseUrl : endpoint,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       headers: {
-        'X-Client-Package': 'io.ente.auth',
+        'X-Client-Package': 'io.ente.ensu',
       },
     ));
 
@@ -41,36 +44,91 @@ class ChatGateway {
     ));
   }
 
-  Future<void> createKey(String encKey, String header) async {
-    await _dio.post(
-      "/authenticator/key",
-      data: {
-        "encryptedKey": encKey,
-        "header": header,
-      },
-    );
+  void updateEndpoint(String endpoint) {
+    final updated = endpoint.isEmpty ? _defaultBaseUrl : endpoint;
+    _dio.options.baseUrl = updated;
   }
 
-  Future<ChatKey> getKey() async {
+  Future<Response<T>> _request<T>(Future<Response<T>> Function() call) async {
     try {
-      final response = await _dio.get("/authenticator/key");
-      return ChatKey.fromMap(response.data);
+      return await call();
     } on DioException catch (e) {
-      if (e.response != null && (e.response!.statusCode ?? 0) == 404) {
-        throw ChatKeyNotFound(StackTrace.current);
+      if (e.response?.statusCode == 401) {
+        throw UnauthorizedError();
       }
       rethrow;
     }
   }
 
+  Future<void> createKey(String encKey, String header) async {
+    await _request(() => _dio.post(
+          "/ensu/chat/key",
+          data: {
+            "encrypted_key": encKey,
+            "header": header,
+          },
+        ));
+  }
+
+  Future<ChatKey> getKey() async {
+    try {
+      final response = await _dio.get("/ensu/chat/key");
+      return ChatKey.fromMap(response.data);
+    } on DioException catch (e) {
+      if (e.response != null && (e.response!.statusCode ?? 0) == 404) {
+        throw ChatKeyNotFound(StackTrace.current);
+      }
+      if (e.response?.statusCode == 401) {
+        throw UnauthorizedError();
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> upsertSession(
+    String sessionUuid,
+    String encryptedData,
+    String header,
+  ) async {
+    await _request(() => _dio.post(
+          "/ensu/chat/session",
+          data: {
+            "session_uuid": sessionUuid,
+            "encrypted_data": encryptedData,
+            "header": header,
+          },
+        ));
+  }
+
+  Future<void> upsertMessage(
+    String messageUuid,
+    String sessionUuid,
+    String? parentMessageUuid,
+    String encryptedData,
+    String header,
+  ) async {
+    await _request(() => _dio.post(
+          "/ensu/chat/message",
+          data: {
+            "message_uuid": messageUuid,
+            "session_uuid": sessionUuid,
+            "parent_message_uuid": parentMessageUuid,
+            "encrypted_data": encryptedData,
+            "header": header,
+          },
+        ));
+  }
+
   Future<ChatEntity> createEntity(String encryptedData, String header) async {
-    final response = await _dio.post(
-      "/authenticator/entity",
-      data: {
-        "encryptedData": encryptedData,
-        "header": header,
-      },
-    );
+    final sessionUuid = _uuid.v4();
+    final response = await _request(() => _dio.post(
+          "/ensu/chat/session",
+          data: {
+            "session_uuid": sessionUuid,
+            "encrypted_data": encryptedData,
+            "header": header,
+          },
+        ));
     return ChatEntity.fromMap(response.data);
   }
 
@@ -79,42 +137,88 @@ class ChatGateway {
     String encryptedData,
     String header,
   ) async {
-    await _dio.put(
-      "/authenticator/entity",
-      data: {
-        "id": id,
-        "encryptedData": encryptedData,
-        "header": header,
-      },
-    );
+    await _request(() => _dio.post(
+          "/ensu/chat/session",
+          data: {
+            "session_uuid": id,
+            "encrypted_data": encryptedData,
+            "header": header,
+          },
+        ));
   }
 
   Future<void> deleteEntity(String id) async {
-    await _dio.delete(
-      "/authenticator/entity",
-      queryParameters: {"id": id},
-    );
+    await _request(() => _dio.delete(
+          "/ensu/chat/session",
+          queryParameters: {"id": id},
+        ));
   }
 
-  Future<(List<ChatEntity>, int?)> getDiff(
+  Future<ChatDiff> getDiff(
     int sinceTime, {
     int limit = 500,
   }) async {
     try {
-      final response = await _dio.get(
-        "/authenticator/entity/diff",
-        queryParameters: {
-          "sinceTime": sinceTime,
-          "limit": limit,
-        },
-      );
-      final List<ChatEntity> entities = [];
-      final diff = response.data["diff"] as List;
-      final int? timestamp = response.data["timestamp"] as int?;
-      for (var entry in diff) {
-        entities.add(ChatEntity.fromMap(entry));
+      final response = await _request(() => _dio.get(
+            "/ensu/chat/diff",
+            queryParameters: {
+              "sinceTime": sinceTime,
+              "limit": limit,
+            },
+          ));
+
+      final sessions = <ChatEntity>[];
+      final messages = <ChatEntity>[];
+      final sessionTombstones = <ChatEntity>[];
+      final messageTombstones = <ChatEntity>[];
+
+      final sessionEntries = response.data["sessions"];
+      if (sessionEntries is List) {
+        for (final entry in sessionEntries) {
+          sessions.add(ChatEntity.fromMap(
+            Map<String, dynamic>.from(entry as Map),
+          ));
+        }
       }
-      return (entities, timestamp);
+
+      final messageEntries = response.data["messages"];
+      if (messageEntries is List) {
+        for (final entry in messageEntries) {
+          messages.add(ChatEntity.fromMap(
+            Map<String, dynamic>.from(entry as Map),
+          ));
+        }
+      }
+
+      final tombstones = response.data["tombstones"];
+      if (tombstones is Map) {
+        final sessionEntries = tombstones["sessions"];
+        if (sessionEntries is List) {
+          for (final entry in sessionEntries) {
+            sessionTombstones.add(ChatEntity.fromMap(
+              Map<String, dynamic>.from(entry as Map),
+            ));
+          }
+        }
+
+        final messageEntries = tombstones["messages"];
+        if (messageEntries is List) {
+          for (final entry in messageEntries) {
+            messageTombstones.add(ChatEntity.fromMap(
+              Map<String, dynamic>.from(entry as Map),
+            ));
+          }
+        }
+      }
+
+      final int? timestamp = response.data["timestamp"] as int?;
+      return ChatDiff(
+        sessions: sessions,
+        messages: messages,
+        sessionTombstones: sessionTombstones,
+        messageTombstones: messageTombstones,
+        timestamp: timestamp,
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw UnauthorizedError();

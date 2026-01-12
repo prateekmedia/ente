@@ -1,4 +1,7 @@
 import 'package:ensu/ui/theme/ensu_theme.dart';
+import 'package:ente_ui/components/buttons/gradient_button.dart';
+import 'package:ente_ui/components/loading_widget.dart';
+import 'package:ente_ui/components/text_input_widget.dart';
 import 'package:ente_ui/theme/ente_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -93,55 +96,40 @@ class LockerEmailField extends StatefulWidget {
 }
 
 class _LockerEmailFieldState extends State<LockerEmailField> {
+  void _syncController(String value) {
+    if (widget.controller.text == value) {
+      return;
+    }
+    widget.controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  Future<void> _handleSubmit(String value) async {
+    widget.onFieldSubmitted?.call(value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = getEnteColorScheme(context);
-    final textTheme = getEnteTextTheme(context);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Email',
-            style: textTheme.bodyBold.copyWith(color: colorScheme.textBase),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: widget.controller,
-            autofillHints: const [AutofillHints.email],
-            autofocus: widget.autofocus,
-            keyboardType: TextInputType.emailAddress,
-            autocorrect: false,
-            style: textTheme.body.copyWith(color: colorScheme.textBase),
-            decoration: InputDecoration(
-              hintText: 'Enter your email',
-              hintStyle: textTheme.body.copyWith(color: colorScheme.textMuted),
-              fillColor: widget.isValid
-                  ? colorScheme.primary500.withValues(alpha: 0.1)
-                  : colorScheme.fillFaint,
-              filled: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              border: OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              suffixIcon: widget.isValid
-                  ? Icon(
-                      Icons.check,
-                      size: 20,
-                      color: colorScheme.primary500,
-                    )
-                  : null,
-            ),
-            onChanged: widget.onChanged,
-            onFieldSubmitted: widget.onFieldSubmitted,
-          ),
-        ],
+      child: TextInputWidget(
+        label: 'Email',
+        hintText: 'Enter your email',
+        initialValue: widget.controller.text,
+        autoFocus: widget.autofocus,
+        keyboardType: TextInputType.emailAddress,
+        autofillHints: const [AutofillHints.email],
+        textInputAction: TextInputAction.done,
+        autocorrect: false,
+        enableSuggestions: false,
+        shouldSurfaceExecutionStates: false,
+        onChange: (value) {
+          _syncController(value);
+          widget.onChanged?.call(value);
+        },
+        onSubmit: _handleSubmit,
       ),
     );
   }
@@ -171,65 +159,41 @@ class LockerPasswordField extends StatefulWidget {
 }
 
 class _LockerPasswordFieldState extends State<LockerPasswordField> {
-  bool _passwordVisible = false;
+  void _syncController(String value) {
+    if (widget.controller.text == value) {
+      return;
+    }
+    widget.controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  Future<void> _handleSubmit(String value) async {
+    widget.onFieldSubmitted?.call(value);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = getEnteColorScheme(context);
-    final textTheme = getEnteTextTheme(context);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (widget.label != null) ...[
-            Text(
-              widget.label!,
-              style: textTheme.bodyBold.copyWith(color: colorScheme.textBase),
-            ),
-            const SizedBox(height: 8),
-          ],
-          TextFormField(
-            controller: widget.controller,
-            autofillHints: const [AutofillHints.password],
-            autofocus: widget.autofocus,
-            obscureText: !_passwordVisible,
-            autocorrect: false,
-            keyboardType: TextInputType.visiblePassword,
-            style: textTheme.body.copyWith(color: colorScheme.textBase),
-            decoration: InputDecoration(
-              hintText: widget.hintText,
-              hintStyle: textTheme.body.copyWith(color: colorScheme.textMuted),
-              fillColor: colorScheme.fillFaint,
-              filled: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              border: OutlineInputBorder(
-                borderSide: BorderSide.none,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _passwordVisible
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  color: colorScheme.textMuted,
-                  size: 20,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _passwordVisible = !_passwordVisible;
-                  });
-                },
-              ),
-            ),
-            onChanged: widget.onChanged,
-            onFieldSubmitted: widget.onFieldSubmitted,
-          ),
-        ],
+      child: TextInputWidget(
+        label: widget.label,
+        hintText: widget.hintText,
+        initialValue: widget.controller.text,
+        autoFocus: widget.autofocus,
+        keyboardType: TextInputType.visiblePassword,
+        autofillHints: const [AutofillHints.password],
+        textInputAction: TextInputAction.done,
+        autocorrect: false,
+        enableSuggestions: false,
+        isPasswordInput: true,
+        shouldSurfaceExecutionStates: false,
+        onChange: (value) {
+          _syncController(value);
+          widget.onChanged?.call(value);
+        },
+        onSubmit: _handleSubmit,
       ),
     );
   }
@@ -310,49 +274,27 @@ class LockerPrimaryButton extends StatelessWidget {
     this.isEnabled = true,
   });
 
-  static const TextStyle _textStyle = TextStyle(
-    color: Colors.white,
-    fontWeight: FontWeight.w600,
-    fontFamily: 'Inter',
-    fontSize: 18,
-  );
-
   @override
   Widget build(BuildContext context) {
-    final colorScheme = getEnteColorScheme(context);
-    final bool effectiveEnabled = isEnabled && !isLoading;
-    final Color backgroundColor =
-        effectiveEnabled ? colorScheme.primary500 : colorScheme.fillFaint;
-    final Color textColor =
-        effectiveEnabled ? Colors.white : colorScheme.textMuted;
+    final bool showEnabledStyle = isEnabled;
+    final bool shouldAbsorb = isLoading || !isEnabled;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Material(
-        color: backgroundColor,
-        child: InkWell(
-          onTap: effectiveEnabled ? onPressed : null,
-          splashColor: effectiveEnabled ? null : Colors.transparent,
-          highlightColor: effectiveEnabled ? null : Colors.transparent,
-          child: SizedBox(
-            height: 56,
-            child: Center(
-              child: isLoading
-                  ? SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(textColor),
-                      ),
-                    )
-                  : Text(
-                      text,
-                      style: _textStyle.copyWith(color: textColor),
-                    ),
-            ),
+    return AbsorbPointer(
+      absorbing: shouldAbsorb,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          GradientButton(
+            text: isLoading ? '' : text,
+            onTap: showEnabledStyle ? onPressed : null,
           ),
-        ),
+          if (isLoading)
+            const EnteLoadingWidget(
+              color: Colors.white,
+              size: 20,
+              padding: 0,
+            ),
+        ],
       ),
     );
   }
