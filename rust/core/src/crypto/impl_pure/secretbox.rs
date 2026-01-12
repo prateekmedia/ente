@@ -23,6 +23,17 @@ pub struct EncryptedData {
     pub key: Vec<u8>,
 }
 
+/// Result of SecretBox encryption with a separate nonce.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SecretBoxCiphertext {
+    /// The encrypted data (MAC || ciphertext).
+    pub ciphertext: Vec<u8>,
+    /// The nonce used for encryption (24 bytes).
+    pub nonce: Vec<u8>,
+    /// The key used for encryption (32 bytes).
+    pub key: Vec<u8>,
+}
+
 /// Size of a SecretBox key in bytes.
 pub const KEY_BYTES: usize = 32;
 
@@ -53,6 +64,28 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<EncryptedData> {
 
     Ok(EncryptedData {
         encrypted_data: result,
+        nonce,
+        key: key.to_vec(),
+    })
+}
+
+/// Encrypt plaintext with a random nonce, returning ciphertext and nonce separately.
+///
+/// # Wire Format
+/// Output: MAC (16 bytes) || ciphertext
+///
+/// # Arguments
+/// * `plaintext` - Data to encrypt.
+/// * `key` - 32-byte encryption key.
+///
+/// # Returns
+/// SecretBoxCiphertext containing ciphertext (MAC || ciphertext), nonce, and key.
+pub fn encrypt_with_key(plaintext: &[u8], key: &[u8]) -> Result<SecretBoxCiphertext> {
+    let nonce = keys::generate_secretbox_nonce();
+    let ciphertext = encrypt_with_nonce(plaintext, &nonce, key)?;
+
+    Ok(SecretBoxCiphertext {
+        ciphertext,
         nonce,
         key: key.to_vec(),
     })
@@ -182,6 +215,22 @@ pub fn decrypt(ciphertext: &[u8], nonce: &[u8], key: &[u8]) -> Result<Vec<u8>> {
         .map_err(|_| CryptoError::DecryptionFailed)
 }
 
+/// Decrypt ciphertext with arguments ordered as (ciphertext, key, nonce).
+///
+/// # Wire Format
+/// Input: MAC || ciphertext (libsodium crypto_secretbox_easy format)
+///
+/// # Arguments
+/// * `ciphertext` - Encrypted data with MAC prefix.
+/// * `key` - 32-byte encryption key.
+/// * `nonce` - 24-byte nonce.
+///
+/// # Returns
+/// Decrypted plaintext.
+pub fn decrypt_with_key(ciphertext: &[u8], key: &[u8], nonce: &[u8]) -> Result<Vec<u8>> {
+    decrypt(ciphertext, nonce, key)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,6 +256,21 @@ mod tests {
         assert_eq!(encrypted.len(), MAC_BYTES + plaintext.len());
 
         let decrypted = decrypt(&encrypted, &nonce, &key).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_encrypt_with_key_wrapper() {
+        let key = keys::generate_key();
+        let plaintext = b"Wrapper test";
+
+        let encrypted = encrypt_with_key(plaintext, &key).unwrap();
+        assert_eq!(encrypted.ciphertext.len(), MAC_BYTES + plaintext.len());
+        assert_eq!(encrypted.nonce.len(), NONCE_BYTES);
+        assert_eq!(encrypted.key, key);
+
+        let decrypted =
+            decrypt_with_key(&encrypted.ciphertext, &encrypted.key, &encrypted.nonce).unwrap();
         assert_eq!(decrypted, plaintext);
     }
 

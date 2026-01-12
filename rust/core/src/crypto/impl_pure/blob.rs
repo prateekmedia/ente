@@ -90,6 +90,20 @@ pub fn decrypt(ciphertext: &[u8], header: &[u8], key: &[u8]) -> Result<Vec<u8>> 
     Ok(plaintext)
 }
 
+/// Encrypt data with arguments ordered as (plaintext, key).
+///
+/// This is a compatibility wrapper matching Dart's encryptData signature.
+pub fn encrypt_data(plaintext: &[u8], key: &[u8]) -> Result<EncryptedBlob> {
+    encrypt(plaintext, key)
+}
+
+/// Decrypt data with arguments ordered as (ciphertext, key, header).
+///
+/// This is a compatibility wrapper matching Dart's decryptData signature.
+pub fn decrypt_data(ciphertext: &[u8], key: &[u8], header: &[u8]) -> Result<Vec<u8>> {
+    decrypt(ciphertext, header, key)
+}
+
 /// Decrypt an [`EncryptedBlob`].
 ///
 /// # Arguments
@@ -147,6 +161,22 @@ mod tests {
         assert_eq!(encrypted.encrypted_data.len(), plaintext.len() + ABYTES);
 
         let decrypted = decrypt_blob(&encrypted, &key).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_encrypt_data_wrapper() {
+        let key = keys::generate_stream_key();
+        let plaintext = b"Wrapper test";
+
+        let encrypted = encrypt_data(plaintext, &key).unwrap();
+        let decrypted = decrypt_data(
+            &encrypted.encrypted_data,
+            &key,
+            &encrypted.decryption_header,
+        )
+        .unwrap();
+
         assert_eq!(decrypted, plaintext);
     }
 
@@ -216,6 +246,19 @@ mod tests {
         assert!(matches!(
             result,
             Err(CryptoError::InvalidHeaderLength { .. })
+        ));
+    }
+
+    #[test]
+    fn test_ciphertext_too_short() {
+        let key = keys::generate_stream_key();
+        let header = vec![0u8; HEADER_BYTES];
+        let short_ciphertext = vec![0u8; ABYTES - 1];
+
+        let result = decrypt(&short_ciphertext, &header, &key);
+        assert!(matches!(
+            result,
+            Err(CryptoError::CiphertextTooShort { .. })
         ));
     }
 
