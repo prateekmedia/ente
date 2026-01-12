@@ -77,7 +77,7 @@ pub fn derive_key(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -
         )));
     }
 
-    if mem_limit % 1024 != 0 {
+    if !mem_limit.is_multiple_of(1024) {
         return Err(CryptoError::InvalidKeyDerivationParams(format!(
             "Memory limit {} must be a multiple of 1024 bytes",
             mem_limit

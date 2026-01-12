@@ -40,6 +40,8 @@ fn decrypt_secrets_with_plain_token(
 ) -> std::result::Result<DecryptedSecrets, ente_core::auth::AuthError> {
     use ente_core::auth::AuthError;
 
+    // Tokens are base64 (URL-safe) in other clients; decode to raw bytes here.
+
     let encrypted_key = ente_core::crypto::decode_b64(&key_attrs.encrypted_key)
         .map_err(|e| AuthError::Decode(format!("encrypted_key: {}", e)))?;
     let key_nonce = ente_core::crypto::decode_b64(&key_attrs.key_decryption_nonce)

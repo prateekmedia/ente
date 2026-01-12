@@ -3,9 +3,7 @@
 //! This module provides authenticated encryption using XSalsa20-Poly1305.
 //! The wire format maintains byte-for-byte compatibility with libsodium's crypto_secretbox_easy:
 //!
-//! Output: MAC (16 bytes) || ciphertext (plaintext_len bytes)
-//!
-//! Note: RustCrypto's AEAD outputs ciphertext || MAC, so we must reorder bytes.
+//! Output: MAC (16 bytes) || ciphertext
 
 use xsalsa20poly1305::XSalsa20Poly1305;
 use xsalsa20poly1305::aead::generic_array::GenericArray;
@@ -63,7 +61,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<EncryptedData> {
 /// Encrypt plaintext with a provided nonce.
 ///
 /// # Wire Format
-/// Output: MAC (16 bytes) || ciphertext (plaintext_len bytes)
+/// Output: MAC (16 bytes) || ciphertext
 ///
 /// # Arguments
 /// * `plaintext` - Data to encrypt.
@@ -71,7 +69,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<EncryptedData> {
 /// * `key` - 32-byte encryption key.
 ///
 /// # Returns
-/// ciphertext || MAC (libsodium crypto_secretbox_easy format)
+/// MAC || ciphertext (libsodium crypto_secretbox_easy format)
 pub fn encrypt_with_nonce(plaintext: &[u8], nonce: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     if key.len() != KEY_BYTES {
         return Err(CryptoError::InvalidKeyLength {
@@ -89,7 +87,7 @@ pub fn encrypt_with_nonce(plaintext: &[u8], nonce: &[u8], key: &[u8]) -> Result<
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(key));
     let nonce_ga = GenericArray::from_slice(nonce);
 
-    // RustCrypto returns: ciphertext || MAC (same as libsodium crypto_secretbox_easy)
+    // RustCrypto returns: MAC || ciphertext (same as libsodium crypto_secretbox_easy)
     cipher
         .encrypt(nonce_ga, plaintext)
         .map_err(|_| CryptoError::EncryptionFailed)
@@ -145,10 +143,10 @@ pub fn decrypt_box<T: SecretBoxDecryptable + ?Sized>(encrypted: &T, key: &[u8]) 
 /// Decrypt ciphertext with a provided nonce.
 ///
 /// # Wire Format
-/// Input: ciphertext || MAC (16 bytes) (libsodium crypto_secretbox_easy format)
+/// Input: MAC || ciphertext (16 bytes) (libsodium crypto_secretbox_easy format)
 ///
 /// # Arguments
-/// * `ciphertext` - Encrypted data || MAC.
+/// * `ciphertext` - Encrypted data with MAC prefix.
 /// * `nonce` - 24-byte nonce.
 /// * `key` - 32-byte encryption key.
 ///
@@ -174,8 +172,8 @@ pub fn decrypt(ciphertext: &[u8], nonce: &[u8], key: &[u8]) -> Result<Vec<u8>> {
         });
     }
 
-    // libsodium crypto_secretbox_easy format: ciphertext || MAC
-    // RustCrypto expects same format: ciphertext || MAC
+    // libsodium crypto_secretbox_easy format: MAC || ciphertext
+    // RustCrypto expects same format: MAC || ciphertext
     let cipher = XSalsa20Poly1305::new(GenericArray::from_slice(key));
     let nonce_ga = GenericArray::from_slice(nonce);
 

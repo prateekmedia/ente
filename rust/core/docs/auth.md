@@ -110,6 +110,9 @@ pub struct SrpAttributes {
 }
 ```
 
+If `is_email_mfa_enabled` is missing, clients should fall back to the email OTP
+flow for safety (matching mobile/web behavior).
+
 #### `KeyAttributes`
 Server-provided encrypted key material.
 

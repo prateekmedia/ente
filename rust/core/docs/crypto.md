@@ -7,7 +7,7 @@ Pure Rust cryptographic utilities, wire-compatible with JS/Dart clients.
 ```rust
 use ente_core::crypto;
 
-crypto::init().unwrap();  // Call once at startup
+crypto::init().unwrap();  // Optional (no-op for pure Rust)
 ```
 
 | Task | Module | Example |
@@ -63,7 +63,7 @@ let login_key = kdf::derive_login_key(&kek)?;
 | `deriveLoginKey()` | `kdf::derive_login_key()` |
 | `getHash()` | `hash::hash_reader()` |
 | `generateKey()` | `keys::generate_key()` |
-| `base642bin()` / `bin2base64()` | `decode_b64()` / `encode_b64()` |
+| `base642bin()` / `bin2base64()` | `base642bin(input)` / `bin2base64(input, url_safe)` (`url_safe=false` for standard, `true` for URL-safe) |
 
 ## Key Constants
 
@@ -79,5 +79,5 @@ let login_key = kdf::derive_login_key(&kek)?;
 ## Wire Formats
 
 - **SecretBox**: `MAC (16) || ciphertext`
-- **Stream chunk**: `tag (1) || ciphertext || MAC (16)`
+- **Stream chunk**: `ciphertext (plaintext + 17 bytes with tag embedded)`
 - **Sealed**: `ephemeral_pk (32) || MAC (16) || ciphertext`
