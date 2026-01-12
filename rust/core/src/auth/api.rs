@@ -8,7 +8,7 @@ use crate::crypto::{self, argon, kdf, sealed, secretbox};
 use super::{AuthError, KeyAttributes, Result, SrpAttributes};
 
 #[cfg(any(test, feature = "srp"))]
-use super::SrpSession;
+use super::srp::SrpSession;
 
 /// Credentials derived from password for SRP authentication.
 #[derive(Debug)]

@@ -214,6 +214,10 @@ Ente uses Argon2id for password-based key derivation:
 | Moderate | 256 MB | 3 | Enhanced security |
 | Sensitive | 1 GB | 4 | Maximum security |
 
+Sensitive derivation uses an adaptive mem/ops fallback that preserves the
+same strength while reducing memory on constrained devices. The selected
+`mem_limit` and `ops_limit` are stored in key attributes for other clients.
+
 The server specifies `mem_limit` and `ops_limit` in `SrpAttributes`.
 
 ## Security Notes

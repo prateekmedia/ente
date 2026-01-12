@@ -8,6 +8,7 @@
 //! - Each message: ciphertext (len + 17 bytes with tag embedded)
 
 use crypto_secretstream::{Header, Key, PullStream, PushStream, Stream, Tag};
+use md5::{Digest, Md5};
 use rand_core::OsRng;
 use std::convert::TryFrom;
 use std::io::{Read, Write};
@@ -607,26 +608,12 @@ impl<R: Read> StreamingDecryptor<R> {
     }
 }
 
-/// Encrypt a file from a reader to a writer.
-///
-/// If `key` is `None`, a random key is generated.
-/// Returns `(key, header)` for use in decryption.
-///
-/// # Output Format
-///
-/// This function produces output consistent with [`StreamingEncryptor`]:
-/// - Full chunks are encrypted with MESSAGE tags
-/// - A FINAL chunk is always emitted (may be empty if plaintext is exact multiple of chunk size)
-///
-/// Use [`estimate_encrypted_size`] to predict the ciphertext size (excluding header).
-///
-/// This function uses reusable buffers and in-place encryption to avoid
-/// allocating fresh memory per chunk. Memory usage is bounded to ~2x chunk size.
-pub fn encrypt_file<R: Read, W: Write>(
+fn encrypt_file_internal<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
     key: Option<&[u8]>,
-) -> Result<(Vec<u8>, Vec<u8>)> {
+    mut md5_state: Option<Md5>,
+) -> Result<(Vec<u8>, Vec<u8>, Option<Vec<u8>>)> {
     use crate::crypto::keys::generate_stream_key;
 
     let key = match key {
@@ -659,6 +646,9 @@ pub fn encrypt_file<R: Read, W: Write>(
             // No more data - write final empty chunk to match StreamingEncryptor semantics
             encrypt_buffer.clear();
             encryptor.push_in_place(&mut encrypt_buffer, &[], true)?;
+            if let Some(state) = md5_state.as_mut() {
+                state.update(&encrypt_buffer);
+            }
             writer.write_all(&encrypt_buffer)?;
             break;
         }
@@ -668,6 +658,9 @@ pub fn encrypt_file<R: Read, W: Write>(
             encrypt_buffer.clear();
             encrypt_buffer.extend_from_slice(&read_buffer[..total_read]);
             encryptor.push_in_place(&mut encrypt_buffer, &[], true)?;
+            if let Some(state) = md5_state.as_mut() {
+                state.update(&encrypt_buffer);
+            }
             writer.write_all(&encrypt_buffer)?;
             break;
         }
@@ -677,10 +670,53 @@ pub fn encrypt_file<R: Read, W: Write>(
         encrypt_buffer.clear();
         encrypt_buffer.extend_from_slice(&read_buffer[..total_read]);
         encryptor.push_in_place(&mut encrypt_buffer, &[], false)?;
+        if let Some(state) = md5_state.as_mut() {
+            state.update(&encrypt_buffer);
+        }
         writer.write_all(&encrypt_buffer)?;
     }
 
+    let md5 = md5_state.map(|state| state.finalize().as_slice().to_vec());
+
+    Ok((key, header, md5))
+}
+
+/// Encrypt a file from a reader to a writer.
+///
+/// If `key` is `None`, a random key is generated.
+/// Returns `(key, header)` for use in decryption.
+///
+/// # Output Format
+///
+/// This function produces output consistent with [`StreamingEncryptor`]:
+/// - Full chunks are encrypted with MESSAGE tags
+/// - A FINAL chunk is always emitted (may be empty if plaintext is exact multiple of chunk size)
+///
+/// Use [`estimate_encrypted_size`] to predict the ciphertext size (excluding header).
+///
+/// This function uses reusable buffers and in-place encryption to avoid
+/// allocating fresh memory per chunk. Memory usage is bounded to ~2x chunk size.
+pub fn encrypt_file<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    key: Option<&[u8]>,
+) -> Result<(Vec<u8>, Vec<u8>)> {
+    let (key, header, _md5) = encrypt_file_internal(reader, writer, key, None)?;
     Ok((key, header))
+}
+
+/// Encrypt a file from a reader to a writer and compute MD5 of the ciphertext.
+///
+/// This is a convenience wrapper around [`encrypt_file`], returning the MD5
+/// digest of the encrypted output (excluding the header).
+pub fn encrypt_file_with_md5<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+    key: Option<&[u8]>,
+) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+    let (key, header, md5) = encrypt_file_internal(reader, writer, key, Some(Md5::new()))?;
+    let md5 = md5.ok_or(CryptoError::HashFailed)?;
+    Ok((key, header, md5))
 }
 
 /// Decrypt a file from a reader to a writer.
@@ -753,6 +789,7 @@ pub fn decrypt_file_data(encrypted_data: &[u8], header: &[u8], key: &[u8]) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    use md5::{Digest, Md5};
     use std::io::Cursor;
 
     fn generate_test_key() -> [u8; KEY_BYTES] {
@@ -1832,6 +1869,26 @@ mod tests {
         );
         // Two MESSAGE chunks + empty FINAL chunk
         assert_eq!(encrypted.len(), 2 * DECRYPTION_CHUNK_SIZE + ABYTES);
+    }
+
+    #[test]
+    fn test_encrypt_file_with_md5() {
+        let key = generate_test_key();
+        let plaintext = b"Encrypt with md5";
+
+        let mut encrypted = Vec::new();
+        let mut reader = Cursor::new(plaintext);
+        let (returned_key, header, md5_bytes) =
+            encrypt_file_with_md5(&mut reader, &mut encrypted, Some(&key))
+                .expect("encrypt_file_with_md5 failed");
+
+        assert_eq!(returned_key, key.to_vec());
+        assert_eq!(header.len(), HEADER_BYTES);
+
+        let mut hasher = Md5::new();
+        hasher.update(&encrypted);
+        let expected = hasher.finalize();
+        assert_eq!(md5_bytes.as_slice(), expected.as_slice());
     }
 
     #[test]

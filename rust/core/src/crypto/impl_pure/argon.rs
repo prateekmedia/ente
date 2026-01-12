@@ -52,17 +52,12 @@ pub const SALT_BYTES: usize = 16;
 /// Size of derived key in bytes.
 pub const KEY_BYTES: usize = 32;
 
-/// Derive a key from a password using Argon2id.
-///
-/// # Arguments
-/// * `password` - Password string (UTF-8).
-/// * `salt` - 16-byte salt.
-/// * `mem_limit` - Memory limit in bytes (must be a multiple of 1024).
-/// * `ops_limit` - Operations/iterations limit.
-///
-/// # Returns
-/// 32-byte derived key.
-pub fn derive_key(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -> Result<Vec<u8>> {
+fn derive_key_bytes(
+    password: &[u8],
+    salt: &[u8],
+    mem_limit: u32,
+    ops_limit: u32,
+) -> Result<Vec<u8>> {
     if salt.len() != SALT_BYTES {
         return Err(CryptoError::InvalidSaltLength {
             expected: SALT_BYTES,
@@ -103,10 +98,24 @@ pub fn derive_key(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -
 
     let mut key = vec![0u8; KEY_BYTES];
     argon2
-        .hash_password_into(password.as_bytes(), salt, &mut key)
+        .hash_password_into(password, salt, &mut key)
         .map_err(CryptoError::Argon2)?;
 
     Ok(key)
+}
+
+/// Derive a key from a password using Argon2id.
+///
+/// # Arguments
+/// * `password` - Password string (UTF-8).
+/// * `salt` - 16-byte salt.
+/// * `mem_limit` - Memory limit in bytes (must be a multiple of 1024).
+/// * `ops_limit` - Operations/iterations limit.
+///
+/// # Returns
+/// 32-byte derived key.
+pub fn derive_key(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -> Result<Vec<u8>> {
+    derive_key_bytes(password.as_bytes(), salt, mem_limit, ops_limit)
 }
 
 /// Derive a key with interactive parameters (fast, for UI responsiveness).
@@ -156,9 +165,79 @@ pub fn derive_moderate_key(password: &str, salt: &[u8]) -> Result<Vec<u8>> {
     derive_key(password, salt, MEMLIMIT_MODERATE, OPSLIMIT_MODERATE)
 }
 
+/// Derive a sensitive key using adaptive parameters with provided salt.
+///
+/// Starts with MEMLIMIT_MODERATE and scales OPSLIMIT to preserve the
+/// MEMLIMIT_SENSITIVE * OPSLIMIT_SENSITIVE strength. If derivation fails,
+/// it halves mem_limit and doubles ops_limit until limits are reached.
+///
+/// # Arguments
+/// * `password` - Password bytes.
+/// * `salt` - 16-byte salt.
+///
+/// # Returns
+/// DerivedKeyResult containing the key, salt, and parameters used.
+pub fn derive_sensitive_key_with_salt_adaptive(
+    password: &[u8],
+    salt: &[u8],
+) -> Result<DerivedKeyResult> {
+    if salt.len() != SALT_BYTES {
+        return Err(CryptoError::InvalidSaltLength {
+            expected: SALT_BYTES,
+            actual: salt.len(),
+        });
+    }
+
+    if MEMLIMIT_SENSITIVE % MEMLIMIT_MODERATE != 0 {
+        return Err(CryptoError::InvalidKeyDerivationParams(format!(
+            "Memory limit {} must be divisible by {}",
+            MEMLIMIT_SENSITIVE, MEMLIMIT_MODERATE
+        )));
+    }
+
+    let desired_strength = u64::from(MEMLIMIT_SENSITIVE) * u64::from(OPSLIMIT_SENSITIVE);
+    let factor = MEMLIMIT_SENSITIVE / MEMLIMIT_MODERATE;
+    let mut mem_limit = MEMLIMIT_MODERATE;
+    let mut ops_limit = OPSLIMIT_SENSITIVE.checked_mul(factor).ok_or_else(|| {
+        CryptoError::InvalidKeyDerivationParams("Operations limit overflow".to_string())
+    })?;
+
+    if u64::from(mem_limit) * u64::from(ops_limit) != desired_strength {
+        return Err(CryptoError::InvalidKeyDerivationParams(format!(
+            "Unexpected mem/ops limits: mem_limit {}, ops_limit {}",
+            mem_limit, ops_limit
+        )));
+    }
+
+    let mut last_error = None;
+    while mem_limit >= MEMLIMIT_MIN {
+        match derive_key_bytes(password, salt, mem_limit, ops_limit) {
+            Ok(key) => {
+                return Ok(DerivedKeyResult {
+                    key,
+                    salt: salt.to_vec(),
+                    mem_limit,
+                    ops_limit,
+                });
+            }
+            Err(err) => {
+                last_error = Some(err);
+            }
+        }
+
+        mem_limit /= 2;
+        ops_limit = match ops_limit.checked_mul(2) {
+            Some(value) => value,
+            None => break,
+        };
+    }
+
+    Err(last_error.unwrap_or(CryptoError::KeyDerivationFailed))
+}
+
 /// Derive a key with sensitive parameters (maximum security).
 ///
-/// Uses OPSLIMIT_SENSITIVE and MEMLIMIT_SENSITIVE.
+/// Uses adaptive mem/ops fallback while preserving sensitive strength.
 ///
 /// # Arguments
 /// * `password` - Password string.
@@ -167,13 +246,7 @@ pub fn derive_moderate_key(password: &str, salt: &[u8]) -> Result<Vec<u8>> {
 /// DerivedKeyResult containing the key, salt, and parameters used.
 pub fn derive_sensitive_key(password: &str) -> Result<DerivedKeyResult> {
     let salt = super::keys::generate_salt();
-    let key = derive_key(password, &salt, MEMLIMIT_SENSITIVE, OPSLIMIT_SENSITIVE)?;
-    Ok(DerivedKeyResult {
-        key,
-        salt,
-        mem_limit: MEMLIMIT_SENSITIVE,
-        ops_limit: OPSLIMIT_SENSITIVE,
-    })
+    derive_sensitive_key_with_salt_adaptive(password.as_bytes(), &salt)
 }
 
 /// Derive a key with sensitive parameters using provided salt.
@@ -312,15 +385,21 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow: uses 1GB memory
+    #[ignore] // Slow: uses high memory/ops settings
     fn test_derive_sensitive_key() {
         let password = "sensitive test";
 
         let result = derive_sensitive_key(password).unwrap();
         assert_eq!(result.key.len(), KEY_BYTES);
         assert_eq!(result.salt.len(), SALT_BYTES);
-        assert_eq!(result.mem_limit, MEMLIMIT_SENSITIVE);
-        assert_eq!(result.ops_limit, OPSLIMIT_SENSITIVE);
+
+        let desired_strength = u64::from(MEMLIMIT_SENSITIVE) * u64::from(OPSLIMIT_SENSITIVE);
+        assert_eq!(
+            u64::from(result.mem_limit) * u64::from(result.ops_limit),
+            desired_strength
+        );
+        assert!(result.mem_limit <= MEMLIMIT_MODERATE);
+        assert!(result.ops_limit >= OPSLIMIT_SENSITIVE);
     }
 
     #[test]

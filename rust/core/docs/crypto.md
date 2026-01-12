@@ -38,6 +38,15 @@ let (key, header) = stream::encrypt_file(&mut src, &mut dst, None)?;
 // Store key and header for decryption
 ```
 
+### Encrypt a file with MD5
+MD5 is computed over the encrypted output (header excluded).
+```rust
+let mut src = File::open("photo.jpg")?;
+let mut dst = File::create("photo.enc")?;
+let (key, header, md5) = stream::encrypt_file_with_md5(&mut src, &mut dst, None)?;
+let md5_b64 = crypto::encode_b64(&md5);
+```
+
 ### Share data with public key
 ```rust
 let sealed = sealed::seal(&secret_data, &recipient_public_key)?;
@@ -59,7 +68,7 @@ let login_key = kdf::derive_login_key(&kek)?;
 | `encryptChaCha()` / `decryptChaCha()` | `blob::encrypt()` / `decrypt()` |
 | `encryptFile()` / `decryptFile()` | `stream::encrypt_file()` / `decrypt_file()` |
 | `sealSync()` / `openSealSync()` | `sealed::seal()` / `open()` |
-| `deriveSensitiveKey()` | `argon::derive_sensitive_key()` |
+| `deriveSensitiveKey()` | `argon::derive_sensitive_key_with_salt_adaptive(password.as_bytes(), &salt)` |
 | `deriveLoginKey()` | `kdf::derive_login_key()` |
 | `getHash()` | `hash::hash_reader()` |
 | `generateKey()` | `keys::generate_key()` |
