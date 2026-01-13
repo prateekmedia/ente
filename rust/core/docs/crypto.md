@@ -67,11 +67,16 @@ let login_key = kdf::derive_login_key(&kek)?;
 | `encryptSync()` / `decryptSync()` | `secretbox::encrypt()` / `decrypt_box()` |
 | `encryptChaCha()` / `decryptChaCha()` | `blob::encrypt()` / `decrypt()` |
 | `encryptFile()` / `decryptFile()` | `stream::encrypt_file()` / `decrypt_file()` |
+| `encryptFileWithMD5()` | `stream::encrypt_file_with_md5()` |
 | `sealSync()` / `openSealSync()` | `sealed::seal()` / `open()` |
 | `deriveSensitiveKey()` | `argon::derive_sensitive_key_with_salt_adaptive(password.as_bytes(), &salt)` |
+| `deriveInteractiveKey()` | `argon::derive_interactive_key_with_salt(password, &salt)` (`derive_interactive_key` generates salt) |
+| `cryptoPwHash()` | `argon::derive_key(password, &salt, mem_limit, ops_limit)` |
+| `pwhashMemLimitInteractive` / `pwhashMemLimitSensitive` / `pwhashOpsLimitInteractive` / `pwhashOpsLimitSensitive` | `argon::MEMLIMIT_INTERACTIVE`, `argon::MEMLIMIT_SENSITIVE`, `argon::OPSLIMIT_INTERACTIVE`, `argon::OPSLIMIT_SENSITIVE` |
 | `deriveLoginKey()` | `kdf::derive_login_key()` |
 | `getHash()` | `hash::hash_reader()` |
 | `generateKey()` | `keys::generate_key()` |
+| `strToBin()` | `str_to_bin(input)` |
 | `base642bin()` / `bin2base64()` | `base642bin(input)` / `bin2base64(input, url_safe)` (`url_safe=false` for standard, `true` for URL-safe) |
 
 ## Key Constants
@@ -83,6 +88,10 @@ let login_key = kdf::derive_login_key(&kek)?;
 | `NONCE_BYTES` | 24 | secretbox |
 | `HEADER_BYTES` | 24 | stream/blob |
 | `SALT_BYTES` | 16 | argon/keys |
+| `MEMLIMIT_INTERACTIVE` | 64 MB | argon |
+| `MEMLIMIT_SENSITIVE` | 1 GB | argon |
+| `OPSLIMIT_INTERACTIVE` | 2 | argon |
+| `OPSLIMIT_SENSITIVE` | 4 | argon |
 | `SEAL_OVERHEAD` | 48 | sealed |
 
 ## Wire Formats

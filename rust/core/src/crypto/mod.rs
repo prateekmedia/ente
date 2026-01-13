@@ -119,6 +119,17 @@ pub fn bin2base64(input: &[u8], url_safe: bool) -> String {
     }
 }
 
+/// Convert a UTF-8 string to bytes.
+///
+/// # Arguments
+/// * `input` - UTF-8 string.
+///
+/// # Returns
+/// UTF-8 bytes.
+pub fn str_to_bin(input: &str) -> Vec<u8> {
+    input.as_bytes().to_vec()
+}
+
 /// Decode a hex string to bytes.
 ///
 /// # Arguments
@@ -207,6 +218,18 @@ mod tests {
         let b64 = hex_to_b64(hex).unwrap();
         let decoded = decode_b64(&b64).unwrap();
         assert_eq!(decoded, b"Test");
+    }
+
+    #[test]
+    fn test_str_to_bin_ascii() {
+        let bytes = str_to_bin("Hello");
+        assert_eq!(bytes, b"Hello");
+    }
+
+    #[test]
+    fn test_str_to_bin_unicode() {
+        let bytes = str_to_bin("✓");
+        assert_eq!(bytes, vec![0xE2, 0x9C, 0x93]);
     }
 
     #[test]
