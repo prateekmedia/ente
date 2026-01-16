@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:ente_configuration/base_configuration.dart';
 import 'package:ente_events/event_bus.dart';
 import 'package:ente_events/models/endpoint_updated_event.dart';
@@ -11,6 +14,12 @@ import 'package:ua_client_hints/ua_client_hints.dart';
 import 'package:uuid/uuid.dart';
 
 int kConnectTimeout = 15000;
+
+const Map<String, Set<String>> _pinnedCertSha256 = {
+  'api.ente.io': {
+    'NRLQExdbacJYAsZxB/3fsMpdRH002ghlJOg8Yi2OyMI=',
+  },
+};
 
 class Network {
   late Dio _dio;
@@ -78,14 +87,13 @@ class Network {
       ),
     );
 
-    _dio.httpClientAdapter = NativeAdapter();
-    _enteDio.httpClientAdapter = NativeAdapter();
-
+    _configureAdapters(configuration);
     _setupInterceptors(configuration);
 
     Bus.instance.on<EndpointUpdatedEvent>().listen((event) {
       final endpoint = configuration.getHttpEndpoint();
       _enteDio.options.baseUrl = endpoint;
+      _configureAdapters(configuration);
       _setupInterceptors(configuration);
     });
   }
@@ -103,6 +111,42 @@ class Network {
 
     _enteDio.interceptors.clear();
     _enteDio.interceptors.add(EnteRequestInterceptor(configuration));
+  }
+
+  void _configureAdapters(BaseConfiguration configuration) {
+    _dio.httpClientAdapter = NativeAdapter();
+
+    final endpoint = configuration.getHttpEndpoint();
+    final host = Uri.tryParse(endpoint)?.host.toLowerCase();
+    final pinnedHosts = configuration.isEnteProduction() && host != null
+        ? _pinnedCertSha256[host]
+        : null;
+
+    if (pinnedHosts == null || pinnedHosts.isEmpty) {
+      _enteDio.httpClientAdapter = NativeAdapter();
+      return;
+    }
+
+    _enteDio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = HttpClient();
+        client.connectionTimeout =
+            Duration(milliseconds: kConnectTimeout);
+        return client;
+      },
+      validateCertificate: (certificate, certHost, port) {
+        final hostPins = _pinnedCertSha256[certHost.toLowerCase()];
+        if (hostPins == null || hostPins.isEmpty) {
+          return true;
+        }
+        if (certificate == null) {
+          return false;
+        }
+        final digest = sha256.convert(certificate.der).bytes;
+        final fingerprint = base64Encode(digest);
+        return hostPins.contains(fingerprint);
+      },
+    );
   }
 }
 
