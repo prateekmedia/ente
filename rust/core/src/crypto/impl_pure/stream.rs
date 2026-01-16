@@ -319,7 +319,8 @@ pub fn decrypt_stream(encrypted: &EncryptedStream, key: &[u8]) -> Result<Vec<u8>
 ///
 /// This estimates the ciphertext size when data is encrypted using
 /// [`StreamingEncryptor`] or [`encrypt_file`], which split data into
-/// `ENCRYPTION_CHUNK_SIZE` chunks with MESSAGE tags, plus a FINAL chunk.
+/// `ENCRYPTION_CHUNK_SIZE` chunks with MESSAGE tags and tag the last chunk
+/// with FINAL. If the plaintext is empty, an empty FINAL chunk is emitted.
 ///
 /// **Note**: This does NOT include the header (24 bytes). For total output
 /// size including header, add `HEADER_BYTES` to the result.
@@ -330,21 +331,28 @@ pub fn decrypt_stream(encrypted: &EncryptedStream, key: &[u8]) -> Result<Vec<u8>
 /// # Examples
 /// - Empty (0 bytes): Returns `ABYTES` (empty FINAL chunk)
 /// - 100 bytes: Returns `100 + ABYTES` (single FINAL chunk)
-/// - Exact `ENCRYPTION_CHUNK_SIZE`: Returns `DECRYPTION_CHUNK_SIZE + ABYTES`
-///   (one MESSAGE chunk + empty FINAL chunk)
+/// - Exact `ENCRYPTION_CHUNK_SIZE`: Returns `DECRYPTION_CHUNK_SIZE`
+///   (single FINAL chunk, no extra)
 ///
 /// If the calculation overflows `usize`, this returns `usize::MAX`.
 #[inline]
 pub fn estimate_encrypted_size(plaintext_len: usize) -> usize {
+    if plaintext_len == 0 {
+        return ABYTES;
+    }
+
     let full_chunks = plaintext_len / ENCRYPTION_CHUNK_SIZE;
     let last_chunk_size = plaintext_len % ENCRYPTION_CHUNK_SIZE;
 
-    // Full MESSAGE chunks (each adds ABYTES overhead)
-    // + FINAL chunk (even if empty, always emitted with ABYTES overhead)
     let full_bytes = match full_chunks.checked_mul(DECRYPTION_CHUNK_SIZE) {
         Some(value) => value,
         None => return usize::MAX,
     };
+
+    if last_chunk_size == 0 {
+        return full_bytes;
+    }
+
     let with_last = match full_bytes.checked_add(last_chunk_size) {
         Some(value) => value,
         None => return usize::MAX,
@@ -386,6 +394,8 @@ pub struct StreamingEncryptor<W: Write> {
     writer: W,
     /// Buffer for remainder bytes (< chunk size). Never exceeds ENCRYPTION_CHUNK_SIZE.
     buffer: Vec<u8>,
+    /// Pending full chunk held until we know whether it is final.
+    pending_full_chunk: Option<Vec<u8>>,
     /// Reusable buffer for encrypting chunks from input slice (avoids allocation per chunk)
     chunk_buffer: Vec<u8>,
 }
@@ -400,6 +410,7 @@ impl<W: Write> StreamingEncryptor<W> {
             writer,
             // Buffer only needs to hold remainder (< chunk size) + ABYTES for encryption
             buffer: Vec::with_capacity(ENCRYPTION_CHUNK_SIZE + ABYTES),
+            pending_full_chunk: None,
             chunk_buffer: Vec::with_capacity(ENCRYPTION_CHUNK_SIZE + ABYTES),
         })
     }
@@ -409,11 +420,23 @@ impl<W: Write> StreamingEncryptor<W> {
     /// # Algorithm
     ///
     /// 1. If there's buffered data, complete it to a full chunk from input
-    /// 2. Process full chunks directly from input slice (no intermediate buffering)
-    /// 3. Buffer only the remainder (< chunk size)
+    /// 2. Flush any pending full chunk once new data arrives
+    /// 3. Process full chunks directly from input slice (no intermediate buffering)
+    /// 4. Keep the last full chunk pending to decide FINAL tag
+    /// 5. Buffer only the remainder (< chunk size)
     ///
     /// This ensures O(n) complexity regardless of input size.
     pub fn write(&mut self, data: &[u8]) -> Result<()> {
+        if data.is_empty() {
+            return Ok(());
+        }
+
+        // If we had a pending full chunk, we now know it's not final.
+        if let Some(mut pending) = self.pending_full_chunk.take() {
+            self.encryptor.push_in_place(&mut pending, &[], false)?;
+            self.writer.write_all(&pending)?;
+        }
+
         let mut input_pos = 0;
 
         // Step 1: If buffer has partial data, try to complete it to a full chunk
@@ -423,14 +446,21 @@ impl<W: Write> StreamingEncryptor<W> {
             self.buffer.extend_from_slice(&data[..bytes_to_add]);
             input_pos = bytes_to_add;
 
-            // If buffer is now a full chunk, encrypt and write it
             if self.buffer.len() == ENCRYPTION_CHUNK_SIZE {
-                self.encryptor.push_in_place(&mut self.buffer, &[], false)?;
-                self.writer.write_all(&self.buffer)?;
-                self.buffer.clear();
+                let pending = std::mem::replace(
+                    &mut self.buffer,
+                    Vec::with_capacity(ENCRYPTION_CHUNK_SIZE + ABYTES),
+                );
+                self.pending_full_chunk = Some(pending);
             } else {
-                // Not enough data to complete the chunk, done for now
                 return Ok(());
+            }
+        }
+
+        if self.pending_full_chunk.is_some() && input_pos < data.len() {
+            if let Some(mut pending) = self.pending_full_chunk.take() {
+                self.encryptor.push_in_place(&mut pending, &[], false)?;
+                self.writer.write_all(&pending)?;
             }
         }
 
@@ -439,10 +469,20 @@ impl<W: Write> StreamingEncryptor<W> {
             self.chunk_buffer.clear();
             self.chunk_buffer
                 .extend_from_slice(&data[input_pos..input_pos + ENCRYPTION_CHUNK_SIZE]);
+            input_pos += ENCRYPTION_CHUNK_SIZE;
+
+            if input_pos == data.len() {
+                let pending = std::mem::replace(
+                    &mut self.chunk_buffer,
+                    Vec::with_capacity(ENCRYPTION_CHUNK_SIZE + ABYTES),
+                );
+                self.pending_full_chunk = Some(pending);
+                break;
+            }
+
             self.encryptor
                 .push_in_place(&mut self.chunk_buffer, &[], false)?;
             self.writer.write_all(&self.chunk_buffer)?;
-            input_pos += ENCRYPTION_CHUNK_SIZE;
         }
 
         // Step 3: Buffer the remainder (< chunk size)
@@ -458,6 +498,16 @@ impl<W: Write> StreamingEncryptor<W> {
     /// Uses `self.buffer` directly since `self` is consumed, avoiding
     /// an extra copy to `chunk_buffer`.
     pub fn finish(mut self) -> Result<W> {
+        if let Some(mut pending) = self.pending_full_chunk.take() {
+            if self.buffer.is_empty() {
+                self.encryptor.push_in_place(&mut pending, &[], true)?;
+                self.writer.write_all(&pending)?;
+                return Ok(self.writer);
+            }
+            self.encryptor.push_in_place(&mut pending, &[], false)?;
+            self.writer.write_all(&pending)?;
+        }
+
         // Encrypt buffer in-place (adds ABYTES bytes)
         // No need to copy to chunk_buffer since we're consuming self
         self.encryptor.push_in_place(&mut self.buffer, &[], true)?;
@@ -624,56 +674,55 @@ fn encrypt_file_internal<R: Read, W: Write>(
     let mut encryptor = StreamEncryptor::new(&key)?;
     let header = encryptor.header.clone();
 
-    // Reusable read buffer for plaintext
-    let mut read_buffer = vec![0u8; ENCRYPTION_CHUNK_SIZE];
-    // Reusable buffer for in-place encryption (avoids per-chunk allocation)
-    let mut encrypt_buffer = Vec::with_capacity(ENCRYPTION_CHUNK_SIZE + ABYTES);
-
-    loop {
+    fn read_chunk<R: Read>(reader: &mut R, buffer: &mut [u8]) -> Result<usize> {
         let mut total_read = 0;
-
-        // Read up to ENCRYPTION_CHUNK_SIZE bytes
-        while total_read < ENCRYPTION_CHUNK_SIZE {
-            match reader.read(&mut read_buffer[total_read..]) {
+        while total_read < buffer.len() {
+            match reader.read(&mut buffer[total_read..]) {
                 Ok(0) => break, // EOF
                 Ok(n) => total_read += n,
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(e) => return Err(e.into()),
             }
         }
+        Ok(total_read)
+    }
 
-        if total_read == 0 {
-            // No more data - write final empty chunk to match StreamingEncryptor semantics
-            encrypt_buffer.clear();
-            encryptor.push_in_place(&mut encrypt_buffer, &[], true)?;
-            if let Some(state) = md5_state.as_mut() {
-                state.update(&encrypt_buffer);
-            }
-            writer.write_all(&encrypt_buffer)?;
-            break;
-        }
+    // Reusable read buffers for plaintext
+    let mut read_buffer = vec![0u8; ENCRYPTION_CHUNK_SIZE];
+    let mut next_buffer = vec![0u8; ENCRYPTION_CHUNK_SIZE];
+    // Reusable buffer for in-place encryption (avoids per-chunk allocation)
+    let mut encrypt_buffer = Vec::with_capacity(ENCRYPTION_CHUNK_SIZE + ABYTES);
 
-        // If we read less than full chunk, it's the last chunk with data
-        if total_read < ENCRYPTION_CHUNK_SIZE {
-            encrypt_buffer.clear();
-            encrypt_buffer.extend_from_slice(&read_buffer[..total_read]);
-            encryptor.push_in_place(&mut encrypt_buffer, &[], true)?;
-            if let Some(state) = md5_state.as_mut() {
-                state.update(&encrypt_buffer);
-            }
-            writer.write_all(&encrypt_buffer)?;
-            break;
-        }
+    let mut current_len = read_chunk(reader, &mut read_buffer)?;
 
-        // Full chunk - write with MESSAGE tag (not FINAL)
-        // The FINAL tag will be on the next chunk (which may be empty)
+    if current_len == 0 {
+        // Empty file - emit a single empty FINAL chunk
         encrypt_buffer.clear();
-        encrypt_buffer.extend_from_slice(&read_buffer[..total_read]);
-        encryptor.push_in_place(&mut encrypt_buffer, &[], false)?;
+        encryptor.push_in_place(&mut encrypt_buffer, &[], true)?;
         if let Some(state) = md5_state.as_mut() {
             state.update(&encrypt_buffer);
         }
         writer.write_all(&encrypt_buffer)?;
+    } else {
+        loop {
+            let next_len = read_chunk(reader, &mut next_buffer)?;
+            let is_final = next_len == 0;
+
+            encrypt_buffer.clear();
+            encrypt_buffer.extend_from_slice(&read_buffer[..current_len]);
+            encryptor.push_in_place(&mut encrypt_buffer, &[], is_final)?;
+            if let Some(state) = md5_state.as_mut() {
+                state.update(&encrypt_buffer);
+            }
+            writer.write_all(&encrypt_buffer)?;
+
+            if is_final {
+                break;
+            }
+
+            std::mem::swap(&mut read_buffer, &mut next_buffer);
+            current_len = next_len;
+        }
     }
 
     let md5 = md5_state.map(|state| state.finalize().as_slice().to_vec());
@@ -689,8 +738,8 @@ fn encrypt_file_internal<R: Read, W: Write>(
 /// # Output Format
 ///
 /// This function produces output consistent with [`StreamingEncryptor`]:
-/// - Full chunks are encrypted with MESSAGE tags
-/// - A FINAL chunk is always emitted (may be empty if plaintext is exact multiple of chunk size)
+/// - Full chunks are encrypted with MESSAGE tags until the final chunk
+/// - The last chunk is tagged FINAL (empty only for empty plaintext)
 ///
 /// Use [`estimate_encrypted_size`] to predict the ciphertext size (excluding header).
 ///
@@ -1296,10 +1345,10 @@ mod tests {
         // Small data: data + ABYTES
         assert_eq!(estimate_encrypted_size(100), 100 + ABYTES);
 
-        // Exact chunk size: chunk + ABYTES (MESSAGE) + empty FINAL with ABYTES
+        // Exact chunk size: single FINAL chunk with ABYTES overhead
         assert_eq!(
             estimate_encrypted_size(ENCRYPTION_CHUNK_SIZE),
-            DECRYPTION_CHUNK_SIZE + ABYTES
+            DECRYPTION_CHUNK_SIZE
         );
 
         // Multiple chunks
@@ -1312,12 +1361,13 @@ mod tests {
     fn test_validate_sizes() {
         assert!(validate_sizes(0, ABYTES));
         assert!(validate_sizes(100, 100 + ABYTES));
-        assert!(validate_sizes(
+        assert!(validate_sizes(ENCRYPTION_CHUNK_SIZE, DECRYPTION_CHUNK_SIZE));
+        assert!(!validate_sizes(100, 100)); // Missing ABYTES
+        assert!(!validate_sizes(100, 200)); // Wrong size
+        assert!(!validate_sizes(
             ENCRYPTION_CHUNK_SIZE,
             DECRYPTION_CHUNK_SIZE + ABYTES
         ));
-        assert!(!validate_sizes(100, 100)); // Missing ABYTES
-        assert!(!validate_sizes(100, 200)); // Wrong size
     }
 
     #[test]
@@ -1456,8 +1506,7 @@ mod tests {
     #[test]
     fn test_file_encrypt_decrypt_exact_chunk_boundary() {
         // Edge case: plaintext exactly at chunk boundary
-        // When plaintext is exact multiple of ENCRYPTION_CHUNK_SIZE, encrypt_file
-        // emits an empty FINAL chunk to match StreamingEncryptor semantics.
+        // The last full chunk should be tagged FINAL without an extra empty chunk.
         let key = generate_test_key();
 
         let plaintext: Vec<u8> = (0..ENCRYPTION_CHUNK_SIZE)
@@ -1469,8 +1518,8 @@ mod tests {
         let (_, header) =
             encrypt_file(&mut reader, &mut encrypted, Some(&key)).expect("encrypt_file failed");
 
-        // Should be one MESSAGE chunk + empty FINAL chunk
-        assert_eq!(encrypted.len(), DECRYPTION_CHUNK_SIZE + ABYTES);
+        // Should be one FINAL chunk
+        assert_eq!(encrypted.len(), DECRYPTION_CHUNK_SIZE);
         // Should match estimate
         assert_eq!(encrypted.len(), estimate_encrypted_size(plaintext.len()));
 
@@ -1825,7 +1874,7 @@ mod tests {
     #[test]
     fn test_encrypt_file_size_matches_estimate_exact_chunk() {
         // Exact chunk size: encrypt_file output should match estimate
-        // This is the key edge case - should emit MESSAGE chunk + empty FINAL
+        // This is the key edge case - should emit a single FINAL chunk
         let key = generate_test_key();
         let plaintext: Vec<u8> = (0..ENCRYPTION_CHUNK_SIZE)
             .map(|i| (i % 256) as u8)
@@ -1843,8 +1892,8 @@ mod tests {
             encrypted.len(),
             expected
         );
-        // One MESSAGE chunk + empty FINAL chunk
-        assert_eq!(encrypted.len(), DECRYPTION_CHUNK_SIZE + ABYTES);
+        // One FINAL chunk
+        assert_eq!(encrypted.len(), DECRYPTION_CHUNK_SIZE);
     }
 
     #[test]
@@ -1867,8 +1916,8 @@ mod tests {
             encrypted.len(),
             expected
         );
-        // Two MESSAGE chunks + empty FINAL chunk
-        assert_eq!(encrypted.len(), 2 * DECRYPTION_CHUNK_SIZE + ABYTES);
+        // Two full chunks (last tagged FINAL)
+        assert_eq!(encrypted.len(), 2 * DECRYPTION_CHUNK_SIZE);
     }
 
     #[test]
