@@ -6,6 +6,7 @@
 use std::sync::Once;
 
 pub mod argon;
+pub mod blob;
 pub mod hash;
 pub mod kdf;
 pub mod keys;
