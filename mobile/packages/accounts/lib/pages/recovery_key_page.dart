@@ -15,7 +15,6 @@ import 'package:ente_utils/share_utils.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:share_plus/share_plus.dart';
 
 class RecoveryKeyPage extends StatefulWidget {
@@ -93,13 +92,7 @@ class _RecoveryKeyPageState extends State<RecoveryKeyPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: null,
         leading: widget.showAppBar == false
             ? const SizedBox.shrink()
             : IconButton(
