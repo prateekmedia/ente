@@ -46,6 +46,7 @@ import (
 	"github.com/ente-io/museum/pkg/controller/email"
 	embeddingCtrl "github.com/ente-io/museum/pkg/controller/embedding"
 	"github.com/ente-io/museum/pkg/controller/family"
+	llmchatCtrl "github.com/ente-io/museum/pkg/controller/llmchat"
 	"github.com/ente-io/museum/pkg/controller/lock"
 	remoteStoreCtrl "github.com/ente-io/museum/pkg/controller/remotestore"
 	socialcontroller "github.com/ente-io/museum/pkg/controller/social"
@@ -60,6 +61,7 @@ import (
 	discountCouponRepo "github.com/ente-io/museum/pkg/repo/discountcoupon"
 	"github.com/ente-io/museum/pkg/repo/embedding"
 	fileDataRepo "github.com/ente-io/museum/pkg/repo/filedata"
+	llmchatRepo "github.com/ente-io/museum/pkg/repo/llmchat"
 	"github.com/ente-io/museum/pkg/repo/passkey"
 	"github.com/ente-io/museum/pkg/repo/remotestore"
 	socialrepo "github.com/ente-io/museum/pkg/repo/social"
@@ -168,6 +170,7 @@ func main() {
 	billingRepo := &repo.BillingRepository{DB: db}
 	userEntityRepo := &userEntityRepo.Repository{DB: db}
 	authRepo := &authenticatorRepo.Repository{DB: db}
+	llmChatRepository := &llmchatRepo.Repository{DB: db}
 	remoteStoreRepository := &remotestore.Repository{DB: db}
 	dataCleanupRepository := &datacleanup.Repository{DB: db}
 
@@ -197,6 +200,7 @@ func main() {
 
 	authCache := cache.New(1*time.Minute, 15*time.Minute)
 	accessTokenCache := cache.New(1*time.Minute, 15*time.Minute)
+	llmChatKeyCache := cache.New(1*time.Minute, 5*time.Minute)
 	discordController := discord.NewDiscordController(userRepo, hostName, environment)
 	rateLimiter := middleware.NewRateLimitMiddleware(discordController, 1000, 1*time.Second)
 	defer rateLimiter.Stop()
@@ -875,6 +879,26 @@ func main() {
 	privateAPI.DELETE("/authenticator/entity", authenticatorHandler.DeleteEntity)
 	privateAPI.GET("/authenticator/entity/diff", authenticatorHandler.GetDiff)
 
+	llmChatController := &llmchatCtrl.Controller{
+		Repo:     llmChatRepository,
+		KeyCache: llmChatKeyCache,
+	}
+	llmChatAttachmentController := &llmchatCtrl.AttachmentController{S3Config: s3Config}
+	llmChatHandler := &api.LlmChatHandler{
+		Controller:           llmChatController,
+		AttachmentController: llmChatAttachmentController,
+	}
+
+	privateAPI.POST("/llmchat/chat/key", llmChatHandler.UpsertKey)
+	privateAPI.GET("/llmchat/chat/key", llmChatHandler.GetKey)
+	privateAPI.POST("/llmchat/chat/session", llmChatHandler.UpsertSession)
+	privateAPI.POST("/llmchat/chat/message", llmChatHandler.UpsertMessage)
+	privateAPI.DELETE("/llmchat/chat/session", llmChatHandler.DeleteSession)
+	privateAPI.DELETE("/llmchat/chat/message", llmChatHandler.DeleteMessage)
+	privateAPI.PUT("/llmchat/chat/attachment/:attachmentId", llmChatHandler.UploadAttachment)
+	privateAPI.GET("/llmchat/chat/attachment/:attachmentId", llmChatHandler.DownloadAttachment)
+	privateAPI.GET("/llmchat/chat/diff", llmChatHandler.GetDiff)
+
 	dataCleanupController := &dataCleanupCtrl.DeleteUserCleanupController{
 		Repo:           dataCleanupRepository,
 		UserRepo:       userRepo,
@@ -917,7 +941,7 @@ func main() {
 	setupAndStartCrons(
 		userAuthRepo, collectionLinkRepo, fileLinkRepo, twoFactorRepo, passkeysRepo, fileController, taskLockingRepo, emailNotificationCtrl,
 		trashController, pushController, objectController, dataCleanupController, storageBonusCtrl, emergencyCtrl,
-		embeddingController, healthCheckHandler, castDb)
+		embeddingController, healthCheckHandler, castDb, llmChatRepository)
 
 	// Create a new collector, the name will be used as a label on the metrics
 	collector := sqlstats.NewStatsCollector("prod_db", db)
@@ -1063,7 +1087,8 @@ func setupAndStartCrons(userAuthRepo *repo.UserAuthRepository, collectionLinkRep
 	emergencyCtrl *emergency.Controller,
 	embeddingCtrl *embeddingCtrl.Controller,
 	healthCheckHandler *api.HealthCheckHandler,
-	castDb castRepo.Repository) {
+	castDb castRepo.Repository,
+	llmChatRepo *llmchatRepo.Repository) {
 	shouldSkipCron := viper.GetBool("jobs.cron.skip")
 	if shouldSkipCron {
 		log.Info("Skipping cron jobs")
@@ -1080,6 +1105,24 @@ func setupAndStartCrons(userAuthRepo *repo.UserAuthRepository, collectionLinkRep
 		_ = castDb.DeleteOldSessions(context.Background(), timeUtil.MicrosecondsBeforeDays(7))
 		_ = collectionLinkRepo.CleanupAccessHistory(context.Background())
 		_ = fileLinkRepo.CleanupAccessHistory(context.Background())
+	})
+
+	schedule(c, "@every 24h", func() {
+		cutoff := timeUtil.MicrosecondsBeforeDays(llmchatRepo.TombstoneRetentionDays)
+		sessionsDeleted, messagesDeleted, err := llmChatRepo.DeleteTombstonesBefore(
+			context.Background(),
+			cutoff,
+		)
+		if err != nil {
+			log.WithError(err).Warn("Failed to cleanup llmchat tombstones")
+			return
+		}
+		if sessionsDeleted+messagesDeleted > 0 {
+			log.WithFields(log.Fields{
+				"sessions": sessionsDeleted,
+				"messages": messagesDeleted,
+			}).Info("Cleaned up llmchat tombstones")
+		}
 	})
 
 	schedule(c, "@every 1m", func() {

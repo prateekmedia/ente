@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS llmchat_sessions_state_updated_at_index;
+DROP INDEX IF EXISTS llmchat_messages_state_updated_at_index;
