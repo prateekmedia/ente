@@ -5,6 +5,9 @@
 
 use std::sync::Once;
 
+pub mod argon;
+pub mod hash;
+pub mod kdf;
 pub mod keys;
 
 static INIT: Once = Once::new();
