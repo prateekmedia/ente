@@ -1,0 +1,8 @@
+# melos_managed_dependency_overrides: ente_crypto_api,ente_crypto_dart_adapter,ente_rust
+dependency_overrides:
+  ente_crypto_api:
+    path: ../ente_crypto_api
+  ente_crypto_dart_adapter:
+    path: ../ente_crypto_dart_adapter
+  ente_rust:
+    path: ../rust

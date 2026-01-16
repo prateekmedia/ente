@@ -13,7 +13,9 @@ class EnteCryptoDartAdapter implements CryptoApi {
   Future<void> init() => dart_impl.CryptoUtil.init();
 
   @override
-  Uint8List base642bin(String b64) => dart_impl.CryptoUtil.base642bin(b64);
+  Uint8List base642bin(String b64) {
+    return dart_impl.CryptoUtil.base642bin(_normalizeBase64(b64));
+  }
 
   @override
   String bin2base64(Uint8List bin, {bool urlSafe = false}) =>
@@ -203,6 +205,18 @@ class EnteCryptoDartAdapter implements CryptoApi {
 
   @override
   Future<Uint8List> getHash(File source) => dart_impl.getHash(source);
+
+  String _normalizeBase64(String input) {
+    var normalized = input.replaceAll('-', '+').replaceAll('_', '/');
+    final remainder = normalized.length % 4;
+    if (remainder != 0) {
+      normalized = normalized.padRight(
+        normalized.length + (4 - remainder),
+        '=',
+      );
+    }
+    return normalized;
+  }
 
   EncryptionResult _mapEncryptionResult(
     dart_models.EncryptionResult result,
