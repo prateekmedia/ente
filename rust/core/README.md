@@ -132,7 +132,7 @@ src/
 
 | Test Suite | What it tests |
 |------------|---------------|
-| Auth unit tests | Login, signup, recovery, SRP |
+| Auth unit tests | Login, signup, recovery, SRP login |
 | Auth integration | Full auth workflows |
 | Crypto unit tests | Individual crypto operations |
 | Libsodium vectors | Cross-platform compatibility |
