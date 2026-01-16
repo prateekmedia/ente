@@ -5,7 +5,8 @@
 
 use blake2b_simd::Params as Blake2bParams;
 
-use crate::crypto::Result;
+use crate::crypto::{Result, SecretVec};
+use zeroize::Zeroizing;
 
 /// Size of KDF context in bytes.
 pub const CONTEXT_BYTES: usize = 8;
@@ -75,6 +76,20 @@ pub fn derive_subkey(
     Ok(hash.as_bytes()[..subkey_len].to_vec())
 }
 
+/// Derive a subkey from a master key, returning a [`SecretVec`].
+///
+/// This is a convenience wrapper around [`derive_subkey`] for call sites that
+/// want the derived subkey to be zeroized when dropped.
+pub fn derive_subkey_secure(
+    key: &[u8],
+    subkey_len: usize,
+    subkey_id: u64,
+    context: &[u8],
+) -> Result<SecretVec> {
+    let subkey = derive_subkey(key, subkey_len, subkey_id, context)?;
+    Ok(Zeroizing::new(subkey))
+}
+
 /// Derive a login key from a master key.
 ///
 /// This is a specialized wrapper around `derive_subkey` used for SRP authentication.
@@ -95,6 +110,12 @@ pub fn derive_login_key(master_key: &[u8]) -> Result<Vec<u8>> {
 
     let subkey = derive_subkey(master_key, 32, 1, b"loginctx")?;
     Ok(subkey[..16].to_vec())
+}
+
+/// Derive a login key from a master key, returning a [`SecretVec`].
+pub fn derive_login_key_secure(master_key: &[u8]) -> Result<SecretVec> {
+    let login_key = derive_login_key(master_key)?;
+    Ok(Zeroizing::new(login_key))
 }
 
 #[cfg(test)]

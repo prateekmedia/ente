@@ -4,7 +4,8 @@
 
 use argon2::{Algorithm, Argon2, Params, Version};
 
-use crate::crypto::{CryptoError, Result};
+use crate::crypto::{CryptoError, Result, SecretVec};
+use zeroize::Zeroizing;
 
 /// Result of key derivation with password.
 #[derive(Debug, Clone)]
@@ -116,6 +117,20 @@ fn derive_key_bytes(
 /// 32-byte derived key.
 pub fn derive_key(password: &str, salt: &[u8], mem_limit: u32, ops_limit: u32) -> Result<Vec<u8>> {
     derive_key_bytes(password.as_bytes(), salt, mem_limit, ops_limit)
+}
+
+/// Derive a key from a password using Argon2id, returning a [`SecretVec`].
+///
+/// This is a convenience wrapper around [`derive_key`] for call sites that want
+/// the derived key to be zeroized when dropped.
+pub fn derive_key_secure(
+    password: &str,
+    salt: &[u8],
+    mem_limit: u32,
+    ops_limit: u32,
+) -> Result<SecretVec> {
+    let key = derive_key(password, salt, mem_limit, ops_limit)?;
+    Ok(Zeroizing::new(key))
 }
 
 /// Derive a key with interactive parameters (fast, for UI responsiveness).

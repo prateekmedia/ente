@@ -100,6 +100,21 @@ cargo build    # build
 cargo test     # test
 ```
 
+## Fuzzing
+
+Fuzzing is an automated technique that feeds randomized and malformed inputs into
+functions to uncover panics, edge cases, and security bugs that unit tests may miss.
+
+Fuzz targets live in `rust/core/fuzz` (cargo-fuzz). Requires a nightly toolchain.
+
+```bash
+cargo +nightly install cargo-fuzz
+cd rust/core
+cargo +nightly fuzz run secretbox -- -max_total_time=60
+```
+
+Other targets: `sealed_box`, `stream`, `argon`.
+
 ## Tests
 
 ```

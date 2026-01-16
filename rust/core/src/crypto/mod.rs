@@ -72,6 +72,12 @@ pub use impl_pure::*;
 
 pub use error::{CryptoError, Result};
 
+/// A heap-allocated byte buffer that is **zeroized on drop**.
+///
+/// Prefer this type for sensitive key material that should not remain in memory
+/// after it goes out of scope.
+pub type SecretVec = zeroize::Zeroizing<Vec<u8>>;
+
 /// Decode a base64 string to bytes.
 ///
 /// # Arguments

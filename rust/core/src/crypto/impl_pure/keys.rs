@@ -2,9 +2,9 @@
 
 use rand_core::{OsRng, RngCore};
 use x25519_dalek::{PublicKey, StaticSecret};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
-use crate::crypto::Result;
+use crate::crypto::{Result, SecretVec};
 
 /// Size of a SecretBox key in bytes.
 pub const SECRETBOX_KEY_BYTES: usize = 32;
@@ -34,6 +34,16 @@ pub fn generate_key() -> Vec<u8> {
     key
 }
 
+/// Generate a random SecretBox encryption key that is zeroized on drop.
+///
+/// This is identical to [`generate_key`], but returns a [`SecretVec`] to reduce
+/// the risk of key material lingering in heap memory after it goes out of scope.
+pub fn generate_key_secure() -> SecretVec {
+    let mut key = vec![0u8; SECRETBOX_KEY_BYTES];
+    OsRng.fill_bytes(&mut key);
+    Zeroizing::new(key)
+}
+
 /// Generate a random SecretStream encryption key.
 ///
 /// # Returns
@@ -42,6 +52,13 @@ pub fn generate_stream_key() -> Vec<u8> {
     let mut key = vec![0u8; STREAM_KEY_BYTES];
     OsRng.fill_bytes(&mut key);
     key
+}
+
+/// Generate a random SecretStream encryption key that is zeroized on drop.
+pub fn generate_stream_key_secure() -> SecretVec {
+    let mut key = vec![0u8; STREAM_KEY_BYTES];
+    OsRng.fill_bytes(&mut key);
+    Zeroizing::new(key)
 }
 
 /// Generate a random salt for key derivation.
@@ -54,6 +71,16 @@ pub fn generate_salt() -> Vec<u8> {
     salt
 }
 
+/// Generate a random salt buffer that is zeroized on drop.
+///
+/// Note: salts are not secret, but zeroizing can still be helpful for defense in
+/// depth when salts are kept alongside other sensitive material.
+pub fn generate_salt_secure() -> SecretVec {
+    let mut salt = vec![0u8; SALT_BYTES];
+    OsRng.fill_bytes(&mut salt);
+    Zeroizing::new(salt)
+}
+
 /// Generate a random nonce for SecretBox encryption.
 ///
 /// # Returns
@@ -62,6 +89,15 @@ pub fn generate_secretbox_nonce() -> Vec<u8> {
     let mut nonce = vec![0u8; SECRETBOX_NONCE_BYTES];
     OsRng.fill_bytes(&mut nonce);
     nonce
+}
+
+/// Generate a random SecretBox nonce buffer that is zeroized on drop.
+///
+/// Note: nonces are not secret, but this is provided for API symmetry.
+pub fn generate_secretbox_nonce_secure() -> SecretVec {
+    let mut nonce = vec![0u8; SECRETBOX_NONCE_BYTES];
+    OsRng.fill_bytes(&mut nonce);
+    Zeroizing::new(nonce)
 }
 
 /// Generate a random X25519 key pair.
@@ -80,6 +116,22 @@ pub fn generate_keypair() -> Result<(Vec<u8>, Vec<u8>)> {
     Ok((public.as_bytes().to_vec(), secret.to_bytes().to_vec()))
 }
 
+/// Generate a random X25519 key pair, returning the secret key as a [`SecretVec`].
+pub fn generate_keypair_secure() -> Result<(Vec<u8>, SecretVec)> {
+    let mut secret_bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut secret_bytes);
+
+    let secret = StaticSecret::from(secret_bytes);
+    let public = PublicKey::from(&secret);
+
+    secret_bytes.zeroize();
+
+    Ok((
+        public.as_bytes().to_vec(),
+        Zeroizing::new(secret.to_bytes().to_vec()),
+    ))
+}
+
 /// Generate random bytes of specified length.
 ///
 /// # Arguments
@@ -91,6 +143,13 @@ pub fn random_bytes(len: usize) -> Vec<u8> {
     let mut buf = vec![0u8; len];
     OsRng.fill_bytes(&mut buf);
     buf
+}
+
+/// Generate random bytes of specified length that are zeroized on drop.
+pub fn random_bytes_secure(len: usize) -> SecretVec {
+    let mut buf = vec![0u8; len];
+    OsRng.fill_bytes(&mut buf);
+    Zeroizing::new(buf)
 }
 
 #[cfg(test)]
