@@ -40,26 +40,10 @@ fn decrypt_secrets_with_plain_token(
 ) -> std::result::Result<DecryptedSecrets, ente_core::auth::AuthError> {
     use ente_core::auth::AuthError;
 
+    // Decrypt keys (shared logic lives in ente-core)
+    let (master_key, secret_key) = ente_core::auth::decrypt_keys_only(key_enc_key, key_attrs)?;
+
     // Tokens are base64 (URL-safe) in other clients; decode to raw bytes here.
-
-    let encrypted_key = ente_core::crypto::decode_b64(&key_attrs.encrypted_key)
-        .map_err(|e| AuthError::Decode(format!("encrypted_key: {}", e)))?;
-    let key_nonce = ente_core::crypto::decode_b64(&key_attrs.key_decryption_nonce)
-        .map_err(|e| AuthError::Decode(format!("key_decryption_nonce: {}", e)))?;
-    let master_key = ente_core::crypto::secretbox::decrypt(&encrypted_key, &key_nonce, key_enc_key)
-        .map_err(|_| AuthError::IncorrectPassword)?;
-
-    let encrypted_secret_key = ente_core::crypto::decode_b64(&key_attrs.encrypted_secret_key)
-        .map_err(|e| AuthError::Decode(format!("encrypted_secret_key: {}", e)))?;
-    let secret_key_nonce = ente_core::crypto::decode_b64(&key_attrs.secret_key_decryption_nonce)
-        .map_err(|e| AuthError::Decode(format!("secret_key_decryption_nonce: {}", e)))?;
-    let secret_key = ente_core::crypto::secretbox::decrypt(
-        &encrypted_secret_key,
-        &secret_key_nonce,
-        &master_key,
-    )
-    .map_err(|_| AuthError::InvalidKeyAttributes)?;
-
     let token = base64::engine::general_purpose::URL_SAFE
         .decode(token)
         .or_else(|_| base64::engine::general_purpose::STANDARD.decode(token))

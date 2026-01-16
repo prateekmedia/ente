@@ -79,23 +79,11 @@ pub fn derive_kek(
     argon::derive_key(password, &salt, mem_limit, ops_limit).map_err(AuthError::from)
 }
 
-/// Decrypt secrets after successful authentication.
+/// Decrypt only the master key and secret key.
 ///
-/// Call this after SRP + 2FA is complete, when you have the key attributes
-/// and encrypted token from the server.
-///
-/// # Arguments
-/// * `kek` - Key encryption key (from `derive_srp_credentials` or `derive_kek`)
-/// * `key_attrs` - Key attributes from the server
-/// * `encrypted_token` - Base64-encoded encrypted authentication token
-///
-/// # Returns
-/// * `DecryptedSecrets` containing master_key, secret_key, and token
-pub fn decrypt_secrets(
-    kek: &[u8],
-    key_attrs: &KeyAttributes,
-    encrypted_token: &str,
-) -> Result<DecryptedSecrets> {
+/// Use this when you only need access to the decrypted keys (e.g. when the
+/// auth token comes from a different source than a sealed box).
+pub fn decrypt_keys_only(kek: &[u8], key_attrs: &KeyAttributes) -> Result<(Vec<u8>, Vec<u8>)> {
     // Decrypt master key with KEK
     let encrypted_key = crypto::decode_b64(&key_attrs.encrypted_key)
         .map_err(|e| AuthError::Decode(format!("encrypted_key: {}", e)))?;
@@ -113,6 +101,28 @@ pub fn decrypt_secrets(
 
     let secret_key = secretbox::decrypt(&encrypted_secret_key, &secret_key_nonce, &master_key)
         .map_err(|_| AuthError::InvalidKeyAttributes)?;
+
+    Ok((master_key, secret_key))
+}
+
+/// Decrypt secrets after successful authentication.
+///
+/// Call this after SRP + 2FA is complete, when you have the key attributes
+/// and encrypted token from the server.
+///
+/// # Arguments
+/// * `kek` - Key encryption key (from `derive_srp_credentials` or `derive_kek`)
+/// * `key_attrs` - Key attributes from the server
+/// * `encrypted_token` - Base64-encoded encrypted authentication token
+///
+/// # Returns
+/// * `DecryptedSecrets` containing master_key, secret_key, and token
+pub fn decrypt_secrets(
+    kek: &[u8],
+    key_attrs: &KeyAttributes,
+    encrypted_token: &str,
+) -> Result<DecryptedSecrets> {
+    let (master_key, secret_key) = decrypt_keys_only(kek, key_attrs)?;
 
     // Decrypt token with sealed box (public key crypto)
     let public_key = crypto::decode_b64(&key_attrs.public_key)
