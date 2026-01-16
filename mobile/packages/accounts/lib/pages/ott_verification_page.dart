@@ -4,7 +4,6 @@ import 'package:ente_strings/ente_strings.dart';
 import 'package:ente_ui/components/buttons/dynamic_fab.dart';
 import 'package:ente_ui/theme/ente_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pinput/pinput.dart';
 
 class OTTVerificationPage extends StatefulWidget {
@@ -12,12 +11,14 @@ class OTTVerificationPage extends StatefulWidget {
   final bool isChangeEmail;
   final bool isCreateAccountScreen;
   final bool isResetPasswordScreen;
+  final Widget? appBarTitle;
 
   const OTTVerificationPage(
     this.email, {
     this.isChangeEmail = false,
     this.isCreateAccountScreen = false,
     this.isResetPasswordScreen = false,
+    this.appBarTitle,
     super.key,
   });
 
@@ -40,6 +41,7 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
         context,
         _pinController.text,
         isResettingPasswordScreen: widget.isResetPasswordScreen,
+        appBarTitle: widget.appBarTitle,
       );
     }
     FocusScope.of(context).unfocus();
@@ -72,13 +74,7 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: SvgPicture.asset(
-          'assets/svg/app-logo.svg',
-          colorFilter: ColorFilter.mode(
-            colorScheme.primary700,
-            BlendMode.srcIn,
-          ),
-        ),
+        title: widget.appBarTitle,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,
@@ -222,6 +218,7 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
                       isCreateAccountScreen: widget.isCreateAccountScreen,
                       isChangeEmail: widget.isChangeEmail,
                       isResetPasswordScreen: widget.isResetPasswordScreen,
+                      appBarTitle: widget.appBarTitle,
                     );
                   },
                   child: Text(
