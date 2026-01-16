@@ -16,9 +16,8 @@ class SessionTile extends StatelessWidget {
     required this.onDelete,
   });
 
-  String _formatTime(int? timestamp) {
-    if (timestamp == null) return '';
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+  String _formatTime(int timestamp) {
+    final date = DateTime.fromMicrosecondsSinceEpoch(timestamp);
     final now = DateTime.now();
     final diff = now.difference(date);
 
@@ -66,7 +65,7 @@ class SessionTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
-            _formatTime(session.lastMessageAt ?? session.createdAt),
+            _formatTime(session.updatedAt),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

@@ -3,35 +3,27 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ente_crypto_api/ente_crypto_api.dart';
-import 'package:ente_crypto_dart_adapter/ente_crypto_dart_adapter.dart';
 import 'package:ente_rust/ente_rust.dart' as rust;
 
 class EnteCryptoRustAdapter implements CryptoApi {
-  EnteCryptoRustAdapter({CryptoApi? fallback})
-      : _fallback = fallback ?? const EnteCryptoDartAdapter();
-
-  final CryptoApi _fallback;
+  EnteCryptoRustAdapter();
 
   static bool _initialized = false;
 
   @override
   Future<void> init() async {
-    // Rust initialization is owned by the app to avoid double-init.
     if (_initialized) {
       return;
     }
-    await _fallback.init();
+    rust.initCrypto();
     _initialized = true;
   }
 
   @override
-  Uint8List strToBin(String str) => _fallback.strToBin(str);
+  Uint8List strToBin(String str) => rust.strToBin(input: str);
 
   @override
-  Uint8List base642bin(String b64) {
-    final normalized = _normalizeBase64(b64);
-    return rust.base642Bin(data: normalized);
-  }
+  Uint8List base642bin(String b64) => rust.base642Bin(data: b64);
 
   @override
   String bin2base64(Uint8List bin, {bool urlSafe = false}) {
@@ -73,8 +65,8 @@ class EnteCryptoRustAdapter implements CryptoApi {
   Future<EncryptionResult> encryptData(Uint8List source, Uint8List key) async {
     final result = rust.encryptData(plaintext: source, key: key);
     return EncryptionResult(
-      encryptedData: _decodeBase64(result.encryptedData),
-      header: _decodeBase64(result.header),
+      encryptedData: rust.base642Bin(data: result.encryptedData),
+      header: rust.base642Bin(data: result.header),
     );
   }
 
@@ -98,11 +90,15 @@ class EnteCryptoRustAdapter implements CryptoApi {
     String sourceFilePath,
     String destinationFilePath, {
     Uint8List? key,
-  }) {
-    return _fallback.encryptFile(
-      sourceFilePath,
-      destinationFilePath,
+  }) async {
+    final result = await rust.encryptFile(
+      sourceFilePath: sourceFilePath,
+      destinationFilePath: destinationFilePath,
       key: key,
+    );
+    return EncryptionResult(
+      key: result.key,
+      header: result.header,
     );
   }
 
@@ -112,12 +108,20 @@ class EnteCryptoRustAdapter implements CryptoApi {
     String destinationFilePath, {
     Uint8List? key,
     int? multiPartChunkSizeInBytes,
-  }) {
-    return _fallback.encryptFileWithMd5(
-      sourceFilePath,
-      destinationFilePath,
+  }) async {
+    final result = await rust.encryptFileWithMd5(
+      sourceFilePath: sourceFilePath,
+      destinationFilePath: destinationFilePath,
       key: key,
       multiPartChunkSizeInBytes: multiPartChunkSizeInBytes,
+    );
+
+    return FileEncryptResult(
+      key: result.key,
+      header: result.header,
+      fileMd5: result.fileMd5,
+      partMd5s: result.partMd5S,
+      partSize: result.partSize,
     );
   }
 
@@ -128,11 +132,11 @@ class EnteCryptoRustAdapter implements CryptoApi {
     Uint8List header,
     Uint8List key,
   ) {
-    return _fallback.decryptFile(
-      sourceFilePath,
-      destinationFilePath,
-      header,
-      key,
+    return rust.decryptFile(
+      sourceFilePath: sourceFilePath,
+      destinationFilePath: destinationFilePath,
+      header: header,
+      key: key,
     );
   }
 
@@ -162,7 +166,7 @@ class EnteCryptoRustAdapter implements CryptoApi {
 
   @override
   Uint8List sealSync(Uint8List input, Uint8List publicKey) {
-    return _fallback.sealSync(input, publicKey);
+    return rust.sealSync(data: input, publicKey: publicKey);
   }
 
   @override
@@ -170,19 +174,27 @@ class EnteCryptoRustAdapter implements CryptoApi {
     Uint8List password,
     Uint8List salt,
   ) async {
-    final result = await rust.deriveSensitiveKey(
-      password: _passwordToString(password),
-      salt: salt,
-    );
-    return DerivedKeyResult(result.key, result.memLimit, result.opsLimit);
+    return _mapKeyDerivationError(() async {
+      final result = await rust.deriveSensitiveKey(
+        password: _passwordToString(password),
+        salt: salt,
+      );
+      return DerivedKeyResult(result.key, result.memLimit, result.opsLimit);
+    });
   }
 
   @override
   Future<DerivedKeyResult> deriveInteractiveKey(
     Uint8List password,
     Uint8List salt,
-  ) {
-    return _fallback.deriveInteractiveKey(password, salt);
+  ) async {
+    return _mapKeyDerivationError(() async {
+      final result = await rust.deriveInteractiveKey(
+        password: _passwordToString(password),
+        salt: salt,
+      );
+      return DerivedKeyResult(result.key, result.memLimit, result.opsLimit);
+    });
   }
 
   @override
@@ -192,17 +204,22 @@ class EnteCryptoRustAdapter implements CryptoApi {
     int memLimit,
     int opsLimit,
   ) {
-    return rust.deriveKey(
-      password: _passwordToString(password),
-      salt: salt,
-      memLimit: memLimit,
-      opsLimit: opsLimit,
-    );
+    return _mapKeyDerivationError(() async {
+      return rust.deriveKey(
+        password: _passwordToString(password),
+        salt: salt,
+        memLimit: memLimit,
+        opsLimit: opsLimit,
+      );
+    });
   }
 
   @override
-  Future<Uint8List> deriveLoginKey(Uint8List key) =>
-      rust.deriveLoginKey(key: key);
+  Future<Uint8List> deriveLoginKey(Uint8List key) {
+    return _mapLoginKeyDerivationError(() async {
+      return rust.deriveLoginKey(key: key);
+    });
+  }
 
   @override
   Uint8List getSaltToDeriveKey() => rust.getSaltToDeriveKey();
@@ -214,33 +231,59 @@ class EnteCryptoRustAdapter implements CryptoApi {
     int memLimit,
     int opsLimit,
   ) {
-    return _fallback.cryptoPwHash(password, salt, memLimit, opsLimit);
+    return _mapKeyDerivationErrorSync(() {
+      return rust.cryptoPwHash(
+        password: _passwordToString(password),
+        salt: salt,
+        memLimit: memLimit,
+        opsLimit: opsLimit,
+      );
+    });
   }
 
   @override
-  int get pwhashMemLimitInteractive => _fallback.pwhashMemLimitInteractive;
+  int get pwhashMemLimitInteractive => rust.pwhashMemLimitInteractive();
 
   @override
-  int get pwhashMemLimitSensitive => _fallback.pwhashMemLimitSensitive;
+  int get pwhashMemLimitSensitive => rust.pwhashMemLimitSensitive();
 
   @override
-  int get pwhashOpsLimitInteractive => _fallback.pwhashOpsLimitInteractive;
+  int get pwhashOpsLimitInteractive => rust.pwhashOpsLimitInteractive();
 
   @override
-  int get pwhashOpsLimitSensitive => _fallback.pwhashOpsLimitSensitive;
+  int get pwhashOpsLimitSensitive => rust.pwhashOpsLimitSensitive();
 
   @override
-  Future<Uint8List> getHash(File source) => _fallback.getHash(source);
+  Future<Uint8List> getHash(File source) {
+    return rust.getHash(sourceFilePath: source.path);
+  }
 
-  String _passwordToString(Uint8List password) => utf8.decode(password);
-
-  Uint8List _decodeBase64(String data) => base64.decode(data);
-
-  String _normalizeBase64(String data) {
-    var normalized = data.replaceAll('-', '+').replaceAll('_', '/');
-    while (normalized.length % 4 != 0) {
-      normalized += '=';
+  Future<T> _mapKeyDerivationError<T>(Future<T> Function() body) async {
+    try {
+      return await body();
+    } catch (_, s) {
+      Error.throwWithStackTrace(KeyDerivationError(), s);
     }
-    return normalized;
   }
+
+  Future<T> _mapLoginKeyDerivationError<T>(Future<T> Function() body) async {
+    try {
+      return await body();
+    } catch (_, s) {
+      Error.throwWithStackTrace(LoginKeyDerivationError(), s);
+    }
+  }
+
+  T _mapKeyDerivationErrorSync<T>(T Function() body) {
+    try {
+      return body();
+    } catch (_, s) {
+      Error.throwWithStackTrace(KeyDerivationError(), s);
+    }
+  }
+
+  String _passwordToString(Uint8List password) {
+    return utf8.decode(password, allowMalformed: true);
+  }
+
 }

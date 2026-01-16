@@ -1,9 +1,12 @@
+import 'package:collection/collection.dart';
 import 'package:ensu/store/chat_db.dart';
+
+const _attachmentEquality = DeepCollectionEquality();
 
 /// Helpers for reasoning about the chat message DAG.
 class ChatDag {
-  /// Time window used to consider children identical (milliseconds).
-  static const int defaultDuplicateWindowMs = 2000;
+  /// Time window used to consider children identical (microseconds).
+  static const int defaultDuplicateWindowUs = 2000000;
 
   /// Index messages by UUID for quick parent traversal.
   static Map<String, LocalMessage> indexById(
@@ -58,6 +61,88 @@ class ChatDag {
     return heads;
   }
 
+  /// Return parent-first order excluding blocked messages and descendants.
+  static List<LocalMessage> orderForSync(
+    Iterable<LocalMessage> messages,
+    Set<String> blockedMessageIds,
+  ) {
+    final list = messages.toList();
+    if (list.isEmpty) return [];
+
+    final byId = indexById(list);
+    final children = buildChildrenMap(list);
+    final blocked = _expandBlocked(blockedMessageIds, children);
+
+    final roots = list
+        .where((message) {
+          final parentId = message.parentMessageUuid;
+          return parentId == null || !byId.containsKey(parentId);
+        })
+        .toList()
+      ..sort(_compareByCreatedAt);
+
+    final ordered = <LocalMessage>[];
+    final visited = <String>{};
+
+    void visit(LocalMessage message) {
+      if (blocked.contains(message.messageUuid)) {
+        return;
+      }
+      if (!visited.add(message.messageUuid)) {
+        return;
+      }
+      ordered.add(message);
+      final childList = children[message.messageUuid];
+      if (childList == null || childList.isEmpty) {
+        return;
+      }
+      for (final child in childList) {
+        visit(child);
+      }
+    }
+
+    for (final root in roots) {
+      visit(root);
+    }
+
+    if (ordered.length < list.length) {
+      final remaining = list
+          .where((message) =>
+              !visited.contains(message.messageUuid) &&
+              !blocked.contains(message.messageUuid))
+          .toList()
+        ..sort(_compareByCreatedAt);
+      for (final message in remaining) {
+        visit(message);
+      }
+    }
+
+    return ordered;
+  }
+
+  static Set<String> _expandBlocked(
+    Set<String> blockedMessageIds,
+    Map<String?, List<LocalMessage>> children,
+  ) {
+    final blocked = Set<String>.from(blockedMessageIds);
+    final queue = List<String>.from(blockedMessageIds);
+
+    while (queue.isNotEmpty) {
+      final parentId = queue.removeLast();
+      final childList = children[parentId];
+      if (childList == null) {
+        continue;
+      }
+      for (final child in childList) {
+        if (blocked.add(child.messageUuid)) {
+          queue.add(child.messageUuid);
+        }
+      }
+    }
+
+    return blocked;
+  }
+
   /// Returns true if ancestorId is in descendantId's parent chain (inclusive).
   static bool isAncestor({
     required String ancestorId,
@@ -93,14 +178,14 @@ class ChatDag {
   static bool isDuplicateChild(
     LocalMessage candidate,
     Iterable<LocalMessage> siblings, {
-    int windowMs = defaultDuplicateWindowMs,
+    int windowUs = defaultDuplicateWindowUs,
   }) {
     for (final sibling in siblings) {
       if (sibling.messageUuid == candidate.messageUuid) {
         continue;
       }
       if (_sameSignature(candidate, sibling) &&
-          (candidate.createdAt - sibling.createdAt).abs() <= windowMs) {
+          (candidate.createdAt - sibling.createdAt).abs() <= windowUs) {
         return true;
       }
     }
@@ -111,13 +196,13 @@ class ChatDag {
   /// Remove duplicate children, keeping the earliest entry per signature window.
   static List<LocalMessage> dedupeChildren(
     Iterable<LocalMessage> children, {
-    int windowMs = defaultDuplicateWindowMs,
+    int windowUs = defaultDuplicateWindowUs,
   }) {
     final sorted = children.toList()..sort(_compareByCreatedAt);
     final unique = <LocalMessage>[];
 
     for (final child in sorted) {
-      if (!isDuplicateChild(child, unique, windowMs: windowMs)) {
+      if (!isDuplicateChild(child, unique, windowUs: windowUs)) {
         unique.add(child);
       }
     }
@@ -132,6 +217,8 @@ class ChatDag {
   }
 
   static bool _sameSignature(LocalMessage a, LocalMessage b) {
-    return a.sender == b.sender && a.text == b.text;
+    return a.sender == b.sender &&
+        a.text == b.text &&
+        _attachmentEquality.equals(a.attachments, b.attachments);
   }
 }

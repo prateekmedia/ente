@@ -11,7 +11,7 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSelf = message.sender == MessageSender.self;
+    final isSelf = message.isSelf;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Colors based on sender and theme
@@ -79,7 +79,7 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _formatTime(int timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final date = DateTime.fromMicrosecondsSinceEpoch(timestamp);
     final hour = date.hour;
     final minute = date.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';

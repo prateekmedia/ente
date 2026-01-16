@@ -65,13 +65,7 @@ class CryptoUtil {
 
   /// Convert base64 string to bytes.
   static Uint8List base642bin(String data) {
-    // Handle URL-safe base64
-    var normalized = data.replaceAll('-', '+').replaceAll('_', '/');
-    // Add padding if needed
-    while (normalized.length % 4 != 0) {
-      normalized += '=';
-    }
-    return crypto.base642Bin(data: normalized);
+    return crypto.base642Bin(data: data);
   }
 
   /// Convert hex string to bytes.

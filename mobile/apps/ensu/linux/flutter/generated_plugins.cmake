@@ -7,10 +7,11 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_local_authentication
   flutter_secure_storage_linux
   gtk
+  open_file_linux
   screen_retriever_linux
   sentry_flutter
   sodium_libs
-  sqlite3_flutter_libs
+  sqlcipher_flutter_libs
   url_launcher_linux
   window_manager
 )

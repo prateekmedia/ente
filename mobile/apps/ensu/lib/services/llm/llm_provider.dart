@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 /// Model information for display
 class ModelInfo {
@@ -33,6 +34,19 @@ class DownloadProgress {
 
   bool get isComplete => percent >= 100;
   bool get hasError => percent < 0;
+}
+
+/// Image input for multimodal models.
+class LLMImage {
+  final Uint8List bytes;
+  final String mimeType;
+  final String? name;
+
+  const LLMImage({
+    required this.bytes,
+    this.mimeType = 'image/jpeg',
+    this.name,
+  });
 }
 
 /// Chat message for context
@@ -97,16 +111,22 @@ abstract class LLMProvider {
   Stream<String> generateStream(
     String prompt, {
     List<LLMMessage>? history,
+    List<LLMImage>? images,
     double? temperature,
     int? maxTokens,
+    bool enableTodoTools = false,
+    String? todoSessionId,
   });
 
   /// Generate response (complete)
   Future<String> generate(
     String prompt, {
     List<LLMMessage>? history,
+    List<LLMImage>? images,
     double? temperature,
     int? maxTokens,
+    bool enableTodoTools = false,
+    String? todoSessionId,
   });
 
   /// Stop ongoing generation
@@ -185,8 +205,11 @@ class LLMService {
   Stream<String> generateStream(
     String prompt, {
     List<LLMMessage>? history,
+    List<LLMImage>? images,
     double? temperature,
     int? maxTokens,
+    bool enableTodoTools = false,
+    String? todoSessionId,
   }) {
     if (_provider == null) {
       return Stream.value('No LLM provider configured.');
@@ -194,8 +217,11 @@ class LLMService {
     return _provider!.generateStream(
       prompt,
       history: history,
+      images: images,
       temperature: temperature,
       maxTokens: maxTokens,
+      enableTodoTools: enableTodoTools,
+      todoSessionId: todoSessionId,
     );
   }
 
@@ -203,8 +229,11 @@ class LLMService {
   Future<String> generate(
     String prompt, {
     List<LLMMessage>? history,
+    List<LLMImage>? images,
     double? temperature,
     int? maxTokens,
+    bool enableTodoTools = false,
+    String? todoSessionId,
   }) async {
     if (_provider == null) {
       return 'No LLM provider configured.';
@@ -212,8 +241,11 @@ class LLMService {
     return _provider!.generate(
       prompt,
       history: history,
+      images: images,
       temperature: temperature,
       maxTokens: maxTokens,
+      enableTodoTools: enableTodoTools,
+      todoSessionId: todoSessionId,
     );
   }
 

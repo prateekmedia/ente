@@ -12,6 +12,7 @@ ente-core = { path = "../../../../rust/core" }
 base64 = "0.22"
 getrandom = "0.2"
 sha2 = "0.10"
+md-5 = "0.10"
 srp = "0.6"
 
 [lints.rust]

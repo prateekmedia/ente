@@ -5,7 +5,6 @@ import 'package:ente_ui/lifecycle_event_handler.dart';
 import 'package:ente_ui/theme/ente_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pinput/pinput.dart';
 
 class TwoFactorAuthenticationPage extends StatefulWidget {
@@ -73,14 +72,7 @@ class _TwoFactorAuthenticationPageState
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: widget.appBarTitle ??
-            SvgPicture.asset(
-              'assets/svg/app-logo.svg',
-              colorFilter: ColorFilter.mode(
-                colorScheme.primary700,
-                BlendMode.srcIn,
-              ),
-            ),
+        title: widget.appBarTitle,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,
@@ -226,6 +218,11 @@ class _TwoFactorAuthenticationPageState
   }
 
   Future<void> _verifyTwoFactorCode(String code) async {
-    await UserService.instance.verifyTwoFactor(context, widget.sessionID, code);
+    await UserService.instance.verifyTwoFactor(
+      context,
+      widget.sessionID,
+      code,
+      appBarTitle: widget.appBarTitle,
+    );
   }
 }

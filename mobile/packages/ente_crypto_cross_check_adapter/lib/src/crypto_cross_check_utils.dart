@@ -1,3 +1,8 @@
+// Debug-only crypto parity/cross-check utilities.
+//
+// NOTE: This code is intended for development/testing and may log sensitive
+// material on mismatches. It should not be shipped to production and is
+// expected to be removed/disabled for production builds.
 import 'dart:convert';
 import 'dart:typed_data';
 

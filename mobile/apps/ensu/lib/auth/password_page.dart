@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:ensu/auth/auth_service.dart';
+import 'package:ensu/auth/passkey_page.dart';
+import 'package:ensu/auth/two_factor_page.dart';
 import 'package:ensu/ui/screens/home_page.dart';
 import 'package:ensu/ui/widgets/dismiss_keyboard.dart';
 import 'package:ensu/ui/widgets/locker_auth_components.dart';
@@ -52,20 +54,53 @@ class _PasswordPageState extends State<PasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.instance.loginWithSrp(
+      final password = _passwordController.text;
+      final result = await AuthService.instance.loginWithSrp(
         email: widget.email,
-        password: _passwordController.text,
+        password: password,
         srpAttributes: widget.srpAttributes,
       );
 
-      if (mounted) {
-        // Navigate to home and clear back stack
-        Navigator.pushAndRemoveUntil(
+      if (!mounted) return;
+
+      if (result.requiresPasskey) {
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-          (route) => false,
+          MaterialPageRoute(
+            builder: (context) => PasskeyLoginPage(
+              email: widget.email,
+              srpAttributes: widget.srpAttributes,
+              sessionId: result.passkeySessionId!,
+              accountsUrl: result.accountsUrl ?? 'https://accounts.ente.io',
+              twoFactorSessionId: result.twoFactorSessionId,
+              password: password,
+            ),
+          ),
         );
+        return;
       }
+
+      if (result.requiresTwoFactor) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TwoFactorPage(
+              email: widget.email,
+              srpAttributes: widget.srpAttributes,
+              sessionId: result.twoFactorSessionId!,
+              password: password,
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Navigate to home and clear back stack
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+        (route) => false,
+      );
     } on DioException catch (e) {
       if (mounted) {
         final message = e.response?.data?['message'] ??

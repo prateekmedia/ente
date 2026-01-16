@@ -1,25 +1,38 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:ensu/core/configuration.dart';
+import 'package:ensu/core/feature_flags.dart';
+import 'package:ensu/models/chat_attachment.dart';
 import 'package:ente_accounts/pages/login_page.dart';
 import 'package:ensu/services/chat_dag.dart';
-import 'package:ensu/ui/screens/model_settings_page.dart';
+import 'package:ensu/services/chat_attachment_store.dart';
 import 'package:ensu/services/chat_service.dart';
+import 'package:ensu/store/chat_db.dart';
+import 'package:ensu/services/attachment_text_extractor.dart';
+import 'package:ensu/ui/screens/model_settings_page.dart';
 import 'package:ente_ui/pages/developer_settings_page.dart' as ente_ui;
 import 'package:ente_ui/pages/base_home_page.dart';
 import 'package:ensu/services/llm/llm_provider.dart';
 import 'package:ensu/ui/theme/ensu_theme.dart';
+import 'package:ensu/ui/widgets/assistant_message_renderer.dart';
 import 'package:ensu/ui/widgets/dismiss_keyboard.dart';
 import 'package:ensu/ui/widgets/download_toast.dart';
 import 'package:ente_ui/components/buttons/button_widget.dart';
 import 'package:ente_ui/components/buttons/models/button_type.dart';
 import 'package:ente_ui/utils/dialog_util.dart';
 import 'package:ente_utils/email_util.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 class HomePage extends BaseHomePage {
   const HomePage({super.key});
@@ -33,10 +46,16 @@ class _HomePageState extends BaseHomePageState<HomePage>
   static const int _developerModeTapThreshold = 5;
   static const String _rootBranchKey = '__root__';
   static const String _streamingBranchKey = '__streaming__';
+  static const ListEquality<ChatAttachment> _attachmentsEquality =
+      ListEquality<ChatAttachment>();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  final List<_PendingAttachment> _pendingAttachments = [];
+  List<ChatAttachment> _editingAttachments = [];
+  bool _isProcessingAttachments = false;
+  bool _isMissingAttachmentsSheetOpen = false;
 
   List<ChatSession> _sessions = [];
   String? _currentSessionId;
@@ -207,14 +226,26 @@ class _HomePageState extends BaseHomePageState<HomePage>
     _developerModeTapCount = 0;
     _isOpeningDeveloperSettings = true;
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            ente_ui.DeveloperSettingsPage(Configuration.instance),
-      ),
-    );
+    try {
+      final result = await showChoiceDialog(
+        context,
+        title: 'Developer settings',
+        body: 'Are you sure that you want to modify Developer settings?',
+        firstButtonLabel: 'Yes',
+        isDismissible: false,
+      );
 
-    _isOpeningDeveloperSettings = false;
+      if (result?.action == ButtonAction.first) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) =>
+                ente_ui.DeveloperSettingsPage(Configuration.instance),
+          ),
+        );
+      }
+    } finally {
+      _isOpeningDeveloperSettings = false;
+    }
   }
 
   Future<void> _loadSessions() async {
@@ -400,6 +431,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
     await _llm.resetContext();
     _shouldAutoScroll = true;
     final parentMessage = parentUserMessage;
+    final sessionKey = _currentSessionId ?? targetMessage.sessionUuid;
 
     setState(() {
       _isGenerating = true;
@@ -414,11 +446,42 @@ class _HomePageState extends BaseHomePageState<HomePage>
     });
 
     try {
+      final promptPayload = await _buildPromptFromStoredAttachments(
+        parentMessage.text,
+        sessionUuid: parentMessage.sessionUuid,
+        attachments: parentMessage.attachments,
+      );
+      if (promptPayload == null) {
+        return;
+      }
+
+      final promptText = promptPayload.text;
+      final promptImages = promptPayload.images;
+
       final buffer = StringBuffer();
       final startTime = DateTime.now();
       int tokenCount = 0;
 
-      await for (final token in _llm.generateStream(parentMessage.text)) {
+      final missingHistoryAttachments = await _confirmMissingHistoryAttachments(
+        excludeMessageUuids: {parentMessage.messageUuid},
+      );
+      if (missingHistoryAttachments == null) {
+        return;
+      }
+
+      final history = _buildLlmHistory(
+        promptText,
+        messageUuidsWithMissingAttachments: missingHistoryAttachments,
+      );
+
+      await for (final token
+          in _llm.generateStream(
+            promptText,
+            history: history,
+            images: promptImages,
+            enableTodoTools: true,
+            todoSessionId: sessionKey,
+          )) {
         buffer.write(token);
         tokenCount = buffer
             .toString()
@@ -453,7 +516,6 @@ class _HomePageState extends BaseHomePageState<HomePage>
         if (_interruptRequested) {
           _interruptedMessageUuids.add(messageUuid);
         }
-        final sessionKey = _currentSessionId ?? targetMessage.sessionUuid;
         if (mounted) {
           setState(() {
             _branchSelectionsForSession(sessionKey)[parentMessage.messageUuid] =
@@ -503,11 +565,29 @@ class _HomePageState extends BaseHomePageState<HomePage>
   }
 
   Future<bool> _ensureModelReady() async {
-    if (_llm.isReady) return true;
+    bool isTargetModelLoaded() {
+      final target = _llm.targetModel;
+      final current = _llm.currentModel;
+      return _llm.isReady &&
+          target != null &&
+          current != null &&
+          target.id == current.id;
+    }
+
+    if (_llm.provider == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No model provider configured.')),
+        );
+      }
+      return false;
+    }
+
+    if (isTargetModelLoaded()) return true;
 
     if (_downloadToastCompleter != null) {
       final result = await _downloadToastCompleter!.future;
-      return result && _llm.isReady;
+      return result && isTargetModelLoaded();
     }
 
     _downloadToastCompleter = Completer<bool>();
@@ -520,7 +600,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
     }
 
     final result = await _downloadToastCompleter!.future;
-    return result && _llm.isReady;
+    return result && isTargetModelLoaded();
   }
 
   Future<void> _stopGeneration() async {
@@ -566,10 +646,15 @@ class _HomePageState extends BaseHomePageState<HomePage>
 
   void _startEditingMessage(ChatMessage message) {
     if (_editingMessage?.messageUuid == message.messageUuid) return;
+    if (_pendingAttachments.isNotEmpty) {
+      _showAttachmentError('Remove attachments before editing a message.');
+      return;
+    }
     _draftBeforeEdit ??= _messageController.text;
 
     setState(() {
       _editingMessage = message;
+      _editingAttachments = List<ChatAttachment>.from(message.attachments);
     });
 
     _messageController.text = message.text;
@@ -586,6 +671,8 @@ class _HomePageState extends BaseHomePageState<HomePage>
     setState(() {
       _editingMessage = null;
       _draftBeforeEdit = null;
+      _editingAttachments = [];
+      _pendingAttachments.clear();
     });
 
     if (restoreDraft) {
@@ -598,13 +685,1193 @@ class _HomePageState extends BaseHomePageState<HomePage>
     );
   }
 
+  void _showAttachmentError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  List<_AttachmentDisplay> _attachmentDisplaysForMessage(ChatMessage message) {
+    final displays = <_AttachmentDisplay>[];
+    var imageCount = 0;
+    var documentCount = 0;
+
+    for (final attachment in message.attachments) {
+      final kind = attachment.kind == ChatAttachmentKind.image
+          ? _PendingAttachmentKind.image
+          : _PendingAttachmentKind.document;
+
+      if (kind == _PendingAttachmentKind.image) {
+        imageCount += 1;
+      } else {
+        documentCount += 1;
+      }
+
+      final index =
+          kind == _PendingAttachmentKind.image ? imageCount : documentCount;
+
+      final sizeLabel = _formatBytes(attachment.size);
+      final name = kind == _PendingAttachmentKind.image
+          ? 'Image $index'
+          : 'Document $index';
+
+      displays.add(
+        _AttachmentDisplay(
+          id: attachment.id,
+          name: name,
+          sizeLabel: sizeLabel.isEmpty ? null : sizeLabel,
+          kind: kind,
+          isUploading:
+              attachment.uploadState == ChatAttachmentUploadState.uploading,
+        ),
+      );
+    }
+
+    return displays;
+  }
+
+  Future<void> _openAttachment(
+    ChatMessage message,
+    _AttachmentDisplay attachment,
+  ) async {
+    if (!FeatureFlags.enableChatAttachments) return;
+
+    final attachmentId = attachment.id;
+    var hasAttachment =
+        await ChatAttachmentStore.instance.hasAttachment(attachmentId);
+    if (!hasAttachment) {
+      if (!_isLoggedIn) {
+        _showAttachmentError('Attachment not available on this device.');
+        return;
+      }
+
+      final downloaded =
+          await ChatService.instance.downloadAttachment(attachmentId);
+      hasAttachment = downloaded &&
+          await ChatAttachmentStore.instance.hasAttachment(attachmentId);
+
+      if (!hasAttachment) {
+        _showAttachmentError('Unable to download attachment.');
+        return;
+      }
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    final tempPath = path.join(
+      tempDir.path,
+      'ensu_attachment_${attachmentId}_$timestamp',
+    );
+
+    try {
+      await ChatAttachmentStore.instance.decryptAttachment(
+        attachmentId,
+        tempPath,
+        sessionUuid: message.sessionUuid,
+      );
+      final bytes = await File(tempPath).readAsBytes();
+      var extension = AttachmentTextExtractor.detectExtension(
+        bytes,
+        fileName: attachment.name,
+      );
+      extension ??= path.extension(attachment.name);
+      if (extension.isEmpty) {
+        extension = '.bin';
+      } else if (!extension.startsWith('.')) {
+        extension = '.$extension';
+      }
+      final finalPath = '$tempPath$extension';
+      await File(tempPath).rename(finalPath);
+
+      final result = await OpenFile.open(finalPath);
+      if (result.type != ResultType.done) {
+        final detail = result.message.trim();
+        _showAttachmentError(
+          detail.isEmpty
+              ? 'Unable to open attachment.'
+              : 'Unable to open attachment: $detail',
+        );
+      }
+    } catch (e) {
+      _showAttachmentError('Unable to open attachment: $e');
+    }
+  }
+
+  Future<List<String>> _getMissingStoredAttachments(
+    List<String> attachmentIds,
+  ) async {
+    if (!FeatureFlags.enableChatAttachments || attachmentIds.isEmpty) {
+      return const [];
+    }
+
+    final missing = <String>[];
+    for (final attachmentId in attachmentIds) {
+      final exists =
+          await ChatAttachmentStore.instance.hasAttachment(attachmentId);
+      if (!exists) {
+        missing.add(attachmentId);
+      }
+    }
+    return missing;
+  }
+
+  Future<_MissingAttachmentsAction> _showMissingAttachmentsSheet({
+    required int missingCount,
+    required bool allowDownload,
+  }) async {
+    if (!mounted || missingCount <= 0) {
+      return _MissingAttachmentsAction.cancel;
+    }
+    if (_isMissingAttachmentsSheetOpen) {
+      return _MissingAttachmentsAction.cancel;
+    }
+
+    _isMissingAttachmentsSheetOpen = true;
+    try {
+      final result = await showModalBottomSheet<_MissingAttachmentsAction>(
+        context: context,
+        isScrollControlled: false,
+        builder: (context) {
+          final theme = Theme.of(context);
+          final titleStyle = theme.textTheme.titleMedium;
+          final bodyStyle = theme.textTheme.bodyMedium;
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Attachments missing', style: titleStyle),
+                  const SizedBox(height: 8),
+                  Text(
+                    missingCount == 1
+                        ? '1 attachment isn\'t available on this device.'
+                        : '$missingCount attachments aren\'t available on this device.',
+                    style: bodyStyle,
+                  ),
+                  const SizedBox(height: 16),
+                  if (allowDownload) ...[
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(
+                        _MissingAttachmentsAction.download,
+                      ),
+                      child: const Text('Download attachments'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(
+                      _MissingAttachmentsAction.runWithout,
+                    ),
+                    child: const Text('Run without attachments'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(
+                      _MissingAttachmentsAction.cancel,
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      return result ?? _MissingAttachmentsAction.cancel;
+    } finally {
+      _isMissingAttachmentsSheetOpen = false;
+    }
+  }
+
+  Future<_MissingHistoryAttachments> _computeMissingHistoryAttachments({
+    Set<String> excludeMessageUuids = const {},
+    int maxMessagesToCheck = 6,
+    int maxAttachmentsToCheck = 24,
+  }) async {
+    if (!FeatureFlags.enableChatAttachments) {
+      return _MissingHistoryAttachments.empty;
+    }
+
+    final session = _currentSession;
+    if (session == null) {
+      return _MissingHistoryAttachments.empty;
+    }
+
+    final pathState = _buildMessagePath(session);
+    final path = pathState.messages;
+    if (path.length <= 1) {
+      return _MissingHistoryAttachments.empty;
+    }
+
+    final candidates = path.sublist(0, path.length - 1);
+
+    final missingMessageUuids = <String>{};
+    final missingAttachmentIds = <String>{};
+    final existenceCache = <String, bool>{};
+
+    var checkedMessages = 0;
+    var checkedAttachments = 0;
+
+    for (var i = candidates.length - 1;
+        i >= 0 && checkedMessages < maxMessagesToCheck;
+        i--) {
+      final message = candidates[i];
+      if (!message.isSelf || message.attachments.isEmpty) {
+        continue;
+      }
+      if (excludeMessageUuids.contains(message.messageUuid)) {
+        continue;
+      }
+
+      checkedMessages += 1;
+
+      for (final attachment in message.attachments) {
+        if (checkedAttachments >= maxAttachmentsToCheck) {
+          break;
+        }
+
+        final attachmentId = attachment.id;
+        final exists = existenceCache[attachmentId] ??=
+            await ChatAttachmentStore.instance.hasAttachment(attachmentId);
+        checkedAttachments += 1;
+
+        if (!exists) {
+          missingMessageUuids.add(message.messageUuid);
+          missingAttachmentIds.add(attachmentId);
+        }
+      }
+    }
+
+    if (missingAttachmentIds.isEmpty) {
+      return _MissingHistoryAttachments.empty;
+    }
+
+    return _MissingHistoryAttachments(
+      messageUuids: missingMessageUuids,
+      attachmentIds: missingAttachmentIds,
+    );
+  }
+
+  Future<Set<String>?> _confirmMissingHistoryAttachments({
+    Set<String> excludeMessageUuids = const {},
+  }) async {
+    final initial = await _computeMissingHistoryAttachments(
+      excludeMessageUuids: excludeMessageUuids,
+    );
+    if (initial.attachmentIds.isEmpty) {
+      return const <String>{};
+    }
+
+    final canDownload = _isLoggedIn;
+    final action = await _showMissingAttachmentsSheet(
+      missingCount: initial.attachmentIds.length,
+      allowDownload: canDownload,
+    );
+
+    if (action == _MissingAttachmentsAction.cancel) {
+      return null;
+    }
+
+    if (action == _MissingAttachmentsAction.runWithout) {
+      return initial.messageUuids;
+    }
+
+    if (canDownload) {
+      try {
+        await ChatService.instance.downloadAttachments(
+          initial.attachmentIds.toList(),
+        );
+      } catch (e) {
+        _showAttachmentError('Unable to download attachments: $e');
+      }
+    }
+
+    final refreshed = await _computeMissingHistoryAttachments(
+      excludeMessageUuids: excludeMessageUuids,
+    );
+    if (refreshed.attachmentIds.isEmpty) {
+      return const <String>{};
+    }
+
+    final fallback = await _showMissingAttachmentsSheet(
+      missingCount: refreshed.attachmentIds.length,
+      allowDownload: false,
+    );
+
+    if (fallback == _MissingAttachmentsAction.runWithout) {
+      return refreshed.messageUuids;
+    }
+
+    return null;
+  }
+
+  Future<_PreparedAttachmentFile> _prepareAttachmentForStorage(
+    _PendingAttachment attachment,
+  ) async {
+    if (attachment.kind != _PendingAttachmentKind.image) {
+      return _PreparedAttachmentFile(path: attachment.path);
+    }
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final timestamp = DateTime.now().microsecondsSinceEpoch;
+      final outputPath = path.join(
+        tempDir.path,
+        'ensu_attachment_$timestamp.jpg',
+      );
+      final compressed = await FlutterImageCompress.compressAndGetFile(
+        attachment.path,
+        outputPath,
+        quality: 80,
+        minWidth: 1280,
+        minHeight: 1280,
+        format: CompressFormat.jpeg,
+      );
+      if (compressed == null) {
+        return _PreparedAttachmentFile(path: attachment.path);
+      }
+      return _PreparedAttachmentFile(
+        path: compressed.path,
+        shouldDelete: true,
+      );
+    } catch (_) {
+      return _PreparedAttachmentFile(path: attachment.path);
+    }
+  }
+
+  Future<void> _pickImageAttachment() async {
+    if (!FeatureFlags.enableChatAttachments) return;
+    if (_isGenerating || _isDownloading || _isProcessingAttachments) {
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
+      if (result == null) return;
+
+      final attachments = <_PendingAttachment>[];
+      for (final file in result.files) {
+        final filePath = file.path;
+        if (filePath == null) continue;
+        attachments.add(_PendingAttachment(
+          path: filePath,
+          fileName: file.name,
+          size: file.size,
+          kind: _PendingAttachmentKind.image,
+        ));
+      }
+
+      if (attachments.isEmpty) return;
+      if (mounted) {
+        setState(() {
+          _pendingAttachments.addAll(attachments);
+        });
+      } else {
+        _pendingAttachments.addAll(attachments);
+      }
+    } catch (e) {
+      _showAttachmentError('Unable to attach image: $e');
+    }
+  }
+
+  Future<void> _pickDocumentAttachment() async {
+    if (!FeatureFlags.enableChatAttachments) return;
+    if (_isGenerating || _isDownloading || _isProcessingAttachments) {
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+    );
+    if (result == null) return;
+
+    final attachments = <_PendingAttachment>[];
+    try {
+      for (final file in result.files) {
+        final filePath = file.path;
+        if (filePath == null) continue;
+        attachments.add(_PendingAttachment(
+          path: filePath,
+          fileName: file.name,
+          size: file.size,
+          kind: _PendingAttachmentKind.document,
+        ));
+      }
+    } catch (e) {
+      _showAttachmentError('Unable to attach document: $e');
+    }
+
+    if (attachments.isEmpty) return;
+    if (mounted) {
+      setState(() {
+        _pendingAttachments.addAll(attachments);
+      });
+    } else {
+      _pendingAttachments.addAll(attachments);
+    }
+  }
+
+  void _removePendingAttachment(_PendingAttachment attachment) {
+    if (mounted) {
+      setState(() {
+        _pendingAttachments.remove(attachment);
+      });
+    } else {
+      _pendingAttachments.remove(attachment);
+    }
+  }
+
+  void _removeEditingAttachment(ChatAttachment attachment) {
+    if (mounted) {
+      setState(() {
+        _editingAttachments.removeWhere((item) => item.id == attachment.id);
+      });
+    } else {
+      _editingAttachments.removeWhere((item) => item.id == attachment.id);
+    }
+  }
+
+  void _setPendingAttachments(List<_PendingAttachment> attachments) {
+    if (mounted) {
+      setState(() {
+        _pendingAttachments
+          ..clear()
+          ..addAll(attachments);
+      });
+    } else {
+      _pendingAttachments
+        ..clear()
+        ..addAll(attachments);
+    }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 0) return '';
+    const kb = 1024;
+    const mb = 1024 * 1024;
+
+    if (bytes < kb) {
+      return '$bytes B';
+    }
+    if (bytes < mb) {
+      final value = bytes / kb;
+      return '${value.toStringAsFixed(value >= 10 ? 0 : 1)} KB';
+    }
+
+    final value = bytes / mb;
+    return '${value.toStringAsFixed(value >= 10 ? 0 : 1)} MB';
+  }
+
+  String _buildAttachmentSummary(List<_PendingAttachment> attachments) {
+    if (attachments.isEmpty) return '';
+    var images = 0;
+    var documents = 0;
+    for (final attachment in attachments) {
+      if (attachment.kind == _PendingAttachmentKind.image) {
+        images += 1;
+      } else {
+        documents += 1;
+      }
+    }
+
+    final parts = <String>[];
+    if (images > 0) {
+      parts.add(images == 1 ? '1 image' : '$images images');
+    }
+    if (documents > 0) {
+      parts.add(documents == 1 ? '1 document' : '$documents documents');
+    }
+
+    return parts.join(', ');
+  }
+
+  String _buildSessionTitle(String text, List<_PendingAttachment> attachments) {
+    if (text.isNotEmpty) {
+      return text.length > 30 ? '${text.substring(0, 27)}...' : text;
+    }
+    if (attachments.isEmpty) return 'ensu';
+
+    final summary = _buildAttachmentSummary(attachments);
+    if (summary.isEmpty) return 'ensu';
+    return summary.length > 30 ? '${summary.substring(0, 27)}...' : summary;
+  }
+
+  Future<({String text, List<LLMImage> images})?> _buildPromptFromStoredAttachments(
+    String text, {
+    required String sessionUuid,
+    required List<ChatAttachment> attachments,
+  }) async {
+    if (!FeatureFlags.enableChatAttachments || attachments.isEmpty) {
+      return (text: text, images: const <LLMImage>[]);
+    }
+
+    final attachmentIds =
+        attachments.map((attachment) => attachment.id).toList();
+    final missing = await _getMissingStoredAttachments(attachmentIds);
+    if (missing.isNotEmpty) {
+      final canDownload = _isLoggedIn;
+      final action = await _showMissingAttachmentsSheet(
+        missingCount: missing.length,
+        allowDownload: canDownload,
+      );
+
+      if (action == _MissingAttachmentsAction.cancel) {
+        return null;
+      }
+      if (action == _MissingAttachmentsAction.runWithout) {
+        _showAttachmentError(
+          missing.length == 1
+              ? 'Running without 1 missing attachment.'
+              : 'Running without ${missing.length} missing attachments.',
+        );
+        return (text: text, images: const <LLMImage>[]);
+      }
+
+      if (canDownload) {
+        try {
+          await ChatService.instance.downloadAttachments(missing);
+        } catch (e) {
+          _showAttachmentError('Unable to download attachments: $e');
+        }
+      }
+
+      final remaining = await _getMissingStoredAttachments(attachmentIds);
+      if (remaining.isNotEmpty) {
+        final fallback = await _showMissingAttachmentsSheet(
+          missingCount: remaining.length,
+          allowDownload: false,
+        );
+        if (fallback == _MissingAttachmentsAction.runWithout) {
+          _showAttachmentError(
+            remaining.length == 1
+                ? 'Running without 1 missing attachment.'
+                : 'Running without ${remaining.length} missing attachments.',
+          );
+          return (text: text, images: const <LLMImage>[]);
+        }
+        return null;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isProcessingAttachments = true;
+      });
+    } else {
+      _isProcessingAttachments = true;
+    }
+
+    try {
+      final items = await _loadPromptItemsFromStoredAttachments(
+        sessionUuid,
+        attachments,
+      );
+      if (items.length < attachments.length) {
+        _showAttachmentError('Unable to read one or more attachments.');
+        return null;
+      }
+      final images = <LLMImage>[];
+      for (final item in items) {
+        if (!item.isImage) {
+          continue;
+        }
+        final bytes = item.imageBytes;
+        if (bytes == null || bytes.isEmpty) {
+          continue;
+        }
+        images.add(
+          LLMImage(
+            bytes: bytes,
+            mimeType: item.imageMimeType ?? 'image/jpeg',
+            name: item.name,
+          ),
+        );
+      }
+
+      final documentItems =
+          items.where((item) => !item.isImage).toList();
+
+      final promptBudget = _resolvePromptTokenBudget();
+      var promptText = _composePrompt(
+        text,
+        documentItems,
+        tokenBudget: promptBudget,
+      ).trim();
+
+      if (promptText.isEmpty && images.isNotEmpty) {
+        promptText = images.length == 1
+            ? 'Describe the attached image.'
+            : 'Describe the attached images.';
+      }
+
+      return (text: promptText, images: images);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAttachments = false;
+        });
+      } else {
+        _isProcessingAttachments = false;
+      }
+    }
+  }
+
+  String _composePrompt(
+    String baseText,
+    List<_AttachmentPromptItem> items, {
+    int? tokenBudget,
+  }) {
+    if (tokenBudget == null) {
+      final buffer = StringBuffer();
+      if (baseText.isNotEmpty) {
+        buffer.write(baseText);
+      }
+
+      final documents =
+          items.where((item) => item.text?.trim().isNotEmpty ?? false).toList();
+      final images = items.where((item) => item.isImage).toList();
+
+      if (documents.isNotEmpty) {
+        if (buffer.isNotEmpty) {
+          buffer.write('\n\n');
+        }
+        for (var i = 0; i < documents.length; i++) {
+          final doc = documents[i];
+          final name = doc.name ?? 'Document ${i + 1}';
+          buffer.writeln('----- BEGIN DOCUMENT: $name -----');
+          buffer.writeln(doc.text!.trim());
+          buffer.writeln('----- END DOCUMENT: $name -----');
+          if (i < documents.length - 1) {
+            buffer.writeln();
+          }
+        }
+      }
+
+      if (images.isNotEmpty) {
+        if (buffer.isNotEmpty) {
+          buffer.write('\n\n');
+        }
+        final names = images
+            .map((item) => item.name ?? 'Image')
+            .where((name) => name.isNotEmpty)
+            .join(', ');
+        final label = images.length == 1 ? 'image' : 'images';
+        buffer.write('Attached $label: $names');
+      }
+
+      return buffer.toString();
+    }
+
+    var remainingTokens = tokenBudget;
+    if (remainingTokens <= 0) {
+      return '';
+    }
+
+    final buffer = StringBuffer();
+    final trimmedBase = baseText.trim();
+    if (trimmedBase.isNotEmpty) {
+      final baseTokens = _approxTokenCount(trimmedBase);
+      if (baseTokens >= remainingTokens) {
+        return _truncatePromptText(trimmedBase, remainingTokens);
+      }
+      buffer.write(trimmedBase);
+      remainingTokens -= baseTokens;
+    }
+
+    final documents =
+        items.where((item) => item.text?.trim().isNotEmpty ?? false).toList();
+    for (var i = 0; i < documents.length && remainingTokens > 0; i++) {
+      final doc = documents[i];
+      final name = doc.name ?? 'Document ${i + 1}';
+      final prefix = buffer.isNotEmpty ? '\n\n' : '';
+      final header = '$prefix----- BEGIN DOCUMENT: $name -----\n';
+      final footer = '\n----- END DOCUMENT: $name -----';
+      final headerTokens = _approxTokenCount(header);
+      final footerTokens = _approxTokenCount(footer);
+
+      if (headerTokens + footerTokens > remainingTokens) {
+        break;
+      }
+
+      buffer.write(header);
+      remainingTokens -= headerTokens;
+
+      final body = doc.text!.trim();
+      final availableForBody = remainingTokens - footerTokens;
+      if (availableForBody <= 0) {
+        break;
+      }
+
+      if (body.isNotEmpty) {
+        final bodyTokens = _approxTokenCount(body);
+        if (bodyTokens > availableForBody) {
+          final truncated = _truncatePromptText(body, availableForBody);
+          if (truncated.isNotEmpty) {
+            buffer.write(truncated);
+          }
+          buffer.write(footer);
+          remainingTokens = 0;
+          break;
+        }
+        buffer.write(body);
+        remainingTokens -= bodyTokens;
+      }
+
+      buffer.write(footer);
+      remainingTokens -= footerTokens;
+    }
+
+    final images = items.where((item) => item.isImage).toList();
+    if (images.isNotEmpty && remainingTokens > 0) {
+      final prefix = buffer.isNotEmpty ? '\n\n' : '';
+      final label =
+          images.length == 1 ? 'Attached image: ' : 'Attached images: ';
+      final labelText = '$prefix$label';
+      final labelTokens = _approxTokenCount(labelText);
+      if (labelTokens <= remainingTokens) {
+        final names = images
+            .map((item) => item.name ?? 'Image')
+            .map((name) => name.trim())
+            .where((name) => name.isNotEmpty)
+            .toList();
+        final namesText = names.isEmpty ? 'Image' : names.join(', ');
+        final remainingForNames = remainingTokens - labelTokens;
+        final namesOutput = remainingForNames <= 0
+            ? ''
+            : (_approxTokenCount(namesText) <= remainingForNames
+                ? namesText
+                : _truncatePromptText(namesText, remainingForNames));
+        if (namesOutput.isNotEmpty) {
+          buffer.write(labelText);
+          buffer.write(namesOutput);
+          remainingTokens -= labelTokens + _approxTokenCount(namesOutput);
+        }
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  Future<List<_AttachmentPromptItem>> _loadPromptItemsFromStoredAttachments(
+    String sessionUuid,
+    List<ChatAttachment> attachments,
+  ) async {
+    if (attachments.isEmpty) return [];
+
+    final tempDir = await getTemporaryDirectory();
+    final items = <_AttachmentPromptItem>[];
+
+    var imageCount = 0;
+    var documentCount = 0;
+
+    for (var i = 0; i < attachments.length; i++) {
+      final attachment = attachments[i];
+      final tempPath = path.join(
+        tempDir.path,
+        'ensu_attachment_${attachment.id}',
+      );
+
+      try {
+        final kindLabel =
+            attachment.kind == ChatAttachmentKind.image ? 'Image' : 'Document';
+
+        if (attachment.kind == ChatAttachmentKind.image) {
+          imageCount += 1;
+        } else {
+          documentCount += 1;
+        }
+
+        final kindIndex = attachment.kind == ChatAttachmentKind.image
+            ? imageCount
+            : documentCount;
+
+        final resolvedName = '$kindLabel $kindIndex';
+
+        await ChatAttachmentStore.instance.decryptAttachment(
+          attachment.id,
+          tempPath,
+          sessionUuid: sessionUuid,
+        );
+
+        final bytes = await File(tempPath).readAsBytes();
+        final content = await AttachmentTextExtractor.extractFromBytes(bytes);
+
+        if (content.isDocument && content.text != null) {
+          items.add(_AttachmentPromptItem(
+            name: resolvedName,
+            text: content.text,
+          ));
+          continue;
+        }
+
+        if (content.isImage) {
+          final ext = AttachmentTextExtractor.detectExtension(bytes)?.toLowerCase();
+          final mimeType = switch (ext) {
+            '.png' => 'image/png',
+            '.gif' => 'image/gif',
+            '.webp' => 'image/webp',
+            '.bmp' => 'image/bmp',
+            '.heic' => 'image/heic',
+            '.heif' => 'image/heif',
+            _ => 'image/jpeg',
+          };
+
+          items.add(_AttachmentPromptItem(
+            name: resolvedName,
+            isImage: true,
+            imageBytes: bytes,
+            imageMimeType: mimeType,
+          ));
+        }
+      } catch (_) {
+        continue;
+      } finally {
+        final tempFile = File(tempPath);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+      }
+    }
+
+    return items;
+  }
+
+  Future<_PreparedAttachments> _persistPendingAttachments(
+    String sessionUuid,
+    List<_PendingAttachment> attachments,
+  ) async {
+    if (attachments.isEmpty) {
+      return _PreparedAttachments.empty;
+    }
+
+    final stored = <ChatAttachment>[];
+
+    for (final attachment in attachments) {
+      final prepared = await _prepareAttachmentForStorage(attachment);
+      try {
+        final info = await ChatAttachmentStore.instance.writeAttachment(
+          prepared.path,
+          sessionUuid: sessionUuid,
+          fileName: attachment.fileName,
+        );
+
+        final extension = path.extension(attachment.fileName).trim();
+        final normalizedExtension = extension.isEmpty ? null : extension;
+
+        final storedAttachment = ChatAttachment(
+          id: info.attachmentId,
+          kind: attachment.kind == _PendingAttachmentKind.image
+              ? ChatAttachmentKind.image
+              : ChatAttachmentKind.document,
+          size: info.size,
+          extension: normalizedExtension,
+          encryptedName: info.encryptedName,
+        );
+
+        await ChatDB.instance.insertPendingAttachment(
+          attachmentId: info.attachmentId,
+          size: info.size,
+          encryptedName: info.encryptedName,
+          sessionUuid: sessionUuid,
+        );
+
+        stored.add(storedAttachment);
+      } finally {
+        if (prepared.shouldDelete) {
+          final file = File(prepared.path);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        }
+      }
+    }
+
+    return _PreparedAttachments(attachments: stored);
+  }
+
+  Future<void> _deleteStoredAttachments(List<String> attachmentIds) async {
+    for (final attachmentId in attachmentIds) {
+      try {
+        await ChatAttachmentStore.instance.deleteAttachment(attachmentId);
+      } catch (_) {
+        continue;
+      }
+    }
+  }
+
+  Widget _buildAttachmentPreview(bool isDark) {
+    if (!FeatureFlags.enableChatAttachments) {
+      return const SizedBox.shrink();
+    }
+    final muted = isDark ? EnsuColors.mutedDark : EnsuColors.muted;
+    final tint = isDark ? EnsuColors.codeBgDark : EnsuColors.codeBg;
+    final editingAttachments =
+        _editingMessage == null ? const <ChatAttachment>[] : _editingAttachments;
+    final hasAttachments =
+        editingAttachments.isNotEmpty || _pendingAttachments.isNotEmpty;
+
+    InputChip buildChip({
+      required String label,
+      required String sizeLabel,
+      required _PendingAttachmentKind kind,
+      required VoidCallback onDeleted,
+      bool isUploading = false,
+    }) {
+      final icon = kind == _PendingAttachmentKind.image
+          ? LucideIcons.image
+          : LucideIcons.fileText;
+
+      return InputChip(
+        label: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: muted,
+                  ),
+                ),
+              ),
+              if (sizeLabel.isNotEmpty) ...[
+                Text(
+                  ' · $sizeLabel',
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: muted,
+                  ),
+                ),
+              ],
+              if (isUploading) ...[
+                const SizedBox(width: 6),
+                SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(muted),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        avatar: Icon(icon, size: 14, color: muted),
+        backgroundColor: tint,
+        deleteIcon: Icon(LucideIcons.x, size: 14, color: muted),
+        onDeleted: onDeleted,
+        padding: EdgeInsets.zero,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      );
+    }
+
+    final chips = <Widget>[];
+    var imageIndex = 0;
+    var documentIndex = 0;
+
+    for (final attachment in editingAttachments) {
+      final kind = attachment.kind == ChatAttachmentKind.image
+          ? _PendingAttachmentKind.image
+          : _PendingAttachmentKind.document;
+      if (kind == _PendingAttachmentKind.image) {
+        imageIndex += 1;
+      } else {
+        documentIndex += 1;
+      }
+      final labelBase = kind == _PendingAttachmentKind.image
+          ? 'Image $imageIndex'
+          : 'Document $documentIndex';
+      final sizeLabel = _formatBytes(attachment.size);
+      chips.add(
+        buildChip(
+          label: labelBase,
+          sizeLabel: sizeLabel,
+          kind: kind,
+          onDeleted: () => _removeEditingAttachment(attachment),
+          isUploading:
+              attachment.uploadState == ChatAttachmentUploadState.uploading,
+        ),
+      );
+    }
+
+    for (final attachment in _pendingAttachments) {
+      final kind = attachment.kind == _PendingAttachmentKind.image
+          ? _PendingAttachmentKind.image
+          : _PendingAttachmentKind.document;
+      if (kind == _PendingAttachmentKind.image) {
+        imageIndex += 1;
+      } else {
+        documentIndex += 1;
+      }
+      final labelBase = kind == _PendingAttachmentKind.image
+          ? 'Image $imageIndex'
+          : 'Document $documentIndex';
+      final sizeLabel = _formatBytes(attachment.size);
+      chips.add(
+        buildChip(
+          label: labelBase,
+          sizeLabel: sizeLabel,
+          kind: kind,
+          onDeleted: () => _removePendingAttachment(attachment),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasAttachments)
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: chips,
+            ),
+          if (_isProcessingAttachments)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(muted),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Reading attachment...',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _buildLastMessagePreview(String text) {
+    final visible = parseAssistantParts(text).markdown;
+    final trimmed = visible.trim();
+    if (trimmed.isEmpty) return '';
+    return trimmed.length > 50 ? '${trimmed.substring(0, 47)}...' : trimmed;
+  }
+
+  void _upsertLocalSessionWithMessage({
+    required String rootSessionUuid,
+    required String sessionTitle,
+    required ChatMessage message,
+    required int updatedAt,
+  }) {
+    final existingSession =
+        _sessions.firstWhereOrNull((s) => s.sessionUuid == rootSessionUuid);
+
+    ChatSession? baseSession = existingSession;
+    if (baseSession == null &&
+        _currentSession != null &&
+        _currentSession!.sessionUuid == rootSessionUuid) {
+      baseSession = _currentSession;
+    }
+
+    final session = baseSession ??
+        ChatSession(
+          sessionUuid: rootSessionUuid,
+          title: sessionTitle,
+          createdAt: updatedAt,
+          updatedAt: updatedAt,
+          rootSessionUuid: rootSessionUuid,
+          branchFromMessageUuid: null,
+          messages: const [],
+          lastMessagePreview: null,
+        );
+
+    final messages = List<ChatMessage>.from(session.messages);
+    final existingIndex =
+        messages.indexWhere((m) => m.messageUuid == message.messageUuid);
+    if (existingIndex == -1) {
+      messages.add(message);
+    } else {
+      messages[existingIndex] = message;
+    }
+    messages.sort(_compareMessages);
+
+    final updatedSession = ChatSession(
+      sessionUuid: session.sessionUuid,
+      title: session.title,
+      createdAt: session.createdAt,
+      updatedAt: updatedAt > session.updatedAt ? updatedAt : session.updatedAt,
+      rootSessionUuid: session.rootSessionUuid,
+      branchFromMessageUuid: session.branchFromMessageUuid,
+      messages: messages,
+      lastMessagePreview: _buildLastMessagePreview(message.text),
+    );
+
+    setState(() {
+      if (_currentSessionId == rootSessionUuid ||
+          _currentSession?.sessionUuid == rootSessionUuid) {
+        _currentSession = updatedSession;
+      }
+
+      final sessions = List<ChatSession>.from(_sessions);
+      final index =
+          sessions.indexWhere((s) => s.sessionUuid == rootSessionUuid);
+      if (index == -1) {
+        sessions.add(updatedSession);
+      } else {
+        sessions[index] = updatedSession;
+      }
+      sessions.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      _sessions = sessions;
+    });
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _isGenerating || _isDownloading) return;
+    final pendingAttachments = FeatureFlags.enableChatAttachments
+        ? List<_PendingAttachment>.from(_pendingAttachments)
+        : const <_PendingAttachment>[];
+    if ((text.isEmpty && pendingAttachments.isEmpty) ||
+        _isGenerating ||
+        _isDownloading ||
+        _isProcessingAttachments) {
+      return;
+    }
 
     final editingMessage = _editingMessage;
     if (editingMessage != null) {
-      if (text == editingMessage.text) {
+      final editingAttachments =
+          List<ChatAttachment>.from(_editingAttachments);
+      final attachmentsChanged = !_attachmentsEquality.equals(
+        editingMessage.attachments,
+        editingAttachments,
+      );
+      final hasNewAttachments = pendingAttachments.isNotEmpty;
+
+      if (text == editingMessage.text &&
+          !attachmentsChanged &&
+          !hasNewAttachments) {
         _cancelEditing(restoreDraft: false);
         FocusManager.instance.primaryFocus?.unfocus();
         return;
@@ -619,11 +1886,36 @@ class _HomePageState extends BaseHomePageState<HomePage>
 
       final parentMessageUuid = editingMessage.parentMessageUuid;
       final targetSessionUuid = editingMessage.sessionUuid;
+
+      _PreparedAttachments preparedAttachments = _PreparedAttachments.empty;
+      if (pendingAttachments.isNotEmpty) {
+        try {
+          preparedAttachments = await _persistPendingAttachments(
+            targetSessionUuid,
+            pendingAttachments,
+          );
+        } catch (e) {
+          _showAttachmentError('Unable to save attachments: $e');
+          _messageController.text = text;
+          _messageController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _messageController.text.length),
+          );
+          _messageFocusNode.requestFocus();
+          _setPendingAttachments(pendingAttachments);
+          return;
+        }
+      }
+
+      final attachments = [
+        ...editingAttachments,
+        ...preparedAttachments.attachments,
+      ];
       final userMessageUuid = await ChatService.instance.sendMessage(
         targetSessionUuid,
         text,
         parentMessageUuid: parentMessageUuid,
         useSessionHeadWhenParentNull: false,
+        attachments: attachments,
       );
 
       final selectionKey = parentMessageUuid ?? _rootBranchKey;
@@ -646,11 +1938,41 @@ class _HomePageState extends BaseHomePageState<HomePage>
       });
 
       try {
+        final promptPayload = await _buildPromptFromStoredAttachments(
+          text,
+          sessionUuid: targetSessionUuid,
+          attachments: attachments,
+        );
+        if (promptPayload == null) {
+          return;
+        }
+
+        final promptText = promptPayload.text;
+        final promptImages = promptPayload.images;
+
         final buffer = StringBuffer();
         final startTime = DateTime.now();
         int tokenCount = 0;
 
-        await for (final token in _llm.generateStream(text)) {
+        final missingHistoryAttachments =
+            await _confirmMissingHistoryAttachments();
+        if (missingHistoryAttachments == null) {
+          return;
+        }
+
+        final history = _buildLlmHistory(
+          promptText,
+          messageUuidsWithMissingAttachments: missingHistoryAttachments,
+        );
+
+        await for (final token
+            in _llm.generateStream(
+              promptText,
+              history: history,
+              images: promptImages,
+              enableTodoTools: true,
+              todoSessionId: sessionKey,
+            )) {
           buffer.write(token);
           tokenCount = buffer
               .toString()
@@ -708,6 +2030,11 @@ class _HomePageState extends BaseHomePageState<HomePage>
       return;
     }
 
+    final messageText = text;
+    final previousAttachmentsSnapshot = List<_PendingAttachment>.from(
+      pendingAttachments,
+    );
+
     _messageController.clear();
 
     // Dismiss keyboard after sending message for better UX
@@ -716,20 +2043,38 @@ class _HomePageState extends BaseHomePageState<HomePage>
     // Reset auto-scroll when user sends a new message
     _shouldAutoScroll = true;
 
-    // Ensure model is ready
-    if (!await _ensureModelReady()) {
-      // User cancelled or error
-      return;
-    }
+    final previousCurrentSessionId = _currentSessionId;
+    final previousCurrentSession = _currentSession;
+    final previousTitle = _currentTitle;
+    final previousSessionsSnapshot = List<ChatSession>.from(_sessions);
+    final previousBranchSelectionsSnapshot = _branchSelectionsBySession.map(
+      (sessionUuid, selections) =>
+          MapEntry(sessionUuid, Map<String, String>.from(selections)),
+    );
 
-    // Create session if needed
+    String? createdSessionId;
+
+    // Create session if needed (persist first so UI updates immediately)
     if (_currentSessionId == null) {
       try {
-        final title = text.length > 30 ? '${text.substring(0, 27)}...' : text;
+        final title = _buildSessionTitle(text, pendingAttachments);
+        final createdAt = DateTime.now().microsecondsSinceEpoch;
         final sessionId = await ChatService.instance.createSession(title);
+        createdSessionId = sessionId;
+        if (!mounted) return;
         setState(() {
           _currentSessionId = sessionId;
           _currentTitle = title;
+          _currentSession = ChatSession(
+            sessionUuid: sessionId,
+            title: title,
+            createdAt: createdAt,
+            updatedAt: createdAt,
+            rootSessionUuid: sessionId,
+            branchFromMessageUuid: null,
+            messages: const [],
+            lastMessagePreview: null,
+          );
         });
       } catch (e) {
         if (mounted) {
@@ -753,18 +2098,165 @@ class _HomePageState extends BaseHomePageState<HomePage>
       }
     }
 
-    // Save user message
+    _PreparedAttachments preparedAttachments;
+    try {
+      preparedAttachments = await _persistPendingAttachments(
+        targetSessionUuid,
+        pendingAttachments,
+      );
+    } catch (e) {
+      _showAttachmentError('Unable to save attachments: $e');
+      _messageController.text = text;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
+      _messageFocusNode.requestFocus();
+      _setPendingAttachments(previousAttachmentsSnapshot);
+      return;
+    }
+
+    final attachments = preparedAttachments.attachments;
+
+    final promptPayload = await _buildPromptFromStoredAttachments(
+      messageText,
+      sessionUuid: targetSessionUuid,
+      attachments: attachments,
+    );
+    if (promptPayload == null) {
+      await _deleteStoredAttachments(
+        attachments.map((attachment) => attachment.id).toList(),
+      );
+      if (createdSessionId != null) {
+        try {
+          await ChatService.instance.deleteSession(createdSessionId);
+        } catch (_) {
+          // Ignore cleanup errors.
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _sessions = previousSessionsSnapshot;
+          _currentSessionId = previousCurrentSessionId;
+          _currentSession = previousCurrentSession;
+          _currentTitle = previousTitle;
+          _branchSelectionsBySession
+            ..clear()
+            ..addAll(previousBranchSelectionsSnapshot);
+        });
+      } else {
+        _sessions = previousSessionsSnapshot;
+        _currentSessionId = previousCurrentSessionId;
+        _currentSession = previousCurrentSession;
+        _currentTitle = previousTitle;
+        _branchSelectionsBySession
+          ..clear()
+          ..addAll(previousBranchSelectionsSnapshot);
+      }
+
+      _setPendingAttachments(previousAttachmentsSnapshot);
+      _messageController.text = text;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
+      _messageFocusNode.requestFocus();
+      unawaited(_loadSessions());
+      return;
+    }
+
+    final promptText = promptPayload.text;
+    final promptImages = promptPayload.images;
+
+    // Save user message (DB first, then update UI without waiting for reload)
     final userMessageUuid = await ChatService.instance.sendMessage(
       targetSessionUuid,
-      text,
+      messageText,
       parentMessageUuid: parentMessageUuid,
+      attachments: attachments,
     );
+
     final selectionKey = parentMessageUuid ?? _rootBranchKey;
-    final sessionKey = _currentSessionId ?? targetSessionUuid;
-    _branchSelectionsForSession(sessionKey)[selectionKey] = userMessageUuid;
-    _persistBranchSelection(sessionKey, selectionKey, userMessageUuid);
-    await _loadSessions();
+    final rootSessionUuid = _currentSessionId ?? targetSessionUuid;
+    final sessionKey = rootSessionUuid;
+    _branchSelectionsForSession(rootSessionUuid)[selectionKey] =
+        userMessageUuid;
+
+    final sentAt = DateTime.now().microsecondsSinceEpoch;
+    _upsertLocalSessionWithMessage(
+      rootSessionUuid: rootSessionUuid,
+      sessionTitle: _currentTitle,
+      message: ChatMessage(
+        messageUuid: userMessageUuid,
+        sessionUuid: targetSessionUuid,
+        parentMessageUuid: parentMessageUuid,
+        isSelf: true,
+        text: messageText,
+        attachments: attachments,
+        createdAt: sentAt,
+      ),
+      updatedAt: sentAt,
+    );
+    if (pendingAttachments.isNotEmpty) {
+      _setPendingAttachments(const <_PendingAttachment>[]);
+    }
     _scrollToBottom(force: true);
+
+    // Ensure model is ready before generating AI response.
+    // If the user cancels model loading/downloading, rollback the DB writes so the
+    // message doesn't get persisted.
+    final modelReady = await _ensureModelReady();
+    if (!modelReady) {
+      // Cancel any in-flight loads triggered by the DB write.
+      _loadSessionsToken++;
+
+      try {
+        if (createdSessionId != null) {
+          await ChatService.instance.deleteSession(createdSessionId);
+        } else {
+          await ChatService.instance.deleteMessage(
+            targetSessionUuid,
+            userMessageUuid,
+          );
+        }
+      } catch (_) {
+        // Best-effort rollback; UI state is restored regardless.
+      }
+
+      await _deleteStoredAttachments(
+        attachments.map((attachment) => attachment.id).toList(),
+      );
+
+      if (mounted) {
+        setState(() {
+          _sessions = previousSessionsSnapshot;
+          _currentSessionId = previousCurrentSessionId;
+          _currentSession = previousCurrentSession;
+          _currentTitle = previousTitle;
+          _branchSelectionsBySession
+            ..clear()
+            ..addAll(previousBranchSelectionsSnapshot);
+        });
+      } else {
+        _sessions = previousSessionsSnapshot;
+        _currentSessionId = previousCurrentSessionId;
+        _currentSession = previousCurrentSession;
+        _currentTitle = previousTitle;
+        _branchSelectionsBySession
+          ..clear()
+          ..addAll(previousBranchSelectionsSnapshot);
+      }
+
+      _setPendingAttachments(previousAttachmentsSnapshot);
+      _messageController.text = text;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: _messageController.text.length),
+      );
+      _messageFocusNode.requestFocus();
+      unawaited(_loadSessions());
+      return;
+    }
+
+    _persistBranchSelection(rootSessionUuid, selectionKey, userMessageUuid);
 
     // Generate AI response
     setState(() {
@@ -781,7 +2273,25 @@ class _HomePageState extends BaseHomePageState<HomePage>
       final startTime = DateTime.now();
       int tokenCount = 0;
 
-      await for (final token in _llm.generateStream(text)) {
+      final missingHistoryAttachments =
+          await _confirmMissingHistoryAttachments();
+      if (missingHistoryAttachments == null) {
+        return;
+      }
+
+      final history = _buildLlmHistory(
+        promptText,
+        messageUuidsWithMissingAttachments: missingHistoryAttachments,
+      );
+
+      await for (final token
+          in _llm.generateStream(
+            promptText,
+            history: history,
+            images: promptImages,
+            enableTodoTools: true,
+            todoSessionId: sessionKey,
+          )) {
         buffer.write(token);
         // Simple token approximation: count words (split by whitespace)
         tokenCount = buffer
@@ -871,7 +2381,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
     ).then((_) {
       setState(() {});
       if (_isLoggedIn) {
-        ChatService.instance.sync();
+        unawaited(_triggerAutoSync());
       }
     });
   }
@@ -891,7 +2401,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
     ).then((_) {
       setState(() {});
       if (_isLoggedIn) {
-        ChatService.instance.sync();
+        unawaited(_triggerAutoSync());
       }
     });
   }
@@ -906,13 +2416,18 @@ class _HomePageState extends BaseHomePageState<HomePage>
     );
   }
 
-  void _openModelSettings() {
+  Future<void> _openModelSettings() async {
     Navigator.pop(context);
-    Navigator.of(context).push(
+    final modelChanged = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => const ModelSettingsPage(),
       ),
     );
+
+    if (!mounted) return;
+    if (modelChanged == true) {
+      unawaited(_ensureModelReady());
+    }
   }
 
   Map<String, String> _branchSelectionsForSession(String sessionUuid) {
@@ -1077,6 +2592,172 @@ class _HomePageState extends BaseHomePageState<HomePage>
     );
   }
 
+  int _approxTokenCount(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return 0;
+    }
+    return (trimmed.length / 4).ceil();
+  }
+
+  int _resolveContextSizeForHistory() {
+    final config = Configuration.instance;
+    final custom = config.getUseCustomModel()
+        ? config.getCustomModelContextLength()
+        : null;
+    if (custom != null && custom > 0) {
+      return custom;
+    }
+    return 8192;
+  }
+
+  int _resolveMaxOutputTokensForHistory(int contextSize) {
+    final config = Configuration.instance;
+    final custom = config.getUseCustomModel()
+        ? config.getCustomModelMaxOutputTokens()
+        : null;
+    final resolved = (custom != null && custom > 0) ? custom : 2048;
+    if (resolved > contextSize) {
+      return contextSize;
+    }
+    return resolved;
+  }
+
+  int _resolvePromptTokenBudget() {
+    final contextSize = _resolveContextSizeForHistory();
+    final maxOutputTokens = _resolveMaxOutputTokensForHistory(contextSize);
+    const safetyMargin = 256;
+    final budget = contextSize - maxOutputTokens - safetyMargin;
+    return budget > 0 ? budget : 0;
+  }
+
+  String _historyTextForMessage(
+    ChatMessage message, {
+    bool attachmentsMissing = false,
+  }) {
+    if (!message.isSelf) {
+      return parseAssistantParts(message.text).markdown.trim();
+    }
+
+    var text = message.text.trim();
+    if (FeatureFlags.enableChatAttachments && message.attachments.isNotEmpty) {
+      final count = message.attachments.length;
+      final label = count == 1 ? 'attachment' : 'attachments';
+      final suffix = attachmentsMissing
+          ? '[$count $label missing]'
+          : '[$count $label attached]';
+      if (text.isEmpty) {
+        text = suffix;
+      } else {
+        text = '$text\n\n$suffix';
+      }
+    }
+    return text;
+  }
+
+  String _truncatePromptText(String text, int tokenBudget) {
+    if (tokenBudget <= 0) {
+      return '';
+    }
+    final maxChars = tokenBudget * 4;
+    if (text.length <= maxChars) {
+      return text;
+    }
+    return '${text.substring(0, maxChars)}…';
+  }
+
+  String _truncateToTokenBudget(String text, int tokenBudget) {
+    if (tokenBudget <= 0) {
+      return '';
+    }
+    final maxChars = tokenBudget * 4;
+    if (text.length <= maxChars) {
+      return text;
+    }
+    return '…${text.substring(text.length - maxChars)}';
+  }
+
+  List<LLMMessage> _buildLlmHistory(
+    String promptText, {
+    Set<String> messageUuidsWithMissingAttachments = const {},
+  }) {
+    final session = _currentSession;
+    if (session == null) {
+      return const [];
+    }
+
+    final pathState = _buildMessagePath(session);
+    final path = pathState.messages;
+    if (path.length <= 1) {
+      return const [];
+    }
+
+    final contextSize = _resolveContextSizeForHistory();
+    final maxOutputTokens = _resolveMaxOutputTokensForHistory(contextSize);
+
+    const safetyMargin = 256;
+    var historyBudget = contextSize - maxOutputTokens - safetyMargin;
+    if (historyBudget <= 0) {
+      return const [];
+    }
+
+    historyBudget -= _approxTokenCount(promptText);
+    if (historyBudget <= 0) {
+      return const [];
+    }
+
+    final candidates = path.sublist(0, path.length - 1);
+
+    final selected = <LLMMessage>[];
+    var usedTokens = 0;
+
+    for (var i = candidates.length - 1; i >= 0; i--) {
+      final message = candidates[i];
+      final text = _historyTextForMessage(
+        message,
+        attachmentsMissing:
+            messageUuidsWithMissingAttachments.contains(message.messageUuid),
+      );
+      if (text.isEmpty) {
+        continue;
+      }
+
+      final cost = _approxTokenCount(text);
+      if (cost <= 0) {
+        continue;
+      }
+
+      if (usedTokens + cost > historyBudget) {
+        if (selected.isNotEmpty) {
+          break;
+        }
+
+        final truncated = _truncateToTokenBudget(text, historyBudget).trim();
+        if (truncated.isNotEmpty) {
+          selected.add(
+            LLMMessage(
+              text: truncated,
+              isUser: message.isSelf,
+              timestamp: message.createdAt,
+            ),
+          );
+        }
+        break;
+      }
+
+      selected.add(
+        LLMMessage(
+          text: text,
+          isUser: message.isSelf,
+          timestamp: message.createdAt,
+        ),
+      );
+      usedTokens += cost;
+    }
+
+    return selected.reversed.toList();
+  }
+
   _BranchSwitcherState _buildBranchSwitcher({
     required String sessionUuid,
     required String selectionKey,
@@ -1176,8 +2857,12 @@ class _HomePageState extends BaseHomePageState<HomePage>
       }
       if (candidate.isSelf == sibling.isSelf &&
           candidate.text == sibling.text &&
+          _attachmentsEquality.equals(
+            candidate.attachments,
+            sibling.attachments,
+          ) &&
           (candidate.createdAt - sibling.createdAt).abs() <=
-              ChatDag.defaultDuplicateWindowMs) {
+              ChatDag.defaultDuplicateWindowUs) {
         return true;
       }
     }
@@ -1268,6 +2953,8 @@ class _HomePageState extends BaseHomePageState<HomePage>
                               return _StreamingBubble(
                                 text: _streamingResponse,
                                 isLoading: _isGenerating,
+                                storageId: _streamingParentMessageUuid ??
+                                    _streamingBranchKey,
                                 branchSwitcher: branchSwitcher,
                               );
                             }
@@ -1277,8 +2964,14 @@ class _HomePageState extends BaseHomePageState<HomePage>
                                     ? index - 1
                                     : index;
                             final message = messages[messageIndex];
+                            final attachments =
+                                FeatureFlags.enableChatAttachments &&
+                                        message.attachments.isNotEmpty
+                                    ? _attachmentDisplaysForMessage(message)
+                                    : const <_AttachmentDisplay>[];
                             return _MessageBubble(
                               message: message,
+                              attachments: attachments,
                               isInterrupted: _interruptedMessageUuids
                                   .contains(message.messageUuid),
                               onRetry: message.isSelf
@@ -1287,6 +2980,10 @@ class _HomePageState extends BaseHomePageState<HomePage>
                               onEdit: message.isSelf
                                   ? () => _startEditingMessage(message)
                                   : null,
+                              onAttachmentTap: attachments.isEmpty
+                                  ? null
+                                  : (attachment) =>
+                                      _openAttachment(message, attachment),
                               branchSwitcher:
                                   branchSwitchers[message.messageUuid],
                             );
@@ -1594,7 +3291,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
 
     for (final session in sessions) {
       final sessionDate =
-          DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+          DateTime.fromMicrosecondsSinceEpoch(session.updatedAt);
       final sessionDay =
           DateTime(sessionDate.year, sessionDate.month, sessionDate.day);
 
@@ -1840,6 +3537,15 @@ class _HomePageState extends BaseHomePageState<HomePage>
     final arrowBorderColor = isDark ? EnsuColors.ruleDark : EnsuColors.rule;
     final arrowFillColor = isDark ? EnsuColors.codeBgDark : EnsuColors.codeBg;
     final arrowIconColor = isDark ? EnsuColors.mutedDark : EnsuColors.muted;
+    final attachmentIconColor =
+        isDark ? EnsuColors.mutedDark : EnsuColors.muted;
+    final attachmentDisabledColor =
+        isDark ? EnsuColors.ruleDark : EnsuColors.rule;
+    final canAttach = FeatureFlags.enableChatAttachments &&
+        !_isGenerating &&
+        !_isDownloading &&
+        !_isProcessingAttachments &&
+        _editingMessage == null;
 
     final inputContainer = Container(
       padding: const EdgeInsets.only(left: 20, right: 8, top: 4, bottom: 4),
@@ -1858,6 +3564,9 @@ class _HomePageState extends BaseHomePageState<HomePage>
           children: [
             if (_editingMessage != null)
               _buildEditBanner(_editingMessage!, isDark),
+            if (FeatureFlags.enableChatAttachments &&
+                (_pendingAttachments.isNotEmpty || _isProcessingAttachments))
+              _buildAttachmentPreview(isDark),
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -1868,11 +3577,9 @@ class _HomePageState extends BaseHomePageState<HomePage>
                       controller: _messageController,
                       focusNode: _messageFocusNode,
                       decoration: InputDecoration(
-                        hintText: _isGenerating
-                            ? 'Generating... (keep typing)'
-                            : _isDownloading
-                                ? 'Downloading model... (queue messages)'
-                                : 'Compose your message...',
+                        hintText: _isDownloading
+                            ? 'Downloading model... (queue messages)'
+                            : 'Compose your message...',
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
@@ -1894,6 +3601,52 @@ class _HomePageState extends BaseHomePageState<HomePage>
                     ),
                   ),
                 ),
+                if (FeatureFlags.enableChatAttachments &&
+                    _editingMessage == null) ...[
+                  const SizedBox(width: 4),
+                  PopupMenuButton<_AttachmentMenuAction>(
+                    tooltip: 'Add attachment',
+                    enabled: canAttach,
+                    icon: Icon(
+                      LucideIcons.plus,
+                      size: 18,
+                      color: canAttach
+                          ? attachmentIconColor
+                          : attachmentDisabledColor,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onSelected: (action) {
+                      if (action == _AttachmentMenuAction.image) {
+                        _pickImageAttachment();
+                      } else if (action == _AttachmentMenuAction.document) {
+                        _pickDocumentAttachment();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: _AttachmentMenuAction.image,
+                        child: Row(
+                          children: const [
+                            Icon(LucideIcons.image, size: 16),
+                            SizedBox(width: 8),
+                            Text('Image'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: _AttachmentMenuAction.document,
+                        child: Row(
+                          children: const [
+                            Icon(LucideIcons.fileText, size: 16),
+                            SizedBox(width: 8),
+                            Text('Document'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(width: 4),
                 Align(
                   alignment: Alignment.center,
@@ -1913,13 +3666,14 @@ class _HomePageState extends BaseHomePageState<HomePage>
                                     ? LucideIcons.download
                                     : LucideIcons.send,
                                 size: 22,
-                                color: _isDownloading
-                                    ? (isDark
-                                        ? EnsuColors.ruleDark
-                                        : EnsuColors.rule)
-                                    : (isDark
-                                        ? EnsuColors.mutedDark
-                                        : EnsuColors.muted),
+                                color:
+                                    _isDownloading || _isProcessingAttachments
+                                        ? (isDark
+                                            ? EnsuColors.ruleDark
+                                            : EnsuColors.rule)
+                                        : (isDark
+                                            ? EnsuColors.mutedDark
+                                            : EnsuColors.muted),
                               ),
                       ),
                     ),
@@ -1927,7 +3681,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
                     constraints: const BoxConstraints(),
                     onPressed: _isGenerating
                         ? _stopGeneration
-                        : _isDownloading
+                        : _isDownloading || _isProcessingAttachments
                             ? null
                             : _sendMessage,
                   ),
@@ -2010,6 +3764,95 @@ class _MessagePathState {
         streamingIndex = null;
 }
 
+enum _MissingAttachmentsAction { download, runWithout, cancel }
+
+class _MissingHistoryAttachments {
+  final Set<String> messageUuids;
+  final Set<String> attachmentIds;
+
+  const _MissingHistoryAttachments({
+    required this.messageUuids,
+    required this.attachmentIds,
+  });
+
+  static const empty = _MissingHistoryAttachments(
+    messageUuids: <String>{},
+    attachmentIds: <String>{},
+  );
+}
+
+enum _PendingAttachmentKind { image, document }
+
+class _PendingAttachment {
+  final String path;
+  final String fileName;
+  final int size;
+  final _PendingAttachmentKind kind;
+
+  const _PendingAttachment({
+    required this.path,
+    required this.fileName,
+    required this.size,
+    required this.kind,
+  });
+}
+
+class _AttachmentPromptItem {
+  final String? name;
+  final String? text;
+  final bool isImage;
+  final Uint8List? imageBytes;
+  final String? imageMimeType;
+
+  const _AttachmentPromptItem({
+    this.name,
+    this.text,
+    this.isImage = false,
+    this.imageBytes,
+    this.imageMimeType,
+  });
+}
+
+class _PreparedAttachments {
+  final List<ChatAttachment> attachments;
+
+  const _PreparedAttachments({
+    required this.attachments,
+  });
+
+  static const empty = _PreparedAttachments(
+    attachments: <ChatAttachment>[],
+  );
+}
+
+class _PreparedAttachmentFile {
+  final String path;
+  final bool shouldDelete;
+
+  const _PreparedAttachmentFile({
+    required this.path,
+    this.shouldDelete = false,
+  });
+}
+
+enum _AttachmentMenuAction { image, document }
+
+class _AttachmentDisplay {
+  final String id;
+  final String name;
+  final String? sizeLabel;
+  final _PendingAttachmentKind kind;
+  final bool isUploading;
+
+  const _AttachmentDisplay({
+    required this.id,
+    required this.name,
+    this.sizeLabel,
+    required this.kind,
+    this.isUploading = false,
+  });
+}
+
 const String _timeWidthSample = '88:88 PM';
 
 double _measureTextWidth(String text, TextStyle style) {
@@ -2024,16 +3867,20 @@ double _measureTextWidth(String text, TextStyle style) {
 /// Message bubble widget
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final List<_AttachmentDisplay> attachments;
   final bool isInterrupted;
   final VoidCallback? onRetry;
   final VoidCallback? onEdit;
+  final ValueChanged<_AttachmentDisplay>? onAttachmentTap;
   final _BranchSwitcherState? branchSwitcher;
 
   const _MessageBubble({
     required this.message,
+    this.attachments = const <_AttachmentDisplay>[],
     this.isInterrupted = false,
     this.onRetry,
     this.onEdit,
+    this.onAttachmentTap,
     this.branchSwitcher,
   });
 
@@ -2059,6 +3906,21 @@ class _MessageBubble extends StatelessWidget {
     );
     final timeLabel = _formatTime(message.createdAt);
     final timeWidth = _measureTextWidth(_timeWidthSample, timeStyle) + 2;
+    final copyText =
+        isSelf ? message.text : parseAssistantParts(message.text).markdown;
+    final attachments = this.attachments;
+    final showAttachments =
+        FeatureFlags.enableChatAttachments && attachments.isNotEmpty;
+    const maxAttachmentLabelWidth = 320.0;
+    final attachmentColor = textColor;
+    final attachmentBackground =
+        isDark ? EnsuColors.codeBgDark : EnsuColors.codeBg;
+    final attachmentBorder = isDark ? EnsuColors.ruleDark : EnsuColors.rule;
+    final attachmentLabelStyle = TextStyle(
+      fontSize: 12,
+      color: attachmentColor,
+    );
+    final maxLabelWidth = maxAttachmentLabelWidth;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -2072,18 +3934,84 @@ class _MessageBubble extends StatelessWidget {
             isSelf ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           GestureDetector(
-            onLongPress: () => _copyToClipboard(context),
-            child: Text(
-              message.text,
-              style: GoogleFonts.sourceSerif4(
-                fontSize: 15,
-                height: 1.7,
-                color: textColor,
-              ),
-              textAlign: isSelf ? TextAlign.right : TextAlign.left,
-            ),
+            onLongPress:
+                isSelf ? () => _copyToClipboard(context, copyText) : null,
+            child: isSelf
+                ? Text(
+                    message.text,
+                    style: GoogleFonts.sourceSerif4(
+                      fontSize: 15,
+                      height: 1.7,
+                      color: textColor,
+                    ),
+                    textAlign: TextAlign.right,
+                  )
+                : AssistantMessageRenderer(
+                    rawText: message.text,
+                    storageId: message.messageUuid,
+                    isStreaming: false,
+                  ),
           ),
           const SizedBox(height: 6),
+          if (showAttachments) ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: attachments.map((attachment) {
+                final icon = attachment.kind == _PendingAttachmentKind.image
+                    ? LucideIcons.image
+                    : LucideIcons.fileText;
+
+                return InputChip(
+                  label: SizedBox(
+                    width: maxLabelWidth,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            attachment.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: attachmentLabelStyle,
+                          ),
+                        ),
+                        if (attachment.sizeLabel?.isNotEmpty == true) ...[
+                          Text(
+                            ' · ${attachment.sizeLabel}',
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.clip,
+                            style: attachmentLabelStyle,
+                          ),
+                        ],
+                        if (attachment.isUploading) ...[
+                          const SizedBox(width: 6),
+                          SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(attachmentColor),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  avatar: Icon(icon, size: 14, color: attachmentColor),
+                  backgroundColor: attachmentBackground,
+                  side: BorderSide(color: attachmentBorder),
+                  padding: EdgeInsets.zero,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onPressed: () => onAttachmentTap?.call(attachment),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 6),
+          ],
           // First row: self actions (edit, copy) or agent actions (copy, retry, tok/s)
           if (isSelf) ...[
             Row(
@@ -2103,7 +4031,7 @@ class _MessageBubble extends StatelessWidget {
                   icon: LucideIcons.copy,
                   color: timeColor,
                   tooltip: 'Copy',
-                  onTap: () => _copyToClipboard(context),
+                  onTap: () => _copyToClipboard(context, copyText),
                   compact: true,
                 ),
               ],
@@ -2139,7 +4067,16 @@ class _MessageBubble extends StatelessWidget {
                   icon: LucideIcons.copy,
                   color: timeColor,
                   tooltip: 'Copy',
-                  onTap: () => _copyToClipboard(context),
+                  onTap: () => _copyToClipboard(context, copyText),
+                  compact: true,
+                ),
+                _ActionButton(
+                  icon: Icons.code,
+                  color: timeColor,
+                  tooltip: 'Raw',
+                  onTap: () => unawaited(
+                    _showRawMessage(context, message.text),
+                  ),
                   compact: true,
                 ),
                 if (onRetry != null) ...[
@@ -2204,8 +4141,8 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: message.text));
+  void _copyToClipboard(BuildContext context, String text) {
+    Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Copied to clipboard'),
@@ -2214,8 +4151,31 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
+  Future<void> _showRawMessage(BuildContext context, String text) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Raw message'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: SelectableText(text),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _formatTime(int timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final date = DateTime.fromMicrosecondsSinceEpoch(timestamp);
     final hour = date.hour;
     final minute = date.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
@@ -2372,11 +4332,13 @@ class _ActionButton extends StatelessWidget {
 class _StreamingBubble extends StatefulWidget {
   final String text;
   final bool isLoading;
+  final String storageId;
   final _BranchSwitcherState? branchSwitcher;
 
   const _StreamingBubble({
     required this.text,
     required this.isLoading,
+    required this.storageId,
     this.branchSwitcher,
   });
 
@@ -2426,7 +4388,6 @@ class _StreamingBubbleState extends State<_StreamingBubble>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? EnsuColors.inkDark : EnsuColors.ink;
     final mutedColor = isDark ? EnsuColors.mutedDark : EnsuColors.muted;
     final cursorColor = isDark ? EnsuColors.accentDark : EnsuColors.accent;
     final branchSwitcher = widget.branchSwitcher;
@@ -2445,40 +4406,33 @@ class _StreamingBubbleState extends State<_StreamingBubble>
           if (widget.text.isEmpty && widget.isLoading)
             _LoadingDots(color: mutedColor)
           else
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: widget.text,
-                    style: GoogleFonts.sourceSerif4(
-                      fontSize: 15,
-                      height: 1.7,
-                      color: textColor,
-                    ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AssistantMessageRenderer(
+                  rawText: widget.text,
+                  storageId: widget.storageId,
+                  isStreaming: widget.isLoading,
+                ),
+                if (widget.isLoading && widget.text.isNotEmpty)
+                  AnimatedBuilder(
+                    animation: _cursorOpacity,
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _cursorOpacity.value,
+                        child: Container(
+                          width: 2,
+                          height: 18,
+                          margin: const EdgeInsets.only(left: 1, top: 2),
+                          decoration: BoxDecoration(
+                            color: cursorColor,
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  if (widget.isLoading)
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: AnimatedBuilder(
-                        animation: _cursorOpacity,
-                        builder: (context, child) {
-                          return Opacity(
-                            opacity: _cursorOpacity.value,
-                            child: Container(
-                              width: 2,
-                              height: 18,
-                              margin: const EdgeInsets.only(left: 1),
-                              decoration: BoxDecoration(
-                                color: cursorColor,
-                                borderRadius: BorderRadius.circular(1),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
           if (hasBranchSwitcher) ...[
             const SizedBox(height: 6),

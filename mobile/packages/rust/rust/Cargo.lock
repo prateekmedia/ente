@@ -456,6 +456,7 @@ dependencies = [
  "ente-core",
  "flutter_rust_bridge",
  "getrandom 0.2.16",
+ "md-5",
  "sha2",
  "srp",
 ]

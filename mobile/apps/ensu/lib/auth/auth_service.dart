@@ -2,33 +2,88 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:ente_rust/ente_rust.dart' as rust;
+import 'package:ente_network/network.dart';
+import 'package:ensu/auth/auth_crypto_adapter.dart';
 import 'package:ensu/core/configuration.dart';
-import 'package:ente_crypto_cross_check_adapter/ente_crypto_cross_check_adapter.dart'
-    show CryptoCrossCheckAuthVerifier;
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
+import 'package:uuid/uuid.dart';
+
+const _defaultAccountsUrl = 'https://accounts.ente.io';
+const _authClientPackageName = 'io.ente.auth';
+const _requestIdHeader = 'x-request-id';
 
 /// Simplified authentication service for Ensu app.
 /// Uses Rust core for all crypto operations.
 class AuthService {
   static final AuthService instance = AuthService._();
-  AuthService._();
+
+  AuthService._() {
+    _crypto = kReleaseMode
+        ? RustOnlyAuthCryptoAdapter()
+        : CrossCheckedAuthCryptoAdapter();
+
+    _dio = Dio(BaseOptions(
+      baseUrl: Configuration.instance.getHttpEndpoint(),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      headers: {
+        'X-Client-Package': _authClientPackageName,
+      },
+    ));
+
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        options.headers.putIfAbsent(
+          _requestIdHeader,
+          () => _requestIdGenerator.v4(),
+        );
+        return handler.next(options);
+      },
+    ));
+  }
+
+  late AuthCryptoAdapter _crypto;
+
+  @visibleForTesting
+  void overrideCryptoAdapter(AuthCryptoAdapter crypto) {
+    _crypto = crypto;
+  }
 
   final _logger = Logger('AuthService');
-  final _dio = Dio(BaseOptions(
-    baseUrl: Configuration.instance.getHttpEndpoint(),
-    connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 30),
-    headers: {
-      'X-Client-Package': 'io.ente.ensu',
-    },
-  ));
+  final _requestIdGenerator = const Uuid();
+  bool _authHeadersSynced = false;
+  late final Dio _dio;
 
   void updateEndpoint(String endpoint) {
     _dio.options.baseUrl = endpoint;
+    try {
+      _dio.httpClientAdapter = Network.instance.enteDio.httpClientAdapter;
+    } catch (_) {}
+  }
+
+  Future<void> _ensureAuthHeaders() async {
+    if (_authHeadersSynced) {
+      return;
+    }
+
+    try {
+      final baseHeaders =
+          Map<String, dynamic>.from(Network.instance.getDio().options.headers);
+      baseHeaders['X-Client-Package'] = _authClientPackageName;
+      _dio.options.headers.addAll(baseHeaders);
+      _dio.httpClientAdapter = Network.instance.enteDio.httpClientAdapter;
+    } catch (e) {
+      _logger.fine('Unable to sync auth headers from network: $e');
+      _dio.options.headers['X-Client-Package'] = _authClientPackageName;
+    }
+
+    _authHeadersSynced = true;
   }
 
   /// Get SRP attributes to determine auth flow.
   Future<ServerSrpAttributes> getSrpAttributes(String email) async {
+    await _ensureAuthHeaders();
     final response = await _dio.get(
       '/users/srp/attributes',
       queryParameters: {'email': email},
@@ -39,11 +94,13 @@ class AuthService {
 
   /// Send OTP to email for login (only when email MFA is enabled).
   Future<void> sendOtp(String email) async {
+    await _ensureAuthHeaders();
     await _dio.post('/users/ott', data: {'email': email, 'purpose': 'login'});
   }
 
   /// Verify OTP and get user info (for email MFA flow).
   Future<OtpVerificationResult> verifyOtp(String email, String otp) async {
+    await _ensureAuthHeaders();
     final response = await _dio.post('/users/verify-email', data: {
       'email': email,
       'ott': otp,
@@ -51,7 +108,13 @@ class AuthService {
 
     final data = response.data;
     final passkeySessionId = data['passkeySessionID'] as String?;
-    final twoFactorSessionId = data['twoFactorSessionID'] as String?;
+    String? twoFactorSessionId = data['twoFactorSessionID'] as String?;
+    if ((twoFactorSessionId == null || twoFactorSessionId.isEmpty) &&
+        data['twoFactorSessionIDV2'] != null) {
+      twoFactorSessionId = data['twoFactorSessionIDV2'] as String?;
+    }
+
+    final accountsUrl = data['accountsUrl'] as String?;
 
     return OtpVerificationResult(
       id: data['id'] as int,
@@ -64,15 +127,18 @@ class AuthService {
           (twoFactorSessionId?.isNotEmpty == true) ? twoFactorSessionId : null,
       passkeySessionId:
           (passkeySessionId?.isNotEmpty == true) ? passkeySessionId : null,
+      accountsUrl:
+          (accountsUrl?.isNotEmpty == true) ? accountsUrl! : _defaultAccountsUrl,
     );
   }
 
   /// Complete SRP login flow using Rust core.
-  Future<void> loginWithSrp({
+  Future<SrpLoginResult> loginWithSrp({
     required String email,
     required String password,
     required ServerSrpAttributes srpAttributes,
   }) async {
+    await _ensureAuthHeaders();
     _logger.info('Starting SRP login');
 
     try {
@@ -86,7 +152,7 @@ class AuthService {
         isEmailMfaEnabled: srpAttributes.isEmailMfaEnabled,
       );
 
-      final startResult = await rust.srpStart(
+      final startResult = await _crypto.srpStart(
         password: password,
         srpAttrs: rustSrpAttrs,
       );
@@ -104,7 +170,7 @@ class AuthService {
       _logger.info('SRP session created');
 
       // Step 3: Finish SRP - process server's B and compute M1
-      final verifyResult = await rust.srpFinish(srpB: srpB);
+      final verifyResult = await _crypto.srpFinish(srpB: srpB);
       _logger.info('SRP finished, got srpM1');
 
       // Step 4: Verify session with server
@@ -116,6 +182,31 @@ class AuthService {
 
       final responseData = authResponse.data;
       _logger.info('SRP verified by server');
+
+      final passkeySessionId = responseData['passkeySessionID'] as String?;
+      String? twoFactorSessionId =
+          responseData['twoFactorSessionID'] as String?;
+      if ((twoFactorSessionId == null || twoFactorSessionId.isEmpty) &&
+          responseData['twoFactorSessionIDV2'] != null) {
+        twoFactorSessionId =
+            responseData['twoFactorSessionIDV2'] as String?;
+      }
+      final normalizedPasskeySessionId =
+          (passkeySessionId?.isNotEmpty == true) ? passkeySessionId : null;
+      final normalizedTwoFactorSessionId =
+          (twoFactorSessionId?.isNotEmpty == true) ? twoFactorSessionId : null;
+      if (normalizedPasskeySessionId != null ||
+          normalizedTwoFactorSessionId != null) {
+        Configuration.instance.setVolatilePassword(password);
+        final accountsUrl = responseData['accountsUrl'] as String?;
+        return SrpLoginResult(
+          passkeySessionId: normalizedPasskeySessionId,
+          twoFactorSessionId: normalizedTwoFactorSessionId,
+          accountsUrl: accountsUrl?.isNotEmpty == true
+              ? accountsUrl
+              : _defaultAccountsUrl,
+        );
+      }
 
       // Step 5: Decrypt secrets using Rust core
       final keyAttrs = rust.KeyAttributes(
@@ -133,19 +224,14 @@ class AuthService {
       // Server may return either encryptedToken (sealed box) or token (plain base64)
       final encryptedToken = responseData['encryptedToken'] as String?;
       final plainToken = responseData['token'] as String?;
-      final secrets = await rust.srpDecryptSecrets(
+      final secrets = await _crypto.srpDecryptSecrets(
+        password: password,
+        kekSalt: srpAttributes.kekSalt,
+        memLimit: srpAttributes.memLimit,
+        opsLimit: srpAttributes.opsLimit,
         keyAttrs: keyAttrs,
         encryptedToken: encryptedToken,
         plainToken: plainToken,
-      );
-      await CryptoCrossCheckAuthVerifier.instance
-          .verifyAuthSecretsWithMasterKey(
-        masterKey: secrets.masterKey,
-        keyAttrs: keyAttrs,
-        encryptedToken: encryptedToken,
-        plainToken: plainToken,
-        rustSecrets: secrets,
-        label: 'srpDecryptSecrets',
       );
       _logger.info('Secrets decrypted');
 
@@ -157,8 +243,9 @@ class AuthService {
       );
 
       _logger.info('SRP login successful');
+      return const SrpLoginResult();
     } finally {
-      await rust.srpClear();
+      await _crypto.srpClear();
     }
   }
 
@@ -174,20 +261,11 @@ class AuthService {
   }) async {
     _logger.info('Starting login after email MFA');
 
-    // Derive KEK
-    final kek = await rust.deriveKekForLogin(
+    final kek = await _crypto.deriveKekForLogin(
       password: password,
       kekSalt: srpAttributes.kekSalt,
       memLimit: srpAttributes.memLimit,
       opsLimit: srpAttributes.opsLimit,
-    );
-    await CryptoCrossCheckAuthVerifier.instance.verifyKekForLogin(
-      password: password,
-      kekSaltB64: srpAttributes.kekSalt,
-      memLimit: srpAttributes.memLimit,
-      opsLimit: srpAttributes.opsLimit,
-      rustKek: kek,
-      label: 'deriveKekForLogin',
     );
 
     // Decrypt secrets
@@ -202,19 +280,11 @@ class AuthService {
       opsLimit: keyAttributes.opsLimit,
     );
 
-    final secrets = await rust.decryptSecretsWithKek(
+    final secrets = await _crypto.decryptSecretsWithKek(
       kek: kek,
       keyAttrs: rustKeyAttrs,
       encryptedToken: encryptedToken,
       plainToken: plainToken,
-    );
-    await CryptoCrossCheckAuthVerifier.instance.verifyAuthSecretsWithKek(
-      kek: kek,
-      keyAttrs: rustKeyAttrs,
-      encryptedToken: encryptedToken,
-      plainToken: plainToken,
-      rustSecrets: secrets,
-      label: 'decryptSecretsWithKek',
     );
 
     await _storeSecrets(
@@ -244,8 +314,45 @@ class AuthService {
     await config.setKey(masterKeyB64);
     await config.setSecretKey(secretKeyB64);
     await config.setToken(tokenB64);
+    config.resetVolatilePassword();
 
     _logger.info('Credentials stored');
+  }
+
+  /// Get auth response for a verified passkey session.
+  ///
+  /// Server behavior (observed):
+  /// - `400` when passkey not yet verified
+  /// - `404/410` when session expired
+  /// - `200` returns the same payload shape as other auth responses:
+  ///   `id`, `keyAttributes`, `encryptedToken` (or `token`).
+  Future<Map<String, dynamic>> getTokenForPasskeySession(
+    String sessionId,
+  ) async {
+    await _ensureAuthHeaders();
+    try {
+      final response = await _dio.get(
+        '/users/two-factor/passkeys/get-token',
+        queryParameters: {'sessionID': sessionId},
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+      throw Exception('Invalid passkey response type: ${data.runtimeType}');
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 400) {
+        throw PasskeySessionNotVerifiedException();
+      }
+      if (status == 404 || status == 410) {
+        throw PasskeySessionExpiredException();
+      }
+      rethrow;
+    }
   }
 
   /// Verify 2FA TOTP code.
@@ -253,6 +360,7 @@ class AuthService {
     required String sessionId,
     required String code,
   }) async {
+    await _ensureAuthHeaders();
     final response = await _dio.post('/users/two-factor/verify', data: {
       'sessionID': sessionId,
       'code': code,
@@ -268,6 +376,22 @@ class AuthService {
   }
 }
 
+/// Result of SRP login.
+class SrpLoginResult {
+  final String? twoFactorSessionId;
+  final String? passkeySessionId;
+  final String? accountsUrl;
+
+  const SrpLoginResult({
+    this.twoFactorSessionId,
+    this.passkeySessionId,
+    this.accountsUrl,
+  });
+
+  bool get requiresTwoFactor => twoFactorSessionId != null;
+  bool get requiresPasskey => passkeySessionId != null;
+}
+
 /// Result of OTP verification (for email MFA flow).
 class OtpVerificationResult {
   final int id;
@@ -276,6 +400,7 @@ class OtpVerificationResult {
   final String? plainToken;
   final String? twoFactorSessionId;
   final String? passkeySessionId;
+  final String accountsUrl;
 
   OtpVerificationResult({
     required this.id,
@@ -284,6 +409,7 @@ class OtpVerificationResult {
     this.plainToken,
     this.twoFactorSessionId,
     this.passkeySessionId,
+    this.accountsUrl = _defaultAccountsUrl,
   });
 
   bool get isNewUser => keyAttributes == null;
@@ -371,3 +497,7 @@ class ServerSrpAttributes {
     );
   }
 }
+
+class PasskeySessionNotVerifiedException implements Exception {}
+
+class PasskeySessionExpiredException implements Exception {}

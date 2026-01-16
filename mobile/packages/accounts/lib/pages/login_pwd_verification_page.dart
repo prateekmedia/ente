@@ -10,7 +10,6 @@ import "package:ente_ui/theme/ente_theme.dart";
 import "package:ente_ui/utils/dialog_util.dart";
 import "package:ente_utils/email_util.dart";
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import "package:logging/logging.dart";
 
 // LoginPasswordVerificationPage is a page that allows the user to enter their password to verify their identity.
@@ -80,14 +79,7 @@ class _LoginPasswordVerificationPageState
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: widget.appBarTitle ??
-            SvgPicture.asset(
-              'assets/svg/app-logo.svg',
-              colorFilter: ColorFilter.mode(
-                colorScheme.primary700,
-                BlendMode.srcIn,
-              ),
-            ),
+        title: widget.appBarTitle,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,
@@ -126,6 +118,9 @@ class _LoginPasswordVerificationPageState
       );
     } on DioException catch (e, s) {
       await dialog.hide();
+      if (!mounted) {
+        return;
+      }
 
       if (e.response != null && e.response!.statusCode == 401) {
         _logger.severe('server reject, failed verify SRP login', e, s);
@@ -154,6 +149,9 @@ class _LoginPasswordVerificationPageState
     } catch (e, s) {
       _logger.info('error during loginViaPassword', e);
       await dialog.hide();
+      if (!mounted) {
+        return;
+      }
       if (e is LoginKeyDerivationError) {
         _logger.severe('loginKey derivation error', e, s);
         // LoginKey err, perform regular login via ott verification
@@ -205,6 +203,9 @@ class _LoginPasswordVerificationPageState
     required String title,
     required String message,
   }) async {
+    if (!mounted) {
+      return;
+    }
     final result = await showAlertBottomSheet<bool>(
       context,
       title: title,

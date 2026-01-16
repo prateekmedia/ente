@@ -4,7 +4,6 @@ import 'package:ente_strings/ente_strings.dart';
 import 'package:ente_ui/components/buttons/dynamic_fab.dart';
 import 'package:ente_ui/theme/ente_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pinput/pinput.dart';
 
 class OTTVerificationPage extends StatefulWidget {
@@ -75,14 +74,7 @@ class _OTTVerificationPageState extends State<OTTVerificationPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: widget.appBarTitle ??
-            SvgPicture.asset(
-              'assets/svg/app-logo.svg',
-              colorFilter: ColorFilter.mode(
-                colorScheme.primary700,
-                BlendMode.srcIn,
-              ),
-            ),
+        title: widget.appBarTitle,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,

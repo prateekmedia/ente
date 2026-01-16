@@ -3,8 +3,6 @@ import 'dart:typed_data';
 
 import 'package:ente_crypto_api/ente_crypto_api.dart';
 import 'package:ente_crypto_dart/ente_crypto_dart.dart' as dart_impl;
-import 'package:ente_crypto_dart/src/models/derived_key_result.dart'
-    as dart_models;
 import 'package:ente_crypto_dart/src/models/encryption_result.dart'
     as dart_models;
 
@@ -15,7 +13,9 @@ class EnteCryptoDartAdapter implements CryptoApi {
   Future<void> init() => dart_impl.CryptoUtil.init();
 
   @override
-  Uint8List base642bin(String b64) => dart_impl.CryptoUtil.base642bin(b64);
+  Uint8List base642bin(String b64) {
+    return dart_impl.CryptoUtil.base642bin(_normalizeBase64(b64));
+  }
 
   @override
   String bin2base64(Uint8List bin, {bool urlSafe = false}) =>
@@ -180,7 +180,12 @@ class EnteCryptoDartAdapter implements CryptoApi {
     int opsLimit,
   ) =>
       dart_impl.cryptoPwHash(
-          password, salt, memLimit, opsLimit, dart_impl.sodium);
+        password,
+        salt,
+        memLimit,
+        opsLimit,
+        dart_impl.sodium,
+      );
 
   @override
   int get pwhashMemLimitInteractive =>
@@ -200,6 +205,18 @@ class EnteCryptoDartAdapter implements CryptoApi {
 
   @override
   Future<Uint8List> getHash(File source) => dart_impl.getHash(source);
+
+  String _normalizeBase64(String input) {
+    var normalized = input.replaceAll('-', '+').replaceAll('_', '/');
+    final remainder = normalized.length % 4;
+    if (remainder != 0) {
+      normalized = normalized.padRight(
+        normalized.length + (4 - remainder),
+        '=',
+      );
+    }
+    return normalized;
+  }
 
   EncryptionResult _mapEncryptionResult(
     dart_models.EncryptionResult result,

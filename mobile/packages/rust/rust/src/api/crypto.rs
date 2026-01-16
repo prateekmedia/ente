@@ -5,6 +5,9 @@
 
 use flutter_rust_bridge::frb;
 
+use std::fs::File;
+use std::io::{self, BufReader, BufWriter, Write};
+
 /// Initialize the crypto backend. Must be called once before using any crypto functions.
 #[frb(sync)]
 pub fn init_crypto() -> Result<(), String> {
@@ -27,6 +30,12 @@ pub fn generate_stream_key() -> Vec<u8> {
 // Base64/Hex encoding utilities (CryptoUtil compatible)
 // ============================================================================
 
+/// Convert a UTF-8 string to bytes.
+#[frb(sync)]
+pub fn str_to_bin(input: String) -> Vec<u8> {
+    ente_core::crypto::str_to_bin(&input)
+}
+
 /// Base64 encode bytes (CryptoUtil.bin2base64 compatible).
 ///
 /// Set `url_safe` to true to use the URL-safe alphabet.
@@ -36,9 +45,16 @@ pub fn bin2base64(data: Vec<u8>, url_safe: bool) -> String {
 }
 
 /// Base64 decode string to bytes (CryptoUtil.base642bin compatible).
+///
+/// Accepts standard (`+`/`/`) or URL-safe (`-`/`_`) alphabets with or without
+/// padding.
 #[frb(sync)]
 pub fn base642bin(data: String) -> Result<Vec<u8>, String> {
-    ente_core::crypto::decode_b64(&data).map_err(|e| e.to_string())
+    let mut normalized = data.replace('-', "+").replace('_', "/");
+    while normalized.len() % 4 != 0 {
+        normalized.push('=');
+    }
+    ente_core::crypto::base642bin(&normalized).map_err(|e| e.to_string())
 }
 
 /// Hex decode string to bytes (CryptoUtil.hex2bin compatible).
@@ -182,6 +198,12 @@ pub fn decrypt_data(
 // Sealed box (anonymous public-key encryption)
 // ============================================================================
 
+/// Seal data for a recipient (CryptoUtil.sealSync compatible).
+#[frb(sync)]
+pub fn seal_sync(data: Vec<u8>, public_key: Vec<u8>) -> Result<Vec<u8>, String> {
+    ente_core::crypto::sealed::seal(&data, &public_key).map_err(|e| e.to_string())
+}
+
 /// Open a sealed box (CryptoUtil.openSealSync compatible).
 #[frb(sync)]
 pub fn open_seal_sync(
@@ -190,6 +212,183 @@ pub fn open_seal_sync(
     secret_key: Vec<u8>,
 ) -> Result<Vec<u8>, String> {
     ente_core::crypto::sealed::open(&cipher, &public_key, &secret_key).map_err(|e| e.to_string())
+}
+
+// ============================================================================
+// File encryption (SecretStream)
+// ============================================================================
+
+pub async fn encrypt_file(
+    source_file_path: String,
+    destination_file_path: String,
+    key: Option<Vec<u8>>,
+) -> Result<FileEncryptResult, String> {
+    let src = File::open(&source_file_path)
+        .map_err(|e| format!("open source file {source_file_path}: {e}"))?;
+    let dst = File::create(&destination_file_path)
+        .map_err(|e| format!("create destination file {destination_file_path}: {e}"))?;
+
+    let mut reader = BufReader::new(src);
+    let mut writer = BufWriter::new(dst);
+
+    let (key, header) =
+        ente_core::crypto::stream::encrypt_file(&mut reader, &mut writer, key.as_deref())
+            .map_err(|e| e.to_string())?;
+
+    writer
+        .flush()
+        .map_err(|e| format!("flush destination file {destination_file_path}: {e}"))?;
+
+    Ok(FileEncryptResult {
+        key,
+        header,
+        file_md5: None,
+        part_md5s: None,
+        part_size: None,
+    })
+}
+
+pub async fn encrypt_file_with_md5(
+    source_file_path: String,
+    destination_file_path: String,
+    key: Option<Vec<u8>>,
+    multi_part_chunk_size_in_bytes: Option<u32>,
+) -> Result<FileEncryptResult, String> {
+    let src = File::open(&source_file_path)
+        .map_err(|e| format!("open source file {source_file_path}: {e}"))?;
+    let dst = File::create(&destination_file_path)
+        .map_err(|e| format!("create destination file {destination_file_path}: {e}"))?;
+
+    let mut reader = BufReader::new(src);
+
+    if let Some(part_size) = multi_part_chunk_size_in_bytes {
+        if part_size == 0 {
+            return Err("multi_part_chunk_size_in_bytes must be > 0".to_string());
+        }
+
+        use md5::{Digest, Md5};
+
+        struct PartMd5Writer<W: Write> {
+            inner: W,
+            part_size: usize,
+            part_filled: usize,
+            part_state: Md5,
+            part_md5s: Vec<String>,
+        }
+
+        impl<W: Write> PartMd5Writer<W> {
+            fn new(inner: W, part_size: usize) -> Self {
+                Self {
+                    inner,
+                    part_size,
+                    part_filled: 0,
+                    part_state: Md5::new(),
+                    part_md5s: Vec::new(),
+                }
+            }
+
+            fn update_hashes(&mut self, mut data: &[u8]) {
+                while !data.is_empty() {
+                    let remaining = self.part_size - self.part_filled;
+                    let to_take = remaining.min(data.len());
+                    self.part_state.update(&data[..to_take]);
+                    self.part_filled += to_take;
+                    data = &data[to_take..];
+
+                    if self.part_filled == self.part_size {
+                        let state = std::mem::replace(&mut self.part_state, Md5::new());
+                        let digest = state.finalize();
+                        self.part_md5s
+                            .push(ente_core::crypto::encode_b64(digest.as_ref()));
+                        self.part_filled = 0;
+                    }
+                }
+            }
+
+            fn finish(mut self) -> Vec<String> {
+                if self.part_filled > 0 {
+                    let digest = self.part_state.finalize();
+                    self.part_md5s
+                        .push(ente_core::crypto::encode_b64(digest.as_ref()));
+                }
+                self.part_md5s
+            }
+        }
+
+        impl<W: Write> Write for PartMd5Writer<W> {
+            fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+                let n = self.inner.write(buf)?;
+                self.update_hashes(&buf[..n]);
+                Ok(n)
+            }
+
+            fn flush(&mut self) -> io::Result<()> {
+                self.inner.flush()
+            }
+        }
+
+        let mut writer = PartMd5Writer::new(BufWriter::new(dst), part_size as usize);
+
+        let (key, header) =
+            ente_core::crypto::stream::encrypt_file(&mut reader, &mut writer, key.as_deref())
+                .map_err(|e| e.to_string())?;
+
+        writer
+            .flush()
+            .map_err(|e| format!("flush destination file {destination_file_path}: {e}"))?;
+
+        let part_md5s = writer.finish();
+
+        Ok(FileEncryptResult {
+            key,
+            header,
+            file_md5: None,
+            part_md5s: Some(part_md5s),
+            part_size: Some(part_size),
+        })
+    } else {
+        let mut writer = BufWriter::new(dst);
+
+        let (key, header, md5) =
+            ente_core::crypto::stream::encrypt_file_with_md5(&mut reader, &mut writer, key.as_deref())
+                .map_err(|e| e.to_string())?;
+
+        writer
+            .flush()
+            .map_err(|e| format!("flush destination file {destination_file_path}: {e}"))?;
+
+        Ok(FileEncryptResult {
+            key,
+            header,
+            file_md5: Some(ente_core::crypto::encode_b64(&md5)),
+            part_md5s: None,
+            part_size: None,
+        })
+    }
+}
+
+pub async fn decrypt_file(
+    source_file_path: String,
+    destination_file_path: String,
+    header: Vec<u8>,
+    key: Vec<u8>,
+) -> Result<(), String> {
+    let src = File::open(&source_file_path)
+        .map_err(|e| format!("open source file {source_file_path}: {e}"))?;
+    let dst = File::create(&destination_file_path)
+        .map_err(|e| format!("create destination file {destination_file_path}: {e}"))?;
+
+    let mut reader = BufReader::new(src);
+    let mut writer = BufWriter::new(dst);
+
+    ente_core::crypto::stream::decrypt_file(&mut reader, &mut writer, &header, &key)
+        .map_err(|e| e.to_string())?;
+
+    writer
+        .flush()
+        .map_err(|e| format!("flush destination file {destination_file_path}: {e}"))?;
+
+    Ok(())
 }
 
 // ============================================================================
@@ -216,47 +415,80 @@ pub async fn derive_login_key(key: Vec<u8>) -> Result<Vec<u8>, String> {
 }
 
 /// Derive sensitive key with secure parameters (CryptoUtil.deriveSensitiveKey compatible).
-/// If salt is empty, generates a new random salt.
 pub async fn derive_sensitive_key(
     password: String,
     salt: Vec<u8>,
 ) -> Result<DerivedKeyResult, String> {
-    let salt_bytes = if salt.is_empty() {
-        ente_core::crypto::keys::generate_salt().to_vec()
-    } else {
-        salt
-    };
+    let result = ente_core::crypto::argon::derive_sensitive_key_with_salt_adaptive(
+        password.as_bytes(),
+        &salt,
+    )
+    .map_err(|e| e.to_string())?;
 
-    let desired_strength = (ente_core::crypto::argon::MEMLIMIT_SENSITIVE as u64)
-        * (ente_core::crypto::argon::OPSLIMIT_SENSITIVE as u64);
-    let mut mem_limit = ente_core::crypto::argon::MEMLIMIT_MODERATE;
-    let factor =
-        ente_core::crypto::argon::MEMLIMIT_SENSITIVE / ente_core::crypto::argon::MEMLIMIT_MODERATE;
-    let mut ops_limit = ente_core::crypto::argon::OPSLIMIT_SENSITIVE.saturating_mul(factor);
+    Ok(DerivedKeyResult {
+        key: result.key,
+        mem_limit: result.mem_limit,
+        ops_limit: result.ops_limit,
+    })
+}
 
-    if (mem_limit as u64) * (ops_limit as u64) != desired_strength {
-        return Err("Unexpected argon parameters".to_string());
-    }
+/// Derive an interactive key using fixed interactive parameters.
+pub async fn derive_interactive_key(
+    password: String,
+    salt: Vec<u8>,
+) -> Result<DerivedKeyResult, String> {
+    let key = ente_core::crypto::argon::derive_interactive_key_with_salt(&password, &salt)
+        .map_err(|e| e.to_string())?;
 
-    while mem_limit >= ente_core::crypto::argon::MEMLIMIT_MIN
-        && ops_limit < ente_core::crypto::argon::OPSLIMIT_MAX
-    {
-        match ente_core::crypto::argon::derive_key(&password, &salt_bytes, mem_limit, ops_limit) {
-            Ok(key) => {
-                return Ok(DerivedKeyResult {
-                    key,
-                    mem_limit,
-                    ops_limit,
-                });
-            }
-            Err(_) => {
-                mem_limit /= 2;
-                ops_limit = ops_limit.saturating_mul(2);
-            }
-        }
-    }
+    Ok(DerivedKeyResult {
+        key,
+        mem_limit: ente_core::crypto::argon::MEMLIMIT_INTERACTIVE,
+        ops_limit: ente_core::crypto::argon::OPSLIMIT_INTERACTIVE,
+    })
+}
 
-    Err("Cannot perform this operation on this device".to_string())
+/// cryptoPwHash compatible wrapper.
+#[frb(sync)]
+pub fn crypto_pw_hash(
+    password: String,
+    salt: Vec<u8>,
+    mem_limit: u32,
+    ops_limit: u32,
+) -> Result<Vec<u8>, String> {
+    ente_core::crypto::argon::derive_key(&password, &salt, mem_limit, ops_limit)
+        .map_err(|e| e.to_string())
+}
+
+#[frb(sync)]
+pub fn pwhash_mem_limit_interactive() -> u32 {
+    ente_core::crypto::argon::MEMLIMIT_INTERACTIVE
+}
+
+#[frb(sync)]
+pub fn pwhash_mem_limit_sensitive() -> u32 {
+    ente_core::crypto::argon::MEMLIMIT_SENSITIVE
+}
+
+#[frb(sync)]
+pub fn pwhash_ops_limit_interactive() -> u32 {
+    ente_core::crypto::argon::OPSLIMIT_INTERACTIVE
+}
+
+#[frb(sync)]
+pub fn pwhash_ops_limit_sensitive() -> u32 {
+    ente_core::crypto::argon::OPSLIMIT_SENSITIVE
+}
+
+// ============================================================================
+// Hashing
+// ============================================================================
+
+pub async fn get_hash(source_file_path: String) -> Result<Vec<u8>, String> {
+    let src = File::open(&source_file_path)
+        .map_err(|e| format!("open source file {source_file_path}: {e}"))?;
+
+    let mut reader = BufReader::new(src);
+    ente_core::crypto::hash::hash_reader(&mut reader, None).map_err(|e| e.to_string())
 }
 
 // ============================================================================
@@ -335,6 +567,16 @@ pub struct DerivedKeyResult {
 pub struct KeyPair {
     pub public_key: Vec<u8>,
     pub secret_key: Vec<u8>,
+}
+
+/// Result of file encryption.
+#[frb]
+pub struct FileEncryptResult {
+    pub key: Vec<u8>,
+    pub header: Vec<u8>,
+    pub file_md5: Option<String>,
+    pub part_md5s: Option<Vec<String>>,
+    pub part_size: Option<u32>,
 }
 
 // ============================================================================

@@ -3,9 +3,12 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:ensu/core/configuration.dart';
 import 'package:ensu/gateway/chat_gateway.dart';
+import 'package:ensu/models/chat_attachment.dart';
 import 'package:ensu/models/chat_entity.dart';
+import 'package:ensu/services/chat_attachment_store.dart';
 import 'package:ensu/services/chat_conflict_resolver.dart';
 import 'package:ensu/services/chat_dag.dart';
 import 'package:ente_crypto_api/ente_crypto_api.dart';
@@ -55,6 +58,7 @@ class ChatMessage {
   final String? parentMessageUuid;
   final bool isSelf;
   final String text;
+  final List<ChatAttachment> attachments;
   final int createdAt;
   final double? tokensPerSecond; // Performance metric for AI messages
 
@@ -64,6 +68,7 @@ class ChatMessage {
     this.parentMessageUuid,
     required this.isSelf,
     required this.text,
+    this.attachments = const [],
     required this.createdAt,
     this.tokensPerSecond,
   });
@@ -93,6 +98,7 @@ class _RemoteMessage {
   final String? parentMessageUuid;
   final String sender;
   final String text;
+  final List<ChatAttachment> attachments;
   final int createdAt;
 
   const _RemoteMessage({
@@ -101,6 +107,7 @@ class _RemoteMessage {
     this.parentMessageUuid,
     required this.sender,
     required this.text,
+    this.attachments = const [],
     required this.createdAt,
   });
 
@@ -110,6 +117,7 @@ class _RemoteMessage {
       parentMessageUuid: parentMessageUuid,
       sender: sender,
       text: text,
+      attachments: attachments,
       createdAt: createdAt,
     );
   }
@@ -123,9 +131,11 @@ class ChatService {
   late SharedPreferences _prefs;
   late ChatGateway _gateway;
   late ChatDB _db;
-  final String _lastSyncTimeKey = "lastChatSyncTime";
+  final String _lastSyncTimeKey = "lastChatSyncTimeUs";
+  final String _searchIndexBackfillKey = "chatSearchIndexBackfillV1";
   final Map<String, double> _tokensPerSecondByMessageUuid = {};
   bool _isSyncing = false;
+  bool _attachmentsApiUnavailable = false;
 
   ChatService._privateConstructor();
   static final ChatService instance = ChatService._privateConstructor();
@@ -134,6 +144,16 @@ class ChatService {
     _prefs = await SharedPreferences.getInstance();
     _db = ChatDB.instance;
     _gateway = ChatGateway();
+
+    final searchBackfillDone =
+        _prefs.getBool(_searchIndexBackfillKey) ?? false;
+    if (!searchBackfillDone) {
+      unawaited(
+        _db
+            .startSearchIndexBackfill()
+            .then((_) => _prefs.setBool(_searchIndexBackfillKey, true)),
+      );
+    }
 
     // Background sync if logged in
     if (_config.hasConfiguredAccount()) {
@@ -247,6 +267,7 @@ class ChatService {
                 parentMessageUuid: m.parentMessageUuid,
                 isSelf: m.sender == 'self',
                 text: m.text,
+                attachments: m.attachments,
                 createdAt: m.createdAt,
                 tokensPerSecond: _tokensPerSecondByMessageUuid[m.messageUuid],
               ))
@@ -281,6 +302,7 @@ class ChatService {
                 parentMessageUuid: m.parentMessageUuid,
                 isSelf: m.sender == 'self',
                 text: m.text,
+                attachments: m.attachments,
                 createdAt: m.createdAt,
                 tokensPerSecond: _tokensPerSecondByMessageUuid[m.messageUuid],
               ))
@@ -308,6 +330,7 @@ class ChatService {
     String text, {
     String? parentMessageUuid,
     bool useSessionHeadWhenParentNull = true,
+    List<ChatAttachment> attachments = const [],
   }) async {
     final messageUuid = await _db.insertMessage(
       sessionUuid,
@@ -315,6 +338,7 @@ class ChatService {
       text,
       parentMessageUuid: parentMessageUuid,
       useSessionHeadWhenParentNull: useSessionHeadWhenParentNull,
+      attachments: attachments,
     );
     _logger.fine("Sent message");
     eventBus.fire(ChatsUpdatedEvent());
@@ -329,6 +353,7 @@ class ChatService {
     double? tokensPerSecond,
     String? parentMessageUuid,
     bool useSessionHeadWhenParentNull = true,
+    List<ChatAttachment> attachments = const [],
   }) async {
     final messageUuid = await _db.insertMessage(
       sessionUuid,
@@ -336,6 +361,7 @@ class ChatService {
       text,
       parentMessageUuid: parentMessageUuid,
       useSessionHeadWhenParentNull: useSessionHeadWhenParentNull,
+      attachments: attachments,
     );
     if (tokensPerSecond != null) {
       _tokensPerSecondByMessageUuid[messageUuid] = tokensPerSecond;
@@ -354,13 +380,87 @@ class ChatService {
     _triggerBackgroundSync();
   }
 
+  Future<void> _queueDeletion(String entityType, String entityId) async {
+    await _db.enqueueDeletion(entityType, entityId);
+    if (!_config.hasConfiguredAccount()) {
+      return;
+    }
+    try {
+      final deleted = await _deleteRemoteEntity(
+        entityType,
+        entityId,
+        propagateUnauthorized: false,
+      );
+      if (deleted) {
+        await _db.removePendingDeletion(entityType, entityId);
+      }
+    } catch (e, s) {
+      _logger.warning(
+        'Failed to delete $entityType ($entityId) during background sync',
+        e,
+        s,
+      );
+    }
+  }
+
   Future<void> deleteMessage(String sessionUuid, String messageUuid) async {
+    final session = await _db.getSession(sessionUuid);
+    if (session?.remoteId != null) {
+      await _queueDeletion(ChatDB.deletionTypeMessage, messageUuid);
+    }
+
     await _db.deleteMessage(messageUuid);
     _tokensPerSecondByMessageUuid.remove(messageUuid);
     await _db.markSessionForSync(sessionUuid);
     _logger.fine("Deleted message");
     eventBus.fire(ChatsUpdatedEvent());
     _triggerBackgroundSync();
+  }
+
+  Future<bool> downloadAttachment(String attachmentId) async {
+    final downloaded = await downloadAttachments([attachmentId]);
+    return downloaded > 0;
+  }
+
+  Future<int> downloadAttachments(List<String> attachmentIds) async {
+    if (_attachmentsApiUnavailable || !_config.hasConfiguredAccount()) {
+      return 0;
+    }
+
+    final uniqueIds = attachmentIds.where((id) => id.isNotEmpty).toSet();
+    if (uniqueIds.isEmpty) {
+      return 0;
+    }
+
+    var downloadedCount = 0;
+
+    for (final attachmentId in uniqueIds) {
+      try {
+        final alreadyPresent =
+            await ChatAttachmentStore.instance.hasAttachment(attachmentId);
+        if (alreadyPresent) {
+          continue;
+        }
+
+        final encryptedBytes = await _gateway.downloadAttachment(attachmentId);
+        await ChatAttachmentStore.instance.storeEncryptedAttachmentBytes(
+          attachmentId,
+          encryptedBytes,
+        );
+        downloadedCount += 1;
+      } on UnauthorizedError {
+        await _handleUnauthorized('attachment download');
+        return downloadedCount;
+      } catch (e, s) {
+        if (_isNotFoundError(e)) {
+          _logger.fine('Attachment not found on server: $attachmentId');
+          continue;
+        }
+        _logger.warning('Attachment download failed: $attachmentId', e, s);
+      }
+    }
+
+    return downloadedCount;
   }
 
   /// Update the last AI message (for streaming).
@@ -406,30 +506,34 @@ class ChatService {
     }
 
     // Delete the AI message
+    final session = await _db.getSession(sessionUuid);
+    if (session?.remoteId != null) {
+      await _queueDeletion(
+        ChatDB.deletionTypeMessage,
+        lastAIMessage.messageUuid,
+      );
+    }
     await _db.deleteMessage(lastAIMessage.messageUuid);
     _tokensPerSecondByMessageUuid.remove(lastAIMessage.messageUuid);
     await _db.markSessionForSync(sessionUuid);
     _logger.fine("Deleted last AI message");
     eventBus.fire(ChatsUpdatedEvent());
+    _triggerBackgroundSync();
 
     return precedingUserMessage;
   }
 
   /// Delete a chat session.
   Future<void> deleteSession(String sessionUuid) async {
-    // If synced to server, delete there too
     final session = await _db.getSession(sessionUuid);
-    if (session?.remoteId != null && _config.hasConfiguredAccount()) {
-      try {
-        await _gateway.deleteEntity(session!.remoteId!);
-      } catch (e) {
-        _logger.warning("Failed to delete from server: $e");
-      }
+    if (session?.remoteId != null) {
+      await _queueDeletion(ChatDB.deletionTypeSession, session!.remoteId!);
     }
 
     await _db.deleteSession(sessionUuid);
     _logger.fine("Deleted session");
     eventBus.fire(ChatsUpdatedEvent());
+    _triggerBackgroundSync();
   }
 
   /// Delete a session tree (root + branches).
@@ -438,18 +542,15 @@ class ChatService {
     if (sessions.isEmpty) return;
 
     for (final session in sessions) {
-      if (session.remoteId != null && _config.hasConfiguredAccount()) {
-        try {
-          await _gateway.deleteEntity(session.remoteId!);
-        } catch (e) {
-          _logger.warning("Failed to delete from server: $e");
-        }
+      if (session.remoteId != null) {
+        await _queueDeletion(ChatDB.deletionTypeSession, session.remoteId!);
       }
       await _db.deleteSession(session.sessionUuid);
     }
 
     _logger.fine("Deleted session tree");
     eventBus.fire(ChatsUpdatedEvent());
+    _triggerBackgroundSync();
   }
 
   /// Trigger background sync (non-blocking).
@@ -496,11 +597,17 @@ class ChatService {
   }
 
   /// Manual sync - pull from server then push.
+  ///
+  /// Returns `true` only if both pull and push succeed. Manual sync is still
+  /// best-effort: if one phase fails, the other is attempted.
   Future<bool> sync() async {
     if (!_config.hasConfiguredAccount()) {
       _logger.fine("Sync skipped: No configured account");
       return false;
     }
+
+    var pullSucceeded = true;
+    var pushSucceeded = true;
 
     try {
       _logger.fine("Starting manual sync");
@@ -510,6 +617,7 @@ class ChatService {
         await _pullFromServer();
         _logger.fine("Pull from server completed");
       } catch (e, s) {
+        pullSucceeded = false;
         if (e is UnauthorizedError) {
           rethrow;
         }
@@ -522,7 +630,7 @@ class ChatService {
           rethrow;
         }
         _logger.warning("Failed to pull from server: $e", e, s);
-        // Continue with push even if pull fails
+        // Continue with push even if pull fails.
       }
 
       // Push phase
@@ -530,6 +638,7 @@ class ChatService {
         await _pushToServer();
         _logger.fine("Push to server completed");
       } catch (e, s) {
+        pushSucceeded = false;
         if (e is UnauthorizedError) {
           rethrow;
         }
@@ -542,12 +651,16 @@ class ChatService {
           rethrow;
         }
         _logger.warning("Failed to push to server: $e", e, s);
-        // Push failure shouldn't prevent completion
       }
 
+      final success = pullSucceeded && pushSucceeded;
       eventBus.fire(ChatsUpdatedEvent());
-      _logger.fine("Sync completed");
-      return true;
+      _logger.fine(
+        success
+            ? "Sync completed"
+            : "Sync completed with errors (pull=$pullSucceeded push=$pushSucceeded)",
+      );
+      return success;
     } on UnauthorizedError {
       await _handleUnauthorized("manual sync");
       return false;
@@ -771,11 +884,19 @@ class ChatService {
 
       for (final tombstone in diff.sessionTombstones) {
         await _db.deleteSession(tombstone.id);
+        await _db.removePendingDeletion(
+          ChatDB.deletionTypeSession,
+          tombstone.id,
+        );
         processedCount++;
       }
 
       for (final tombstone in diff.messageTombstones) {
         await _db.deleteMessage(tombstone.id);
+        await _db.removePendingDeletion(
+          ChatDB.deletionTypeMessage,
+          tombstone.id,
+        );
         processedCount++;
       }
 
@@ -823,6 +944,7 @@ class ChatService {
         parentMessageUuid: remote.parentMessageUuid,
         sender: remote.sender,
         text: remote.text,
+        attachments: remote.attachments,
         createdAt: remote.createdAt,
       );
       applied++;
@@ -872,32 +994,37 @@ class ChatService {
     ChatEntity entity,
     Map<String, dynamic> json,
   ) {
-    final type = json['type'];
-    if (type != 'ensu_chat_session') {
+    final type = _readString(json['type']);
+    if (type != null && type != 'llmchat_session') {
       _logger.fine("Skipping session: type=$type");
       return null;
     }
 
     final payloadId = _readString(json['session_uuid'] ?? json['sessionUuid']);
-    final sessionUuid = payloadId ?? entity.id;
+    final sessionUuid = payloadId ?? entity.sessionUuid ?? entity.id;
     if (payloadId != null && payloadId != entity.id) {
       _logger.warning("Session id mismatch between payload and entity");
     }
 
-    final rootSessionUuid =
+    final rootSessionUuid = entity.rootSessionUuid ??
         _readString(json['root_session_uuid'] ?? json['rootSessionUuid']) ??
             sessionUuid;
-    final branchFromMessageUuid = _readString(
-        json['branch_from_message_uuid'] ?? json['branchFromMessageUuid']);
+    final branchFromMessageUuid = entity.branchFromMessageUuid ??
+        _readString(
+            json['branch_from_message_uuid'] ?? json['branchFromMessageUuid']);
     final title = _readString(json['title']) ?? 'Chat';
-    final createdAt = _readInt(
-      json['created_at'] ?? json['createdAt'],
-      entity.createdAt,
-    );
-    final updatedAt = _readInt(
-      json['updated_at'] ?? json['updatedAt'],
-      entity.updatedAt,
-    );
+    final createdAt = entity.createdAt != 0
+        ? entity.createdAt
+        : _readInt(
+            json['created_at'] ?? json['createdAt'],
+            entity.createdAt,
+          );
+    final updatedAt = entity.updatedAt != 0
+        ? entity.updatedAt
+        : _readInt(
+            json['updated_at'] ?? json['updatedAt'],
+            entity.updatedAt,
+          );
     final resolvedUpdatedAt = updatedAt < createdAt ? createdAt : updatedAt;
 
     return _RemoteSession(
@@ -914,8 +1041,8 @@ class ChatService {
     ChatEntity entity,
     Map<String, dynamic> json,
   ) {
-    final type = json['type'];
-    if (type != 'ensu_chat_message') {
+    final type = _readString(json['type']);
+    if (type != null && type != 'llmchat_message') {
       _logger.fine("Skipping message: type=$type");
       return null;
     }
@@ -926,25 +1053,36 @@ class ChatService {
       _logger.warning("Message id mismatch between payload and entity");
     }
 
-    final sessionUuid =
+    final sessionUuid = entity.sessionUuid ??
         _readString(json['session_uuid'] ?? json['sessionUuid']);
     if (sessionUuid == null) {
       _logger.warning("Skipping message: missing session_uuid");
       return null;
     }
 
-    final parentMessageUuid =
+    final parentMessageUuid = entity.parentMessageUuid ??
         _readString(json['parent_message_uuid'] ?? json['parentMessageUuid']);
-    final sender = _readString(json['sender']);
+    final sender = entity.sender ?? _readString(json['sender']);
     if (sender == null) {
       _logger.warning("Skipping message: missing sender");
       return null;
     }
     final text = _readString(json['text']) ?? '';
-    final createdAt = _readInt(
-      json['created_at'] ?? json['createdAt'],
-      entity.createdAt,
-    );
+
+    final attachments = entity.attachments.isNotEmpty
+        ? entity.attachments
+        : _readAttachments(
+            json['attachments'] ??
+                json['attachment_ids'] ??
+                json['attachmentIds'],
+          );
+
+    final createdAt = entity.createdAt != 0
+        ? entity.createdAt
+        : _readInt(
+            json['created_at'] ?? json['createdAt'],
+            entity.createdAt,
+          );
 
     return _RemoteMessage(
       messageUuid: messageUuid,
@@ -952,6 +1090,7 @@ class ChatService {
       parentMessageUuid: parentMessageUuid,
       sender: sender,
       text: text,
+      attachments: attachments,
       createdAt: createdAt,
     );
   }
@@ -982,17 +1121,199 @@ class ChatService {
     return null;
   }
 
+  List<ChatAttachment> _readAttachments(dynamic value) {
+    if (value is List) {
+      if (value.isEmpty) return const [];
+
+      final attachments = <ChatAttachment>[];
+      for (final entry in value) {
+        if (entry is Map) {
+          try {
+            attachments.add(
+              ChatAttachment.fromJson(Map<String, dynamic>.from(entry)),
+            );
+          } catch (_) {
+            continue;
+          }
+        } else if (entry is String && entry.isNotEmpty) {
+          attachments.add(
+            ChatAttachment(
+              id: entry,
+              kind: ChatAttachmentKind.document,
+              size: 0,
+            ),
+          );
+        }
+      }
+      return attachments;
+    }
+
+    if (value is String && value.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        return _readAttachments(decoded);
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    return const [];
+  }
+
+  bool _isNotFoundError(Object error) {
+    return error is DioException && error.response?.statusCode == 404;
+  }
+
+  Future<bool> _deleteRemoteEntity(
+    String entityType,
+    String entityId, {
+    required bool propagateUnauthorized,
+  }) async {
+    try {
+      if (entityType == ChatDB.deletionTypeSession) {
+        await _gateway.deleteSession(entityId);
+      } else {
+        await _gateway.deleteMessage(entityId);
+      }
+      return true;
+    } on UnauthorizedError catch (e, s) {
+      if (propagateUnauthorized) {
+        rethrow;
+      }
+      _logger.warning(
+        "Unauthorized while deleting $entityType: $entityId",
+        e,
+        s,
+      );
+      return false;
+    } catch (e, s) {
+      if (_isNotFoundError(e)) {
+        _logger.fine("$entityType already deleted on server: $entityId");
+        return true;
+      }
+      _logger.warning(
+        "Failed to delete $entityType $entityId from server: $e",
+        e,
+        s,
+      );
+      return false;
+    }
+  }
+
   Future<void> _handleUnauthorized(String context) async {
     _logger.warning("Unauthorized during $context - logging out");
     await _config.logout();
     eventBus.fire(TriggerLogoutEvent());
   }
 
+  Future<void> _pushPendingDeletions(
+    List<PendingDeletion> deletions,
+  ) async {
+    _logger.fine("Pushing ${deletions.length} deletions to server");
+    int successCount = 0;
+    int errorCount = 0;
+
+    for (final deletion in deletions) {
+      final deleted = await _deleteRemoteEntity(
+        deletion.entityType,
+        deletion.entityId,
+        propagateUnauthorized: true,
+      );
+      if (deleted) {
+        await _db.removePendingDeletion(
+          deletion.entityType,
+          deletion.entityId,
+        );
+        successCount++;
+      } else {
+        errorCount++;
+      }
+    }
+
+    _logger.fine(
+      "Deletion push completed: $successCount succeeded, $errorCount failed",
+    );
+  }
+
+  Future<void> _uploadPendingAttachments(Set<String> attachmentIds) async {
+    if (_attachmentsApiUnavailable || attachmentIds.isEmpty) {
+      return;
+    }
+
+    final states = await _db.getAttachmentStates(attachmentIds.toList());
+    for (final attachmentId in attachmentIds) {
+      if (attachmentId.isEmpty) {
+        continue;
+      }
+      final state = states[attachmentId];
+      if (state == null || state == ChatAttachmentUploadState.uploaded) {
+        continue;
+      }
+
+      await _db.markAttachmentUploading(attachmentId);
+      eventBus.fire(ChatsUpdatedEvent());
+      try {
+        final encryptedBytes =
+            await ChatAttachmentStore.instance.readEncryptedAttachmentBytes(
+          attachmentId,
+        );
+        if (encryptedBytes == null) {
+          await _db.markAttachmentFailed(attachmentId);
+          eventBus.fire(ChatsUpdatedEvent());
+          continue;
+        }
+
+        await _gateway.uploadAttachment(attachmentId, encryptedBytes);
+        await _db.markAttachmentUploaded(attachmentId);
+        eventBus.fire(ChatsUpdatedEvent());
+      } on UnauthorizedError {
+        rethrow;
+      } catch (e, s) {
+        if (_isNotFoundError(e)) {
+          _attachmentsApiUnavailable = true;
+          _logger.fine('Attachment API not available on server');
+          await _db.markAttachmentFailed(attachmentId);
+          eventBus.fire(ChatsUpdatedEvent());
+          return;
+        }
+        await _db.markAttachmentFailed(attachmentId);
+        eventBus.fire(ChatsUpdatedEvent());
+        _logger.warning('Attachment upload failed: $attachmentId', e, s);
+      }
+    }
+  }
+
+  Set<String> _messagesWithPendingAttachments(
+    List<LocalMessage> messages,
+    Map<String, ChatAttachmentUploadState> states,
+  ) {
+    final pending = <String>{};
+    for (final message in messages) {
+      for (final attachment in message.attachments) {
+        final state = states[attachment.id];
+        if (state != null && state != ChatAttachmentUploadState.uploaded) {
+          pending.add(message.messageUuid);
+          break;
+        }
+      }
+    }
+    return pending;
+  }
+
   /// Push local changes to server.
   Future<void> _pushToServer() async {
+    final pendingDeletions = await _db.getPendingDeletions();
     final sessionsToSync = await _db.getSessionsNeedingSync();
+    if (pendingDeletions.isEmpty && sessionsToSync.isEmpty) {
+      _logger.fine("No sessions or deletions need syncing");
+      return;
+    }
+
+    if (pendingDeletions.isNotEmpty) {
+      await _pushPendingDeletions(pendingDeletions);
+    }
+
     if (sessionsToSync.isEmpty) {
-      _logger.fine("No sessions need syncing");
       return;
     }
 
@@ -1012,14 +1333,25 @@ class ChatService {
       try {
         final messages = await _db.getMessages(session.sessionUuid);
 
+        final attachmentIds = <String>{};
+        for (final message in messages) {
+          for (final attachment in message.attachments) {
+            if (attachment.id.isNotEmpty) {
+              attachmentIds.add(attachment.id);
+            }
+          }
+        }
+
+        await _uploadPendingAttachments(attachmentIds);
+        final attachmentStates =
+            await _db.getAttachmentStates(attachmentIds.toList());
+        final blockedMessageIds =
+            _messagesWithPendingAttachments(messages, attachmentStates);
+        final messagesToSync =
+            ChatDag.orderForSync(messages, blockedMessageIds);
+
         final sessionPayload = {
-          'type': 'ensu_chat_session',
-          'session_uuid': session.sessionUuid,
-          'root_session_uuid': session.rootSessionUuid,
-          'branch_from_message_uuid': session.branchFromMessageUuid,
           'title': session.title,
-          'created_at': session.createdAt,
-          'updated_at': session.updatedAt,
         };
 
         final sessionBytes =
@@ -1037,17 +1369,14 @@ class ChatService {
           session.sessionUuid,
           encryptedSessionData,
           encryptedSessionHeader,
+          rootSessionUuid: session.rootSessionUuid,
+          branchFromMessageUuid: session.branchFromMessageUuid,
+          createdAt: session.createdAt,
         );
 
-        for (final message in messages) {
+        for (final message in messagesToSync) {
           final messagePayload = {
-            'type': 'ensu_chat_message',
-            'message_uuid': message.messageUuid,
-            'session_uuid': message.sessionUuid,
-            'parent_message_uuid': message.parentMessageUuid,
-            'sender': message.sender,
             'text': message.text,
-            'created_at': message.createdAt,
           };
 
           final messageBytes =
@@ -1067,14 +1396,22 @@ class ChatService {
             message.parentMessageUuid,
             encryptedMessageData,
             encryptedMessageHeader,
+            sender: message.sender,
+            attachments: message.attachments
+                .map((attachment) => attachment.toServerJson())
+                .toList(),
+            createdAt: message.createdAt,
           );
         }
 
+        final hasBlockedMessages = messagesToSync.length != messages.length;
         await _db.updateSession(session.copyWith(
           remoteId: session.sessionUuid,
-          needsSync: false,
+          needsSync: hasBlockedMessages,
         ));
-        _logger.fine("Synced session with ${messages.length} messages");
+        _logger.fine(
+          "Synced session with ${messagesToSync.length} messages",
+        );
         successCount++;
       } catch (e, s) {
         if (e is UnauthorizedError) {
@@ -1094,6 +1431,10 @@ class ChatService {
     }
 
     _logger.fine("Push completed: $successCount succeeded, $errorCount failed");
+  }
+
+  Future<Uint8List> getOrCreateChatKey() async {
+    return _getOrCreateChatKey();
   }
 
   /// Get or create the chat encryption key.

@@ -31,6 +31,8 @@ class _DownloadToastState extends State<DownloadToast>
   bool _hasError = false;
   bool _isLoading = false;
   bool _isComplete = false;
+  bool _didAttemptLoad = false;
+  bool _offerRetryDownload = false;
   StreamSubscription? _subscription;
 
   late AnimationController _animController;
@@ -63,7 +65,7 @@ class _DownloadToastState extends State<DownloadToast>
     ));
 
     _animController.forward();
-    _startDownload();
+    unawaited(_startDownload());
   }
 
   @override
@@ -76,13 +78,25 @@ class _DownloadToastState extends State<DownloadToast>
   LLMService get _llm => LLMService.instance;
 
   Future<void> _startDownload() async {
+    await _subscription?.cancel();
+    _subscription = null;
+
+    _didAttemptLoad = false;
+    _offerRetryDownload = false;
+
     _subscription = _llm.downloadProgress.listen((progress) {
       if (!mounted) return;
 
       final rawStatus = progress.status ?? '';
+      if (rawStatus.contains('Loading model')) {
+        _didAttemptLoad = true;
+      }
+
       final isLoadingModel = rawStatus.contains('Loading');
       final isReady = rawStatus == 'Ready';
       final status = progress.hasError ? _formatError(rawStatus) : rawStatus;
+      final offerRetryDownload = progress.hasError &&
+          (_didAttemptLoad || _isLoadFailureStatus(rawStatus));
 
       setState(() {
         _percent = progress.percent;
@@ -90,6 +104,7 @@ class _DownloadToastState extends State<DownloadToast>
         _hasError = progress.hasError;
         _isLoading = isLoadingModel;
         _isComplete = isReady;
+        _offerRetryDownload = offerRetryDownload;
       });
 
       if (isReady) {
@@ -103,14 +118,20 @@ class _DownloadToastState extends State<DownloadToast>
         _handleComplete();
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
+      if (!mounted) return;
+
+      final hadError = _hasError;
+      final offerRetryDownload = _didAttemptLoad || _offerRetryDownload;
+
+      setState(() {
+        _hasError = true;
+        _isLoading = false;
+        _offerRetryDownload = offerRetryDownload;
+        if (!hadError) {
           _status = 'Error: ${_formatError(e)}';
-          _isLoading = false;
-        });
-        widget.onError?.call();
-      }
+        }
+      });
+      widget.onError?.call();
     }
   }
 
@@ -130,6 +151,11 @@ class _DownloadToastState extends State<DownloadToast>
     return lower.contains('no space left on device') ||
         lower.contains('errno = 28') ||
         lower.contains('enospc');
+  }
+
+  bool _isLoadFailureStatus(String status) {
+    final trimmed = status.trimLeft().toLowerCase();
+    return trimmed.startsWith('load failed');
   }
 
   void _handleComplete() {
@@ -155,8 +181,38 @@ class _DownloadToastState extends State<DownloadToast>
       _hasError = false;
       _percent = 0;
       _status = 'Retrying...';
+      _didAttemptLoad = false;
+      _offerRetryDownload = false;
     });
-    _startDownload();
+    unawaited(_startDownload());
+  }
+
+  Future<void> _retryDownload() async {
+    setState(() {
+      _hasError = false;
+      _percent = 0;
+      _status = 'Retrying download...';
+      _didAttemptLoad = false;
+      _offerRetryDownload = false;
+    });
+
+    try {
+      _llm.cancelDownload();
+      final targetModel = _llm.targetModel;
+      if (targetModel != null) {
+        await _llm.deleteModel(targetModel);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _hasError = true;
+        _status = 'Error: ${_formatError(e)}';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    unawaited(_startDownload());
   }
 
   @override
@@ -167,6 +223,15 @@ class _DownloadToastState extends State<DownloadToast>
     final textColor = isDark ? EnsuColors.inkDark : EnsuColors.ink;
     final mutedColor = isDark ? EnsuColors.mutedDark : EnsuColors.muted;
     final accentColor = isDark ? EnsuColors.accentDark : EnsuColors.accent;
+    final title = _hasError
+        ? _offerRetryDownload
+            ? 'Model loading failed'
+            : 'Model setup failed'
+        : _isComplete
+            ? 'Model ready'
+            : _isLoading
+                ? 'Loading model'
+                : 'Downloading model';
 
     return SlideTransition(
       position: _slideAnimation,
@@ -212,7 +277,7 @@ class _DownloadToastState extends State<DownloadToast>
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Preparing model',
+                      title,
                       style: GoogleFonts.cormorantGaramond(
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
@@ -304,7 +369,7 @@ class _DownloadToastState extends State<DownloadToast>
                     ),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: _retry,
+                      onPressed: _offerRetryDownload ? _retryDownload : _retry,
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -314,7 +379,7 @@ class _DownloadToastState extends State<DownloadToast>
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
-                        'Retry',
+                        _offerRetryDownload ? 'Retry download' : 'Retry',
                         style: GoogleFonts.sourceSerif4(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -330,66 +395,5 @@ class _DownloadToastState extends State<DownloadToast>
         ),
       ),
     );
-  }
-}
-
-/// Overlay entry helper for showing/hiding the toast
-class DownloadToastOverlay {
-  static OverlayEntry? _entry;
-  static Completer<bool>? _completer;
-
-  /// Show the download toast and return a Future that completes when done
-  /// Returns true if download completed successfully, false if cancelled/error
-  static Future<bool> show(BuildContext context) async {
-    // If already showing, wait for existing
-    if (_entry != null) {
-      return _completer?.future ?? Future.value(false);
-    }
-
-    _completer = Completer<bool>();
-
-    _entry = OverlayEntry(
-      builder: (context) {
-        final topOffset =
-            MediaQuery.of(context).padding.top + kToolbarHeight + 8;
-        return Positioned(
-          left: 0,
-          right: 0,
-          top: topOffset,
-          child: Material(
-            type: MaterialType.transparency,
-            child: DownloadToast(
-              onComplete: () {
-                _hide();
-                _completer?.complete(true);
-              },
-              onCancel: () {
-                _hide();
-                _completer?.complete(false);
-              },
-              onError: () {
-                // Don't auto-hide on error, let user dismiss
-              },
-            ),
-          ),
-        );
-      },
-    );
-
-    Overlay.of(context).insert(_entry!);
-
-    return _completer!.future;
-  }
-
-  static void _hide() {
-    _entry?.remove();
-    _entry = null;
-  }
-
-  /// Force hide the toast
-  static void dismiss() {
-    _hide();
-    _completer?.complete(false);
-    _completer = null;
   }
 }

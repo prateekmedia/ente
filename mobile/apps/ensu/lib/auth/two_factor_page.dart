@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:ensu/auth/auth_service.dart';
 import 'package:ensu/auth/password_page.dart';
+import 'package:ensu/ui/screens/home_page.dart';
 import 'package:ensu/ui/widgets/dismiss_keyboard.dart';
 import 'package:ensu/ui/widgets/locker_auth_components.dart';
 import 'package:ente_ui/theme/ente_theme.dart';
@@ -10,12 +11,14 @@ class TwoFactorPage extends StatefulWidget {
   final String email;
   final ServerSrpAttributes srpAttributes;
   final String sessionId;
+  final String? password;
 
   const TwoFactorPage({
     super.key,
     required this.email,
     required this.srpAttributes,
     required this.sessionId,
+    this.password,
   });
 
   @override
@@ -60,6 +63,27 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
 
       if (!mounted) return;
 
+      if (widget.password != null) {
+        await AuthService.instance.loginAfterEmailMfa(
+          email: widget.email,
+          password: widget.password!,
+          srpAttributes: widget.srpAttributes,
+          keyAttributes: result.keyAttributes,
+          encryptedToken: result.encryptedToken,
+          plainToken: result.plainToken,
+          userId: result.id,
+        );
+
+        if (!mounted) return;
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+          (route) => false,
+        );
+        return;
+      }
+
       // Go to password page with the result (email MFA flow)
       Navigator.pushReplacement(
         context,
@@ -82,6 +106,12 @@ class _TwoFactorPageState extends State<TwoFactorPage> {
               e.response?.data?['message'] ?? 'Invalid 2FA code',
             ),
           ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: $e')),
         );
       }
     } finally {

@@ -98,7 +98,7 @@ packages:
     source: git
     version: "1.0.0"
   ente_crypto_dart_adapter:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       path: "../ente_crypto_dart_adapter"
       relative: true

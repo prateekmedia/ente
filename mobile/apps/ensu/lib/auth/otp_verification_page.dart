@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:ensu/auth/auth_service.dart';
+import 'package:ensu/auth/passkey_page.dart';
 import 'package:ensu/auth/password_page.dart';
 import 'package:ensu/auth/two_factor_page.dart';
 import 'package:ensu/ui/widgets/dismiss_keyboard.dart';
@@ -72,9 +73,16 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       }
 
       if (result.requiresPasskey) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Passkey login not implemented yet.'),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasskeyLoginPage(
+              email: widget.email,
+              srpAttributes: widget.srpAttributes,
+              sessionId: result.passkeySessionId!,
+              accountsUrl: result.accountsUrl,
+              twoFactorSessionId: result.twoFactorSessionId,
+            ),
           ),
         );
         return;

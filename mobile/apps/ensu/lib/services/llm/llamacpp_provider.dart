@@ -104,12 +104,21 @@ class LlamaCppProvider implements LLMProvider {
         status: 'Loading model...',
       ));
 
-      await _loadModel();
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      _downloadProgressController.add(const DownloadProgress(
-        percent: 100,
-        status: 'Ready',
-      ));
+      try {
+        await _loadModel();
+        _downloadProgressController.add(const DownloadProgress(
+          percent: 100,
+          status: 'Ready',
+        ));
+      } catch (e) {
+        _downloadProgressController.add(DownloadProgress(
+          percent: -1,
+          status: 'Load failed: $e',
+        ));
+        rethrow;
+      }
     }
   }
 
@@ -306,8 +315,11 @@ class LlamaCppProvider implements LLMProvider {
   Stream<String> generateStream(
     String prompt, {
     List<LLMMessage>? history,
+    List<LLMImage>? images,
     double? temperature,
     int? maxTokens,
+    bool enableTodoTools = false,
+    String? todoSessionId,
   }) async* {
     if (!_isReady || _llama == null) {
       yield 'Model not loaded.';
@@ -339,11 +351,20 @@ class LlamaCppProvider implements LLMProvider {
   Future<String> generate(
     String prompt, {
     List<LLMMessage>? history,
+    List<LLMImage>? images,
     double? temperature,
     int? maxTokens,
+    bool enableTodoTools = false,
+    String? todoSessionId,
   }) async {
     final buffer = StringBuffer();
-    await for (final token in generateStream(prompt, history: history)) {
+    await for (final token in generateStream(
+      prompt,
+      history: history,
+      images: images,
+      enableTodoTools: enableTodoTools,
+      todoSessionId: todoSessionId,
+    )) {
       buffer.write(token);
     }
     return buffer.toString();

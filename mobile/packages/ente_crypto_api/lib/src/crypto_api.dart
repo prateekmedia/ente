@@ -9,8 +9,18 @@ abstract class CryptoApi {
   Future<void> init();
 
   Uint8List strToBin(String str);
+
+  /// Decode base64 into bytes.
+  ///
+  /// Accepts standard (`+`/`/`) or URL-safe (`-`/`_`) alphabets with or without
+  /// padding.
   Uint8List base642bin(String b64);
+
+  /// Encode bytes to base64.
+  ///
+  /// Uses standard alphabet by default; set `urlSafe` for URL-safe output.
   String bin2base64(Uint8List bin, {bool urlSafe = false});
+
   String bin2hex(Uint8List bin);
   Uint8List hex2bin(String hex);
 

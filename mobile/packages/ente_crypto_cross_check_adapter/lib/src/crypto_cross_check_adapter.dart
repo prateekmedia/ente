@@ -34,16 +34,18 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
 
   @override
   Uint8List strToBin(String str) {
-    final dartBin = _dart.strToBin(str);
-    final utf8Bin = Uint8List.fromList(utf8.encode(str));
-    assertEqualBytes(utf8Bin, dartBin, 'strToBin');
-    return dartBin;
+    final rustBin = rust.strToBin(input: str);
+    _guard('strToBin', () {
+      final dartBin = _dart.strToBin(str);
+      assertEqualBytes(rustBin, dartBin, 'strToBin');
+    });
+    return rustBin;
   }
 
   @override
   Uint8List base642bin(String b64) {
     final dartBin = _dart.base642bin(b64);
-    final rustBin = rust.base642Bin(data: _normalizeBase64(b64));
+    final rustBin = rust.base642Bin(data: b64);
     assertEqualBytes(rustBin, dartBin, 'base642bin');
     return rustBin;
   }
@@ -51,7 +53,7 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
   @override
   String bin2base64(Uint8List bin, {bool urlSafe = false}) {
     final dartB64 = _dart.bin2base64(bin, urlSafe: urlSafe);
-    final rustB64 = _rustBin2Base64(bin, urlSafe: urlSafe);
+    final rustB64 = rust.bin2Base64(data: bin, urlSafe: urlSafe);
     assertEqualString(rustB64, dartB64, 'bin2base64');
     return rustB64;
   }
@@ -232,12 +234,36 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
     String sourceFilePath,
     String destinationFilePath, {
     Uint8List? key,
-  }) {
-    return _dart.encryptFile(
+  }) async {
+    final rustResult = await _rustAdapter.encryptFile(
       sourceFilePath,
       destinationFilePath,
       key: key,
     );
+    await _guardAsync('encryptFile', () async {
+      final resolvedKey = rustResult.key ?? key;
+      if (resolvedKey == null) {
+        failCrossCheck('encryptFile:key', 'missing key');
+      }
+      final header = _requireBytes(rustResult.header, 'encryptFile:header');
+      final decryptedFile = _tempFile('encrypt_file_decrypted');
+      try {
+        await _dart.decryptFile(
+          destinationFilePath,
+          decryptedFile.path,
+          header,
+          resolvedKey,
+        );
+        await _assertFileMatches(
+          sourceFilePath,
+          decryptedFile.path,
+          'encryptFile:dartDecryptFromRust',
+        );
+      } finally {
+        await _deleteTempFile(decryptedFile);
+      }
+    });
+    return rustResult;
   }
 
   @override
@@ -246,13 +272,38 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
     String destinationFilePath, {
     Uint8List? key,
     int? multiPartChunkSizeInBytes,
-  }) {
-    return _dart.encryptFileWithMd5(
+  }) async {
+    final rustResult = await _rustAdapter.encryptFileWithMd5(
       sourceFilePath,
       destinationFilePath,
       key: key,
       multiPartChunkSizeInBytes: multiPartChunkSizeInBytes,
     );
+    await _guardAsync('encryptFileWithMd5', () async {
+      final resolvedKey = rustResult.key ?? key;
+      if (resolvedKey == null) {
+        failCrossCheck('encryptFileWithMd5:key', 'missing key');
+      }
+      final header =
+          _requireBytes(rustResult.header, 'encryptFileWithMd5:header');
+      final decryptedFile = _tempFile('encrypt_file_md5_decrypted');
+      try {
+        await _dart.decryptFile(
+          destinationFilePath,
+          decryptedFile.path,
+          header,
+          resolvedKey,
+        );
+        await _assertFileMatches(
+          sourceFilePath,
+          decryptedFile.path,
+          'encryptFileWithMd5:dartDecryptFromRust',
+        );
+      } finally {
+        await _deleteTempFile(decryptedFile);
+      }
+    });
+    return rustResult;
   }
 
   @override
@@ -261,13 +312,31 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
     String destinationFilePath,
     Uint8List header,
     Uint8List key,
-  ) {
-    return _dart.decryptFile(
+  ) async {
+    await _rustAdapter.decryptFile(
       sourceFilePath,
       destinationFilePath,
       header,
       key,
     );
+    await _guardAsync('decryptFile', () async {
+      final dartOutput = _tempFile('decrypt_file_dart');
+      try {
+        await _dart.decryptFile(
+          sourceFilePath,
+          dartOutput.path,
+          header,
+          key,
+        );
+        await _assertFileMatches(
+          destinationFilePath,
+          dartOutput.path,
+          'decryptFile:dartDecryptFromRust',
+        );
+      } finally {
+        await _deleteTempFile(dartOutput);
+      }
+    });
   }
 
   @override
@@ -361,7 +430,12 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
 
   @override
   Uint8List sealSync(Uint8List input, Uint8List publicKey) {
-    return _dart.sealSync(input, publicKey);
+    final rustCipher = rust.sealSync(data: input, publicKey: publicKey);
+    _guard('sealSync', () {
+      final dartCipher = _dart.sealSync(input, publicKey);
+      assertEqualInt(rustCipher.length, dartCipher.length, 'sealSync:length');
+    });
+    return rustCipher;
   }
 
   @override
@@ -470,23 +544,84 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
     int memLimit,
     int opsLimit,
   ) {
-    return _dart.cryptoPwHash(password, salt, memLimit, opsLimit);
+    final rustHash = _rustAdapter.cryptoPwHash(
+      password,
+      salt,
+      memLimit,
+      opsLimit,
+    );
+    _guard('cryptoPwHash', () {
+      final dartHash = _dart.cryptoPwHash(password, salt, memLimit, opsLimit);
+      assertEqualBytes(rustHash, dartHash, 'cryptoPwHash');
+    });
+    return rustHash;
   }
 
   @override
-  int get pwhashMemLimitInteractive => _dart.pwhashMemLimitInteractive;
+  int get pwhashMemLimitInteractive {
+    final rustValue = _rustAdapter.pwhashMemLimitInteractive;
+    _guard('pwhashMemLimitInteractive', () {
+      final dartValue = _dart.pwhashMemLimitInteractive;
+      assertEqualInt(
+        rustValue,
+        dartValue,
+        'pwhashMemLimitInteractive',
+      );
+    });
+    return rustValue;
+  }
 
   @override
-  int get pwhashMemLimitSensitive => _dart.pwhashMemLimitSensitive;
+  int get pwhashMemLimitSensitive {
+    final rustValue = _rustAdapter.pwhashMemLimitSensitive;
+    _guard('pwhashMemLimitSensitive', () {
+      final dartValue = _dart.pwhashMemLimitSensitive;
+      assertEqualInt(
+        rustValue,
+        dartValue,
+        'pwhashMemLimitSensitive',
+      );
+    });
+    return rustValue;
+  }
 
   @override
-  int get pwhashOpsLimitInteractive => _dart.pwhashOpsLimitInteractive;
+  int get pwhashOpsLimitInteractive {
+    final rustValue = _rustAdapter.pwhashOpsLimitInteractive;
+    _guard('pwhashOpsLimitInteractive', () {
+      final dartValue = _dart.pwhashOpsLimitInteractive;
+      assertEqualInt(
+        rustValue,
+        dartValue,
+        'pwhashOpsLimitInteractive',
+      );
+    });
+    return rustValue;
+  }
 
   @override
-  int get pwhashOpsLimitSensitive => _dart.pwhashOpsLimitSensitive;
+  int get pwhashOpsLimitSensitive {
+    final rustValue = _rustAdapter.pwhashOpsLimitSensitive;
+    _guard('pwhashOpsLimitSensitive', () {
+      final dartValue = _dart.pwhashOpsLimitSensitive;
+      assertEqualInt(
+        rustValue,
+        dartValue,
+        'pwhashOpsLimitSensitive',
+      );
+    });
+    return rustValue;
+  }
 
   @override
-  Future<Uint8List> getHash(File source) => _dart.getHash(source);
+  Future<Uint8List> getHash(File source) async {
+    final rustHash = await _rustAdapter.getHash(source);
+    await _guardAsync('getHash', () async {
+      final dartHash = await _dart.getHash(source);
+      assertEqualBytes(rustHash, dartHash, 'getHash');
+    });
+    return rustHash;
+  }
 
   Uint8List _requireBytes(Uint8List? value, String label) {
     if (value == null) {
@@ -513,33 +648,34 @@ class EnteCryptoCrossCheckAdapter implements CryptoApi {
     }
   }
 
-  String _normalizeBase64(String data) {
-    var normalized = data.replaceAll('-', '+').replaceAll('_', '/');
-    while (normalized.length % 4 != 0) {
-      normalized += '=';
-    }
-    return normalized;
+  Future<void> _assertFileMatches(
+    String expectedPath,
+    String actualPath,
+    String label,
+  ) async {
+    final expectedHash = await rust.getHash(sourceFilePath: expectedPath);
+    final actualHash = await rust.getHash(sourceFilePath: actualPath);
+    assertEqualBytes(
+      actualHash,
+      expectedHash,
+      label,
+      redact: true,
+    );
   }
 
-  String _rustBin2Base64(Uint8List bin, {required bool urlSafe}) {
+  File _tempFile(String label) {
+    final timestamp = DateTime.now().microsecondsSinceEpoch;
+    return File(
+      '${Directory.systemTemp.path}/crypto_cross_check_${label}_$timestamp',
+    );
+  }
+
+  Future<void> _deleteTempFile(File file) async {
     try {
-      return Function.apply(
-        rust.bin2Base64,
-        const [],
-        {#data: bin, #urlSafe: urlSafe},
-      ) as String;
-    } on NoSuchMethodError {
-      return _toUrlSafeBase64IfNeeded(rust.bin2Base64(data: bin), urlSafe);
-    } on ArgumentError {
-      return _toUrlSafeBase64IfNeeded(rust.bin2Base64(data: bin), urlSafe);
-    }
-  }
-
-  String _toUrlSafeBase64IfNeeded(String data, bool urlSafe) {
-    if (!urlSafe) {
-      return data;
-    }
-    return data.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
   }
 
   String _passwordToString(Uint8List password) {

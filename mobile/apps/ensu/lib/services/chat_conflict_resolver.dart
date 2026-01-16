@@ -1,10 +1,15 @@
+import 'package:collection/collection.dart';
+import 'package:ensu/models/chat_attachment.dart';
 import 'package:ensu/store/chat_db.dart';
+
+const _attachmentEquality = DeepCollectionEquality();
 
 class ChatConflictMessage {
   final String messageUuid;
   final String? parentMessageUuid;
   final String sender;
   final String text;
+  final List<ChatAttachment> attachments;
   final int createdAt;
 
   const ChatConflictMessage({
@@ -12,6 +17,7 @@ class ChatConflictMessage {
     this.parentMessageUuid,
     required this.sender,
     required this.text,
+    this.attachments = const [],
     required this.createdAt,
   });
 
@@ -21,6 +27,7 @@ class ChatConflictMessage {
       parentMessageUuid: message.parentMessageUuid,
       sender: message.sender,
       text: message.text,
+      attachments: message.attachments,
       createdAt: message.createdAt,
     );
   }
@@ -70,17 +77,17 @@ class ChatConflictResolution {
 }
 
 class ChatConflictResolver {
-  static const int defaultDuplicateWindowMs = 2000;
+  static const int defaultDuplicateWindowUs = 2000000;
 
   static ChatConflictResolution resolve({
     required List<ChatConflictMessage> localMessages,
     required List<ChatConflictMessage> remoteMessages,
-    int duplicateWindowMs = defaultDuplicateWindowMs,
+    int duplicateWindowUs = defaultDuplicateWindowUs,
   }) {
     final filteredRemote = _filterRemoteDuplicates(
       localMessages: localMessages,
       remoteMessages: remoteMessages,
-      windowMs: duplicateWindowMs,
+      windowUs: duplicateWindowUs,
     );
 
     if (filteredRemote.isEmpty) {
@@ -336,7 +343,7 @@ List<ChatConflictMessage> _pathFromAncestor({
 List<ChatConflictMessage> _filterRemoteDuplicates({
   required List<ChatConflictMessage> localMessages,
   required List<ChatConflictMessage> remoteMessages,
-  required int windowMs,
+  required int windowUs,
 }) {
   if (remoteMessages.isEmpty) return [];
 
@@ -352,7 +359,7 @@ List<ChatConflictMessage> _filterRemoteDuplicates({
       ...?remoteChildren[parentId],
     ];
 
-    if (_isDuplicateChild(message, siblings, windowMs)) {
+    if (_isDuplicateChild(message, siblings, windowUs)) {
       continue;
     }
 
@@ -376,14 +383,14 @@ Map<String?, List<ChatConflictMessage>> _buildChildrenMap(
 bool _isDuplicateChild(
   ChatConflictMessage candidate,
   List<ChatConflictMessage> siblings,
-  int windowMs,
+  int windowUs,
 ) {
   for (final sibling in siblings) {
     if (sibling.messageUuid == candidate.messageUuid) {
       return true;
     }
     if (_sameSignature(candidate, sibling) &&
-        (candidate.createdAt - sibling.createdAt).abs() <= windowMs) {
+        (candidate.createdAt - sibling.createdAt).abs() <= windowUs) {
       return true;
     }
   }
@@ -391,7 +398,9 @@ bool _isDuplicateChild(
 }
 
 bool _sameSignature(ChatConflictMessage a, ChatConflictMessage b) {
-  return a.sender == b.sender && a.text == b.text;
+  return a.sender == b.sender &&
+      a.text == b.text &&
+      _attachmentEquality.equals(a.attachments, b.attachments);
 }
 
 List<ChatConflictMessage> _filterByIds(

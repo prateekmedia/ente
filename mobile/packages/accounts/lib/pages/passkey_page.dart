@@ -12,7 +12,6 @@ import 'package:ente_ui/utils/dialog_util.dart';
 import 'package:ente_ui/utils/toast_util.dart';
 import 'package:ente_utils/navigation_util.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:logging/logging.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -154,14 +153,7 @@ class _PasskeyPageState extends State<PasskeyPage> {
         scrolledUnderElevation: 0,
         backgroundColor: colorScheme.backgroundBase,
         centerTitle: true,
-        title: widget.appBarTitle ??
-            SvgPicture.asset(
-              'assets/svg/app-logo.svg',
-              colorFilter: ColorFilter.mode(
-                colorScheme.primary700,
-                BlendMode.srcIn,
-              ),
-            ),
+        title: widget.appBarTitle,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: colorScheme.primary700,

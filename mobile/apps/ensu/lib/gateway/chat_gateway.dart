@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:ensu/core/configuration.dart';
 import 'package:ensu/models/chat_entity.dart';
+import 'package:ente_network/network.dart';
 import 'package:uuid/uuid.dart';
 
 /// Error thrown when chat key is not found on server.
@@ -12,13 +15,13 @@ class ChatKeyNotFound implements Exception {
 /// Error thrown on unauthorized access.
 class UnauthorizedError implements Exception {}
 
-/// Gateway for ensu chat API calls.
-/// Targets the dedicated /ensu/chat endpoints.
+/// Gateway for llmchat chat API calls.
 class ChatGateway {
   late Dio _dio;
 
   // Default to production API
   static const String _defaultBaseUrl = "https://api.ente.io";
+  static const String _chatPath = "/llmchat/chat";
   static final Uuid _uuid = Uuid();
 
   ChatGateway() {
@@ -32,26 +35,28 @@ class ChatGateway {
       },
     ));
 
-    // Add auth interceptor
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        final token = Configuration.instance.getToken();
-        if (token != null) {
-          options.headers['X-Auth-Token'] = token;
-        }
-        return handler.next(options);
-      },
-    ));
+    _dio.httpClientAdapter = Network.instance.enteDio.httpClientAdapter;
+    _dio.interceptors.add(EnteRequestInterceptor(Configuration.instance));
   }
 
   void updateEndpoint(String endpoint) {
     final updated = endpoint.isEmpty ? _defaultBaseUrl : endpoint;
     _dio.options.baseUrl = updated;
+    try {
+      _dio.httpClientAdapter = Network.instance.enteDio.httpClientAdapter;
+    } catch (_) {}
   }
 
-  Future<Response<T>> _request<T>(Future<Response<T>> Function() call) async {
+  String _buildPath(String prefix, String path) {
+    final normalized = path.startsWith('/') ? path.substring(1) : path;
+    return "$prefix/$normalized";
+  }
+
+  Future<Response<T>> _request<T>(
+    Future<Response<T>> Function(String pathPrefix) call,
+  ) async {
     try {
-      return await call();
+      return await call(_chatPath);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw UnauthorizedError();
@@ -61,8 +66,8 @@ class ChatGateway {
   }
 
   Future<void> createKey(String encKey, String header) async {
-    await _request(() => _dio.post(
-          "/ensu/chat/key",
+    await _request((pathPrefix) => _dio.post(
+          _buildPath(pathPrefix, "key"),
           data: {
             "encrypted_key": encKey,
             "header": header,
@@ -72,7 +77,9 @@ class ChatGateway {
 
   Future<ChatKey> getKey() async {
     try {
-      final response = await _dio.get("/ensu/chat/key");
+      final response = await _request(
+        (pathPrefix) => _dio.get(_buildPath(pathPrefix, "key")),
+      );
       return ChatKey.fromMap(response.data);
     } on DioException catch (e) {
       if (e.response != null && (e.response!.statusCode ?? 0) == 404) {
@@ -88,12 +95,19 @@ class ChatGateway {
   Future<void> upsertSession(
     String sessionUuid,
     String encryptedData,
-    String header,
-  ) async {
-    await _request(() => _dio.post(
-          "/ensu/chat/session",
+    String header, {
+    required String rootSessionUuid,
+    String? branchFromMessageUuid,
+    int? createdAt,
+  }) async {
+    await _request((pathPrefix) => _dio.post(
+          _buildPath(pathPrefix, "session"),
           data: {
             "session_uuid": sessionUuid,
+            "root_session_uuid": rootSessionUuid,
+            if (branchFromMessageUuid != null)
+              "branch_from_message_uuid": branchFromMessageUuid,
+            if (createdAt != null) "created_at": createdAt,
             "encrypted_data": encryptedData,
             "header": header,
           },
@@ -105,14 +119,20 @@ class ChatGateway {
     String sessionUuid,
     String? parentMessageUuid,
     String encryptedData,
-    String header,
-  ) async {
-    await _request(() => _dio.post(
-          "/ensu/chat/message",
+    String header, {
+    required String sender,
+    required List<Map<String, dynamic>> attachments,
+    int? createdAt,
+  }) async {
+    await _request((pathPrefix) => _dio.post(
+          _buildPath(pathPrefix, "message"),
           data: {
             "message_uuid": messageUuid,
             "session_uuid": sessionUuid,
             "parent_message_uuid": parentMessageUuid,
+            "sender": sender,
+            "attachments": attachments,
+            if (createdAt != null) "created_at": createdAt,
             "encrypted_data": encryptedData,
             "header": header,
           },
@@ -121,10 +141,11 @@ class ChatGateway {
 
   Future<ChatEntity> createEntity(String encryptedData, String header) async {
     final sessionUuid = _uuid.v4();
-    final response = await _request(() => _dio.post(
-          "/ensu/chat/session",
+    final response = await _request((pathPrefix) => _dio.post(
+          _buildPath(pathPrefix, "session"),
           data: {
             "session_uuid": sessionUuid,
+            "root_session_uuid": sessionUuid,
             "encrypted_data": encryptedData,
             "header": header,
           },
@@ -137,21 +158,60 @@ class ChatGateway {
     String encryptedData,
     String header,
   ) async {
-    await _request(() => _dio.post(
-          "/ensu/chat/session",
+    await _request((pathPrefix) => _dio.post(
+          _buildPath(pathPrefix, "session"),
           data: {
             "session_uuid": id,
+            "root_session_uuid": id,
             "encrypted_data": encryptedData,
             "header": header,
           },
         ));
   }
 
-  Future<void> deleteEntity(String id) async {
-    await _request(() => _dio.delete(
-          "/ensu/chat/session",
-          queryParameters: {"id": id},
+  Future<void> deleteSession(String sessionUuid) async {
+    await _request((pathPrefix) => _dio.delete(
+          _buildPath(pathPrefix, "session"),
+          queryParameters: {"id": sessionUuid},
         ));
+  }
+
+  Future<void> deleteMessage(String messageUuid) async {
+    await _request((pathPrefix) => _dio.delete(
+          _buildPath(pathPrefix, "message"),
+          queryParameters: {"id": messageUuid},
+        ));
+  }
+
+  Future<void> uploadAttachment(
+    String attachmentId,
+    Uint8List encryptedBytes,
+  ) async {
+    await _request((pathPrefix) => _dio.put(
+          _buildPath(pathPrefix, "attachment/$attachmentId"),
+          data: Stream.fromIterable([encryptedBytes]),
+          options: Options(
+            contentType: 'application/octet-stream',
+            headers: {
+              Headers.contentLengthHeader: encryptedBytes.length,
+            },
+          ),
+        ));
+  }
+
+  Future<Uint8List> downloadAttachment(String attachmentId) async {
+    final response = await _request<List<int>>(
+      (pathPrefix) => _dio.get<List<int>>(
+        _buildPath(pathPrefix, "attachment/$attachmentId"),
+        options: Options(responseType: ResponseType.bytes),
+      ),
+    );
+
+    final bytes = response.data;
+    if (bytes == null) {
+      throw StateError('Attachment download failed: empty response');
+    }
+    return Uint8List.fromList(bytes);
   }
 
   Future<ChatDiff> getDiff(
@@ -159,8 +219,8 @@ class ChatGateway {
     int limit = 500,
   }) async {
     try {
-      final response = await _request(() => _dio.get(
-            "/ensu/chat/diff",
+      final response = await _request((pathPrefix) => _dio.get(
+            _buildPath(pathPrefix, "diff"),
             queryParameters: {
               "sinceTime": sinceTime,
               "limit": limit,
