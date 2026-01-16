@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import "package:ente_pure_utils/ente_pure_utils.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_animate/flutter_animate.dart";
@@ -35,7 +36,6 @@ import "package:photos/ui/viewer/people/person_clusters_page.dart";
 import "package:photos/ui/viewer/people/person_face_widget.dart";
 import "package:photos/ui/viewer/people/person_row_item.dart";
 import "package:photos/utils/dialog_util.dart";
-import "package:photos/utils/navigation_util.dart";
 import "package:photos/utils/person_contact_linking_util.dart";
 
 class SaveOrEditPerson extends StatefulWidget {
@@ -701,8 +701,8 @@ class _EmailSectionState extends State<_EmailSection> {
   @override
   Widget build(BuildContext context) {
     const limitCountTo = 5;
-    final avatarSize = getAvatarSize(AvatarType.small);
-    final overlapPadding = getOverlapPadding(AvatarType.small);
+    final avatarSize = getAvatarSize(AvatarType.xl);
+    final overlapPadding = getOverlapPadding(AvatarType.xl);
     if (_email == null || _email!.isEmpty) {
       return AnimatedSize(
         duration: const Duration(milliseconds: 200),
@@ -730,7 +730,7 @@ class _EmailSectionState extends State<_EmailSection> {
                       child: AlbumSharesIcons(
                         sharees: _contacts,
                         limitCountTo: limitCountTo,
-                        type: AvatarType.small,
+                        type: AvatarType.xl,
                         padding: EdgeInsets.zero,
                         stackAlignment: Alignment.center,
                       ),

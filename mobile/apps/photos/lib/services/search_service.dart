@@ -1,6 +1,7 @@
 import "dart:async";
 import "dart:math";
 
+import 'package:ente_pure_utils/ente_pure_utils.dart';
 import "package:flutter/cupertino.dart";
 import "package:flutter/material.dart";
 import 'package:logging/logging.dart';
@@ -30,6 +31,7 @@ import "package:photos/models/memories/smart_memory.dart";
 import "package:photos/models/ml/face/person.dart";
 import 'package:photos/models/search/album_search_result.dart';
 import 'package:photos/models/search/generic_search_result.dart';
+import "package:photos/models/search/hierarchical/camera_filter.dart";
 import "package:photos/models/search/hierarchical/contacts_filter.dart";
 import "package:photos/models/search/hierarchical/face_filter.dart";
 import "package:photos/models/search/hierarchical/file_type_filter.dart";
@@ -57,8 +59,6 @@ import "package:photos/ui/viewer/people/people_page.dart";
 import "package:photos/ui/viewer/search/result/magic_result_screen.dart";
 import "package:photos/utils/cache_util.dart";
 import "package:photos/utils/file_util.dart";
-import "package:photos/utils/navigation_util.dart";
-import 'package:photos/utils/standalone/date_time.dart';
 
 class SearchService {
   Future<List<EnteFile>>? _cachedFilesFuture;
@@ -477,6 +477,8 @@ class SearchService {
     final List<EnteFile> captionMatch = <EnteFile>[];
     final List<EnteFile> displayNameMatch = <EnteFile>[];
     final Map<String, List<EnteFile>> uploaderToFile = {};
+    final Map<String, List<EnteFile>> cameraMakeToFiles = {};
+    final Map<String, List<EnteFile>> cameraModelToFiles = {};
     for (EnteFile eachFile in allFiles) {
       if (eachFile.caption != null && pattern.hasMatch(eachFile.caption!)) {
         captionMatch.add(eachFile);
@@ -490,6 +492,14 @@ class SearchService {
           uploaderToFile[eachFile.uploaderName!] = [];
         }
         uploaderToFile[eachFile.uploaderName!]!.add(eachFile);
+      }
+      final cameraMake = eachFile.cameraMake;
+      if (cameraMake != null && pattern.hasMatch(cameraMake)) {
+        cameraMakeToFiles.putIfAbsent(cameraMake, () => []).add(eachFile);
+      }
+      final cameraModel = eachFile.cameraModel;
+      if (cameraModel != null && pattern.hasMatch(cameraModel)) {
+        cameraModelToFiles.putIfAbsent(cameraModel, () => []).add(eachFile);
       }
     }
     if (captionMatch.isNotEmpty) {
@@ -532,6 +542,40 @@ class SearchService {
             entry.value,
             hierarchicalSearchFilter: UploaderFilter(
               uploaderName: entry.key,
+              occurrence: kMostRelevantFilter,
+              matchedUploadedIDs: filesToUploadedFileIDs(entry.value),
+            ),
+          ),
+        );
+      }
+    }
+    if (cameraMakeToFiles.isNotEmpty) {
+      for (final entry in cameraMakeToFiles.entries) {
+        searchResults.add(
+          GenericSearchResult(
+            ResultType.cameraMake,
+            entry.key,
+            entry.value,
+            hierarchicalSearchFilter: TopLevelGenericFilter(
+              filterName: entry.key,
+              occurrence: kMostRelevantFilter,
+              filterResultType: ResultType.cameraMake,
+              matchedUploadedIDs: filesToUploadedFileIDs(entry.value),
+              filterIcon: Icons.photo_camera_outlined,
+            ),
+          ),
+        );
+      }
+    }
+    if (cameraModelToFiles.isNotEmpty) {
+      for (final entry in cameraModelToFiles.entries) {
+        searchResults.add(
+          GenericSearchResult(
+            ResultType.cameraModel,
+            entry.key,
+            entry.value,
+            hierarchicalSearchFilter: CameraFilter(
+              cameraModel: entry.key,
               occurrence: kMostRelevantFilter,
               matchedUploadedIDs: filesToUploadedFileIDs(entry.value),
             ),
@@ -898,6 +942,7 @@ class SearchService {
         final files = personIdToFiles[personID]!;
         final PersonEntity p = personIdToPerson[personID]!;
         if (p.data.isIgnored) continue;
+        if (files.isEmpty) continue;
         facesResult.add(
           GenericSearchResult(
             ResultType.faces,

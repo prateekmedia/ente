@@ -20,15 +20,15 @@ Share an entire album via a public link:
 1. Open the album you want to share
 2. Tap the Share icon
 3. Select "Create link" or "Share link"
-4. Configure link options (optional)
-5. Tap "Copy link" and share it with anyone
+4. Tap "Manage link" to configure optional [link features](#link-features) like album layout, password protection, link expiry, allow adding photos, etc
+5. Tap "Copy link" and share it
 
 **On web/desktop:**
 
 1. Open the album
 2. Click the share icon
 3. Select "Create link"
-4. Configure link options (optional)
+4. Click "Manage link" to configure optional [link features](#link-features) like album layout, password protection, link expiry, allow adding photos, etc
 5. Click "Copy link" and share it
 
 ### Quick link (from selected photos)
@@ -267,11 +267,11 @@ Public links are end-to-end encrypted, but with an important caveat:
 
 ## Availability
 
-Public links (including collect links and quick links) are available on all plans, including the free tier. Free plan users can create public links with a device limit of 5.
+Public links (including collect links and quick links) are available on all plans, including the free tier. Free plan users can create public links with a [device limit](https://ente.io/help/photos/features/sharing-and-collaboration/public-links#device-limits) of 5.
 
 **Free users can:**
 
-- Create public links (device limit of 5)
+- Create public links ([device limit](https://ente.io/help/photos/features/sharing-and-collaboration/public-links#device-limits) of 5)
 - View public links shared with them
 - Add photos to collect links shared with them
 - Create and receive shared albums
