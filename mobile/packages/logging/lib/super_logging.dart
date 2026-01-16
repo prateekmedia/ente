@@ -187,14 +187,18 @@ class SuperLogging {
     log.Logger.root.level = log.Level.ALL;
     log.Logger.root.onRecord.listen(onLogRecord);
 
+    if (appVersion != null) {
+      $.info("app version: '$appVersion'");
+    }
+
     if (!enable) {
-      $.info("detected debug mode; sentry & file logging disabled.");
+      $.fine("detected debug mode; sentry & file logging disabled.");
     }
     if (fileIsEnabled) {
-      $.info("log file for today: $logFile with prefix ${appConfig.prefix}");
+      $.fine("log file for today: $logFile with prefix ${appConfig.prefix}");
     }
     if (sentryIsEnabled) {
-      $.info("sentry uploader started");
+      $.fine("sentry uploader started");
     }
 
     if (appConfig.body == null) return;
@@ -238,18 +242,8 @@ class SuperLogging {
     }
   }
 
-  static String _lastExtraLines = '';
-
   static Future onLogRecord(log.LogRecord rec) async {
-    // log misc info if it changed
-    String? extraLines = "app version: '$appVersion'\n";
-    if (extraLines != _lastExtraLines) {
-      _lastExtraLines = extraLines;
-    } else {
-      extraLines = null;
-    }
-
-    final str = "${config.prefix} ${rec.toPrettyString(extraLines)}";
+    final str = "${config.prefix} ${rec.toPrettyString()}";
 
     // write to stdout
     printLog(str);
