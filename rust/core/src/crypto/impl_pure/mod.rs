@@ -9,6 +9,8 @@ pub mod argon;
 pub mod hash;
 pub mod kdf;
 pub mod keys;
+pub mod sealed;
+pub mod secretbox;
 
 static INIT: Once = Once::new();
 
