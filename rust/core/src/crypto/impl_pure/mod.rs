@@ -11,6 +11,7 @@ pub mod kdf;
 pub mod keys;
 pub mod sealed;
 pub mod secretbox;
+pub mod stream;
 
 static INIT: Once = Once::new();
 
