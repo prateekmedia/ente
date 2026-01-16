@@ -28,6 +28,11 @@ class TextInputWidget extends StatefulWidget {
   final bool popNavAfterSubmission;
   final bool shouldSurfaceExecutionStates;
   final TextCapitalization? textCapitalization;
+  final TextInputType? keyboardType;
+  final Iterable<String>? autofillHints;
+  final TextInputAction? textInputAction;
+  final bool? autocorrect;
+  final bool? enableSuggestions;
   final bool isPasswordInput;
   final bool cancellable;
   final bool shouldUnfocusOnCancelOrSubmit;
@@ -48,6 +53,11 @@ class TextInputWidget extends StatefulWidget {
     this.popNavAfterSubmission = false,
     this.shouldSurfaceExecutionStates = true,
     this.textCapitalization = TextCapitalization.none,
+    this.keyboardType,
+    this.autofillHints,
+    this.textInputAction,
+    this.autocorrect,
+    this.enableSuggestions,
     this.isPasswordInput = false,
     this.cancellable = false,
     this.shouldUnfocusOnCancelOrSubmit = false,
@@ -119,10 +129,15 @@ class _TextInputWidgetState extends State<TextInputWidget> {
         child: Material(
           child: TextFormField(
             textCapitalization: widget.textCapitalization!,
+            keyboardType: widget.keyboardType,
+            textInputAction: widget.textInputAction,
+            autofillHints: widget.autofillHints,
+            autocorrect: widget.autocorrect ?? true,
+            enableSuggestions: widget.enableSuggestions ?? true,
             autofocus: widget.autoFocus ?? false,
             controller: _textController,
             inputFormatters: widget.maxLength != null
-                ? [LengthLimitingTextInputFormatter(50)]
+                ? [LengthLimitingTextInputFormatter(widget.maxLength!)]
                 : null,
             obscureText: _obscureTextNotifier.value,
             decoration: InputDecoration(
