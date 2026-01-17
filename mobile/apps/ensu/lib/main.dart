@@ -63,8 +63,8 @@ Future<void> _init() async {
   await UserService.instance.init(
     Configuration.instance,
     const HomePage(),
-    clientPackageName: 'io.ente.auth',
-    passkeyRedirectUrl: 'enteauth://passkey',
+    clientPackageName: 'io.ente.ensu',
+    passkeyRedirectUrl: 'enteensu://passkey',
   );
 
   // Initialize DB (needed before ChatService)

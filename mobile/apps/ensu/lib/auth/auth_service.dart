@@ -2,16 +2,12 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:ente_rust/ente_rust.dart' as rust;
-import 'package:ente_network/network.dart';
 import 'package:ensu/auth/auth_crypto_adapter.dart';
 import 'package:ensu/core/configuration.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
-import 'package:uuid/uuid.dart';
 
 const _defaultAccountsUrl = 'https://accounts.ente.io';
-const _authClientPackageName = 'io.ente.auth';
-const _requestIdHeader = 'x-request-id';
 
 /// Simplified authentication service for Ensu app.
 /// Uses Rust core for all crypto operations.
@@ -22,25 +18,6 @@ class AuthService {
     _crypto = kReleaseMode
         ? RustOnlyAuthCryptoAdapter()
         : CrossCheckedAuthCryptoAdapter();
-
-    _dio = Dio(BaseOptions(
-      baseUrl: Configuration.instance.getHttpEndpoint(),
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'X-Client-Package': _authClientPackageName,
-      },
-    ));
-
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        options.headers.putIfAbsent(
-          _requestIdHeader,
-          () => _requestIdGenerator.v4(),
-        );
-        return handler.next(options);
-      },
-    ));
   }
 
   late AuthCryptoAdapter _crypto;
@@ -51,39 +28,21 @@ class AuthService {
   }
 
   final _logger = Logger('AuthService');
-  final _requestIdGenerator = const Uuid();
-  bool _authHeadersSynced = false;
-  late final Dio _dio;
+  final _dio = Dio(BaseOptions(
+    baseUrl: Configuration.instance.getHttpEndpoint(),
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+    headers: {
+      'X-Client-Package': 'io.ente.ensu',
+    },
+  ));
 
   void updateEndpoint(String endpoint) {
     _dio.options.baseUrl = endpoint;
-    try {
-      _dio.httpClientAdapter = Network.instance.enteDio.httpClientAdapter;
-    } catch (_) {}
-  }
-
-  Future<void> _ensureAuthHeaders() async {
-    if (_authHeadersSynced) {
-      return;
-    }
-
-    try {
-      final baseHeaders =
-          Map<String, dynamic>.from(Network.instance.getDio().options.headers);
-      baseHeaders['X-Client-Package'] = _authClientPackageName;
-      _dio.options.headers.addAll(baseHeaders);
-      _dio.httpClientAdapter = Network.instance.enteDio.httpClientAdapter;
-    } catch (e) {
-      _logger.fine('Unable to sync auth headers from network: $e');
-      _dio.options.headers['X-Client-Package'] = _authClientPackageName;
-    }
-
-    _authHeadersSynced = true;
   }
 
   /// Get SRP attributes to determine auth flow.
   Future<ServerSrpAttributes> getSrpAttributes(String email) async {
-    await _ensureAuthHeaders();
     final response = await _dio.get(
       '/users/srp/attributes',
       queryParameters: {'email': email},
@@ -94,13 +53,11 @@ class AuthService {
 
   /// Send OTP to email for login (only when email MFA is enabled).
   Future<void> sendOtp(String email) async {
-    await _ensureAuthHeaders();
     await _dio.post('/users/ott', data: {'email': email, 'purpose': 'login'});
   }
 
   /// Verify OTP and get user info (for email MFA flow).
   Future<OtpVerificationResult> verifyOtp(String email, String otp) async {
-    await _ensureAuthHeaders();
     final response = await _dio.post('/users/verify-email', data: {
       'email': email,
       'ott': otp,
@@ -127,8 +84,9 @@ class AuthService {
           (twoFactorSessionId?.isNotEmpty == true) ? twoFactorSessionId : null,
       passkeySessionId:
           (passkeySessionId?.isNotEmpty == true) ? passkeySessionId : null,
-      accountsUrl:
-          (accountsUrl?.isNotEmpty == true) ? accountsUrl! : _defaultAccountsUrl,
+      accountsUrl: (accountsUrl?.isNotEmpty == true)
+          ? accountsUrl!
+          : _defaultAccountsUrl,
     );
   }
 
@@ -138,7 +96,6 @@ class AuthService {
     required String password,
     required ServerSrpAttributes srpAttributes,
   }) async {
-    await _ensureAuthHeaders();
     _logger.info('Starting SRP login');
 
     try {
@@ -188,8 +145,7 @@ class AuthService {
           responseData['twoFactorSessionID'] as String?;
       if ((twoFactorSessionId == null || twoFactorSessionId.isEmpty) &&
           responseData['twoFactorSessionIDV2'] != null) {
-        twoFactorSessionId =
-            responseData['twoFactorSessionIDV2'] as String?;
+        twoFactorSessionId = responseData['twoFactorSessionIDV2'] as String?;
       }
       final normalizedPasskeySessionId =
           (passkeySessionId?.isNotEmpty == true) ? passkeySessionId : null;
@@ -329,7 +285,6 @@ class AuthService {
   Future<Map<String, dynamic>> getTokenForPasskeySession(
     String sessionId,
   ) async {
-    await _ensureAuthHeaders();
     try {
       final response = await _dio.get(
         '/users/two-factor/passkeys/get-token',
@@ -360,7 +315,6 @@ class AuthService {
     required String sessionId,
     required String code,
   }) async {
-    await _ensureAuthHeaders();
     final response = await _dio.post('/users/two-factor/verify', data: {
       'sessionID': sessionId,
       'code': code,
