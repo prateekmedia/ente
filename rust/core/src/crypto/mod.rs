@@ -1,61 +1,6 @@
-//! Cryptographic utilities for Ente.
+//! Cryptographic primitives used by Ente clients.
 //!
-//! This module provides all the cryptographic primitives used by Ente clients.
-//!
-//! # Implementation
-//!
-//! This crate uses **pure Rust** cryptographic implementations from the RustCrypto project.
-//! All implementations maintain byte-for-byte wire format compatibility with libsodium
-//! for interoperability with existing clients (mobile/web).
-//!
-//! # Overview
-//!
-//! ## Key Generation
-//! - [`keys::generate_key`] - Generate a 256-bit key for SecretBox encryption
-//! - [`keys::generate_stream_key`] - Generate a key for SecretStream encryption
-//! - [`keys::generate_keypair`] - Generate a public/private key pair
-//! - [`keys::generate_salt`] - Generate a salt for key derivation
-//!
-//! ## Key Derivation
-//! - [`argon::derive_key`] - Derive a key from password using Argon2id
-//! - [`argon::derive_sensitive_key`] - Derive with secure parameters
-//! - [`kdf::derive_subkey`] - Derive a subkey from a master key
-//! - [`kdf::derive_login_key`] - Derive login key for SRP authentication
-//!
-//! ## Symmetric Encryption
-//! - [`secretbox`] - SecretBox (XSalsa20-Poly1305) for independent data
-//! - [`blob`] - SecretStream without chunking for metadata
-//! - [`stream`] - Chunked SecretStream for large files
-//!
-//! ## Asymmetric Encryption
-//! - [`sealed`] - Sealed box for anonymous public-key encryption
-//!
-//! ## Hashing
-//! - [`hash`] - BLAKE2b hashing
-//!
-//! # Example
-//!
-//! ```rust
-//! use ente_core::crypto;
-//!
-//! // Initialize crypto backend (no-op for the pure Rust backend)
-//! crypto::init().unwrap();
-//!
-//! // Generate a key and encrypt some data
-//! let key = crypto::keys::generate_key();
-//! let plaintext = b"Hello, World!";
-//!
-//! // SecretBox encryption (for independent data)
-//! let encrypted = crypto::secretbox::encrypt(plaintext, &key).unwrap();
-//! let decrypted = crypto::secretbox::decrypt_box(&encrypted, &key).unwrap();
-//! assert_eq!(decrypted, plaintext);
-//!
-//! // Blob encryption (for metadata)
-//! let key = crypto::keys::generate_stream_key();
-//! let encrypted = crypto::blob::encrypt(plaintext, &key).unwrap();
-//! let decrypted = crypto::blob::decrypt(&encrypted.encrypted_data, &encrypted.decryption_header, &key).unwrap();
-//! assert_eq!(decrypted, plaintext);
-//! ```
+//! Pure Rust implementation, compatible with libsodium wire formats.
 
 use base64::{
     Engine,
