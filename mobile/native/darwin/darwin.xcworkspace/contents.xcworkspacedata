@@ -166,6 +166,13 @@
             location = "group:tv.xcodeproj">
          </FileRef>
       </Group>
+      <Group
+         location = "group:ensu"
+         name = "ensu">
+         <FileRef
+            location = "group:ensu.xcodeproj">
+         </FileRef>
+      </Group>
    </Group>
    <Group
       location = "group:Packages"

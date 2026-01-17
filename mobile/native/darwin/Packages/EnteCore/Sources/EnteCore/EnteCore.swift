@@ -22,6 +22,7 @@ public enum EnteApp: String, CaseIterable, Codable {
     case auth = "auth"
     case locker = "locker"
     case cast = "cast"
+    case ensu = "ensu"
     
     public var displayName: String {
         switch self {
@@ -29,6 +30,7 @@ public enum EnteApp: String, CaseIterable, Codable {
         case .auth: return "Ente Auth"
         case .locker: return "Ente Locker"
         case .cast: return "Ente Cast"
+        case .ensu: return "Ensu"
         }
     }
     
@@ -38,6 +40,7 @@ public enum EnteApp: String, CaseIterable, Codable {
         case .auth: return "io.ente.auth"
         case .locker: return "io.ente.locker"
         case .cast: return "io.ente.photos.cast"
+        case .ensu: return "io.ente.ensu"
         }
     }
 }

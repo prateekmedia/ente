@@ -1,0 +1,24 @@
+[package]
+name = "ensu_uniffi"
+version = "0.0.1"
+edition = "2024"
+
+[lib]
+# UniFFI works fine with a static library (Xcode links this into the app).
+crate-type = ["staticlib"]
+
+[dependencies]
+# Core crypto + auth (pure Rust). We need SRP for password login.
+ente-core = { path = "../core", features = ["srp"] }
+base64 = "0.22"
+thiserror = "2"
+uniffi = { version = "0.31", features = ["build"] }
+
+[build-dependencies]
+uniffi = { version = "0.31", features = ["build"] }
+
+[dev-dependencies]
+uniffi_bindgen = "0.31"
+
+[lints.rust]
+missing_docs = "warn"
