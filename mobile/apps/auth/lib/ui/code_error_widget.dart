@@ -5,7 +5,6 @@ import 'package:ente_auth/theme/ente_theme.dart';
 import 'package:ente_auth/ui/common/gradient_button.dart';
 import 'package:ente_auth/ui/linear_progress_widget.dart';
 import 'package:ente_auth/ui/tools/debug/raw_codes_viewer.dart';
-import 'package:ente_auth/utils/email_util.dart';
 import 'package:flutter/material.dart';
 
 class CodeErrorWidget extends StatelessWidget {
@@ -101,20 +100,6 @@ class CodeErrorWidget extends StatelessWidget {
                           barrierColor: Colors.black87,
                           barrierDismissible: false,
                         );
-                      },
-                      borderWidth: 0.6,
-                      borderRadius: 6,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 102,
-                    height: 28,
-                    child: GradientButton(
-                      text: context.l10n.contactSupport,
-                      fontSize: 10,
-                      onTap: () async {
-                        await openSupportPage(null, null);
                       },
                       borderWidth: 0.6,
                       borderRadius: 6,
