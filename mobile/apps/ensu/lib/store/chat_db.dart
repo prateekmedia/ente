@@ -423,7 +423,8 @@ class ChatDB {
     await batch.commit(noResult: true);
   }
 
-  Future<void> _deleteIndexedTokens(DatabaseExecutor db, String messageUuid) async {
+  Future<void> _deleteIndexedTokens(
+      DatabaseExecutor db, String messageUuid) async {
     await db.delete(
       messageTokenIndexTable,
       where: 'messageUuid = ?',
@@ -467,15 +468,6 @@ class ChatDB {
     return sqlcipher.openDatabase(
       path,
       password: password,
-      version: _databaseVersion,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
-  }
-
-  Future<Database> _openUnencryptedDatabase(String path) async {
-    return sqflite.openDatabase(
-      path,
       version: _databaseVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -576,7 +568,8 @@ class ChatDB {
     try {
       return await _openEncryptedDatabase(path);
     } catch (e, s) {
-      _logger.warning('Encrypted ChatDB open failed, attempting migration', e, s);
+      _logger.warning(
+          'Encrypted ChatDB open failed, attempting migration', e, s);
       final migrated = await _migratePlaintextDatabase(path);
       if (migrated != null) {
         return migrated;
@@ -746,8 +739,8 @@ class ChatDB {
       );
       attachments = attachments
           .map((attachment) => attachment.copyWith(
-                uploadState: states[attachment.id] ??
-                    ChatAttachmentUploadState.uploaded,
+                uploadState:
+                    states[attachment.id] ?? ChatAttachmentUploadState.uploaded,
               ))
           .toList();
     }
@@ -1080,15 +1073,18 @@ class ChatDB {
   }
 
   Future<void> markAttachmentUploading(String attachmentId) async {
-    await _updateAttachmentState(attachmentId, ChatAttachmentUploadState.uploading);
+    await _updateAttachmentState(
+        attachmentId, ChatAttachmentUploadState.uploading);
   }
 
   Future<void> markAttachmentUploaded(String attachmentId) async {
-    await _updateAttachmentState(attachmentId, ChatAttachmentUploadState.uploaded);
+    await _updateAttachmentState(
+        attachmentId, ChatAttachmentUploadState.uploaded);
   }
 
   Future<void> markAttachmentFailed(String attachmentId) async {
-    await _updateAttachmentState(attachmentId, ChatAttachmentUploadState.failed);
+    await _updateAttachmentState(
+        attachmentId, ChatAttachmentUploadState.failed);
   }
 
   Future<void> _updateAttachmentState(

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 import 'package:ente_crypto_api/ente_crypto_api.dart';
 import 'package:ente_crypto_cross_check_adapter/ente_crypto_cross_check_adapter.dart';

@@ -238,8 +238,15 @@ class _HomePageState extends BaseHomePageState<HomePage>
       if (result?.action == ButtonAction.first) {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) =>
-                ente_ui.DeveloperSettingsPage(Configuration.instance),
+            builder: (context) => ente_ui.DeveloperSettingsPage(
+              getCurrentEndpoint: Configuration.instance.getHttpEndpoint,
+              setEndpoint: (endpoint) async {
+                await Configuration.instance.setHttpEndpoint(endpoint);
+                ChatService.instance.updateEndpoint(
+                  Configuration.instance.getHttpEndpoint(),
+                );
+              },
+            ),
           ),
         );
       }
@@ -474,14 +481,13 @@ class _HomePageState extends BaseHomePageState<HomePage>
         messageUuidsWithMissingAttachments: missingHistoryAttachments,
       );
 
-      await for (final token
-          in _llm.generateStream(
-            promptText,
-            history: history,
-            images: promptImages,
-            enableTodoTools: true,
-            todoSessionId: sessionKey,
-          )) {
+      await for (final token in _llm.generateStream(
+        promptText,
+        history: history,
+        images: promptImages,
+        enableTodoTools: true,
+        todoSessionId: sessionKey,
+      )) {
         buffer.write(token);
         tokenCount = buffer
             .toString()
@@ -1204,7 +1210,8 @@ class _HomePageState extends BaseHomePageState<HomePage>
     return summary.length > 30 ? '${summary.substring(0, 27)}...' : summary;
   }
 
-  Future<({String text, List<LLMImage> images})?> _buildPromptFromStoredAttachments(
+  Future<({String text, List<LLMImage> images})?>
+      _buildPromptFromStoredAttachments(
     String text, {
     required String sessionUuid,
     required List<ChatAttachment> attachments,
@@ -1296,8 +1303,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
         );
       }
 
-      final documentItems =
-          items.where((item) => !item.isImage).toList();
+      final documentItems = items.where((item) => !item.isImage).toList();
 
       final promptBudget = _resolvePromptTokenBudget();
       var promptText = _composePrompt(
@@ -1513,7 +1519,8 @@ class _HomePageState extends BaseHomePageState<HomePage>
         }
 
         if (content.isImage) {
-          final ext = AttachmentTextExtractor.detectExtension(bytes)?.toLowerCase();
+          final ext =
+              AttachmentTextExtractor.detectExtension(bytes)?.toLowerCase();
           final mimeType = switch (ext) {
             '.png' => 'image/png',
             '.gif' => 'image/gif',
@@ -1613,8 +1620,9 @@ class _HomePageState extends BaseHomePageState<HomePage>
     }
     final muted = isDark ? EnsuColors.mutedDark : EnsuColors.muted;
     final tint = isDark ? EnsuColors.codeBgDark : EnsuColors.codeBg;
-    final editingAttachments =
-        _editingMessage == null ? const <ChatAttachment>[] : _editingAttachments;
+    final editingAttachments = _editingMessage == null
+        ? const <ChatAttachment>[]
+        : _editingAttachments;
     final hasAttachments =
         editingAttachments.isNotEmpty || _pendingAttachments.isNotEmpty;
 
@@ -1861,8 +1869,7 @@ class _HomePageState extends BaseHomePageState<HomePage>
 
     final editingMessage = _editingMessage;
     if (editingMessage != null) {
-      final editingAttachments =
-          List<ChatAttachment>.from(_editingAttachments);
+      final editingAttachments = List<ChatAttachment>.from(_editingAttachments);
       final attachmentsChanged = !_attachmentsEquality.equals(
         editingMessage.attachments,
         editingAttachments,
@@ -1965,14 +1972,13 @@ class _HomePageState extends BaseHomePageState<HomePage>
           messageUuidsWithMissingAttachments: missingHistoryAttachments,
         );
 
-        await for (final token
-            in _llm.generateStream(
-              promptText,
-              history: history,
-              images: promptImages,
-              enableTodoTools: true,
-              todoSessionId: sessionKey,
-            )) {
+        await for (final token in _llm.generateStream(
+          promptText,
+          history: history,
+          images: promptImages,
+          enableTodoTools: true,
+          todoSessionId: sessionKey,
+        )) {
           buffer.write(token);
           tokenCount = buffer
               .toString()
@@ -2284,14 +2290,13 @@ class _HomePageState extends BaseHomePageState<HomePage>
         messageUuidsWithMissingAttachments: missingHistoryAttachments,
       );
 
-      await for (final token
-          in _llm.generateStream(
-            promptText,
-            history: history,
-            images: promptImages,
-            enableTodoTools: true,
-            todoSessionId: sessionKey,
-          )) {
+      await for (final token in _llm.generateStream(
+        promptText,
+        history: history,
+        images: promptImages,
+        enableTodoTools: true,
+        todoSessionId: sessionKey,
+      )) {
         buffer.write(token);
         // Simple token approximation: count words (split by whitespace)
         tokenCount = buffer
@@ -3991,8 +3996,8 @@ class _MessageBubble extends StatelessWidget {
                             height: 10,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(attachmentColor),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  attachmentColor),
                             ),
                           ),
                         ],

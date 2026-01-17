@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:ensu/core/configuration.dart';
@@ -399,9 +398,8 @@ class FllamaProvider implements LLMProvider {
       final file = File(artifact.path);
       final exists = await file.exists();
       final size = exists ? await file.length() : 0;
-      final isValid = exists &&
-          size >= artifact.minSizeBytes &&
-          await _isGgufFile(file);
+      final isValid =
+          exists && size >= artifact.minSizeBytes && await _isGgufFile(file);
 
       if (isValid) {
         continue;
@@ -518,8 +516,7 @@ class FllamaProvider implements LLMProvider {
                     final fileProgress = fileTotalBytes > 0
                         ? fileDownloaded / fileTotalBytes
                         : 0.0;
-                    final overallProgress =
-                        (index + fileProgress) / totalFiles;
+                    final overallProgress = (index + fileProgress) / totalFiles;
                     return (overallProgress * 100).round();
                   })();
 
@@ -555,7 +552,8 @@ class FllamaProvider implements LLMProvider {
 
         if (!await _isGgufFile(file)) {
           await file.delete();
-          throw Exception('Downloaded ${artifact.label} is not a valid GGUF model');
+          throw Exception(
+              'Downloaded ${artifact.label} is not a valid GGUF model');
         }
       }
 
@@ -754,9 +752,7 @@ class FllamaProvider implements LLMProvider {
 
       final desiredContextSize = _resolveContextSize(model);
       final contextCandidates = _buildContextCandidates(desiredContextSize);
-      final gpuCandidates = Platform.isAndroid
-          ? const [0]
-          : const [99, 0];
+      final gpuCandidates = Platform.isAndroid ? const [0] : const [99, 0];
 
       String? lastFailure;
       int? selectedContext;
@@ -1171,7 +1167,8 @@ class FllamaProvider implements LLMProvider {
     double? temperature,
     int? maxTokens,
   }) async {
-    if (!assistantToolFeatures.any((feature) => feature.shouldTrigger(prompt))) {
+    if (!assistantToolFeatures
+        .any((feature) => feature.shouldTrigger(prompt))) {
       return null;
     }
 
@@ -1358,33 +1355,6 @@ class FllamaProvider implements LLMProvider {
     );
   }
 
-  String _stripTaggedBlock(String text, String tagName) {
-    final startTag = '<$tagName>';
-    final endTag = '</$tagName>';
-
-    final buffer = StringBuffer();
-    var index = 0;
-
-    while (index < text.length) {
-      final start = text.indexOf(startTag, index);
-      if (start == -1) {
-        buffer.write(text.substring(index));
-        break;
-      }
-
-      buffer.write(text.substring(index, start));
-      final afterStart = start + startTag.length;
-      final end = text.indexOf(endTag, afterStart);
-      if (end == -1) {
-        break;
-      }
-
-      index = end + endTag.length;
-    }
-
-    return buffer.toString();
-  }
-
   @override
   Stream<String> generateStream(
     String prompt, {
@@ -1456,9 +1426,8 @@ class FllamaProvider implements LLMProvider {
         return current.substring(prefix);
       }
 
-      final memoryFilter = stripMemoryResults
-          ? _StreamingTagFilter('memory_results')
-          : null;
+      final memoryFilter =
+          stripMemoryResults ? _StreamingTagFilter('memory_results') : null;
 
       void handleResponse(String response, String responseJson, bool done) {
         var delta = deltaFromResponse(lastResponse, response);
@@ -1484,7 +1453,8 @@ class FllamaProvider implements LLMProvider {
             min(_resolveMaxTokens(model, maxTokens), contextSize);
         final gpuLayers = _loadedGpuLayers ?? (Platform.isAndroid ? 0 : 99);
         final request = OpenAiRequest(
-          messages: toolMessages ?? _buildMessages(prompt, history, images: images),
+          messages:
+              toolMessages ?? _buildMessages(prompt, history, images: images),
           modelPath: modelPath,
           mmprojPath: _mmprojPathFor(model),
           maxTokens: resolvedMaxTokens,
@@ -1520,11 +1490,13 @@ class FllamaProvider implements LLMProvider {
           }
         }
 
-        if (ensuredTodoListBlock != null &&
-            ensuredTodoListBlock!.trim().isNotEmpty &&
-            !lastResponse.contains('<todo_list>') &&
-            !tokenController.isClosed) {
-          tokenController.add('\n\n${ensuredTodoListBlock!.trim()}');
+        if (ensuredTodoListBlock != null) {
+          final trimmedTodoListBlock = ensuredTodoListBlock.trim();
+          if (trimmedTodoListBlock.isNotEmpty &&
+              !lastResponse.contains('<todo_list>') &&
+              !tokenController.isClosed) {
+            tokenController.add('\n\n$trimmedTodoListBlock');
+          }
         }
       }).whenComplete(() {
         if (!tokenController.isClosed) {
@@ -1582,143 +1554,6 @@ class FllamaProvider implements LLMProvider {
 
   @override
   Future<void> resetContext() async {}
-
-  static const int _ggufTypeUint8 = 0;
-  static const int _ggufTypeInt8 = 1;
-  static const int _ggufTypeUint16 = 2;
-  static const int _ggufTypeInt16 = 3;
-  static const int _ggufTypeUint32 = 4;
-  static const int _ggufTypeInt32 = 5;
-  static const int _ggufTypeFloat32 = 6;
-  static const int _ggufTypeBool = 7;
-  static const int _ggufTypeString = 8;
-  static const int _ggufTypeArray = 9;
-  static const int _ggufTypeUint64 = 10;
-  static const int _ggufTypeInt64 = 11;
-  static const int _ggufTypeFloat64 = 12;
-
-  Future<String?> _readGgufStringValue(File file, String key) async {
-    RandomAccessFile? raf;
-    try {
-      raf = await file.open();
-      final magic = await _readExact(raf, 4);
-      if (ascii.decode(magic) != 'GGUF') {
-        return null;
-      }
-
-      await _readUint32(raf); // version
-      await _readUint64(raf); // tensor count
-      final kvCount = await _readUint64(raf);
-
-      for (var i = 0; i < kvCount; i++) {
-        final keyName = await _readStringWithUint32Length(raf);
-        final valueType = await _readUint32(raf);
-
-        if (keyName == key && valueType == _ggufTypeString) {
-          return await _readStringWithUint64Length(raf);
-        }
-
-        await _skipGgufValue(raf, valueType);
-      }
-    } catch (e) {
-      _logger.warning('Failed to read GGUF metadata: $e');
-      return null;
-    } finally {
-      await raf?.close();
-    }
-
-    return null;
-  }
-
-  Future<void> _skipGgufValue(RandomAccessFile raf, int valueType) async {
-    if (valueType == _ggufTypeArray) {
-      final elementType = await _readUint32(raf);
-      final count = await _readUint64(raf);
-      if (elementType == _ggufTypeString) {
-        for (var i = 0; i < count; i++) {
-          final length = await _readUint64(raf);
-          await _skipBytes(raf, length);
-        }
-        return;
-      }
-
-      final elementSize = _ggufTypeSize(elementType);
-      await _skipBytes(raf, elementSize * count);
-      return;
-    }
-
-    if (valueType == _ggufTypeString) {
-      final length = await _readUint64(raf);
-      await _skipBytes(raf, length);
-      return;
-    }
-
-    final size = _ggufTypeSize(valueType);
-    await _skipBytes(raf, size);
-  }
-
-  int _ggufTypeSize(int valueType) {
-    switch (valueType) {
-      case _ggufTypeUint8:
-      case _ggufTypeInt8:
-      case _ggufTypeBool:
-        return 1;
-      case _ggufTypeUint16:
-      case _ggufTypeInt16:
-        return 2;
-      case _ggufTypeUint32:
-      case _ggufTypeInt32:
-      case _ggufTypeFloat32:
-        return 4;
-      case _ggufTypeUint64:
-      case _ggufTypeInt64:
-      case _ggufTypeFloat64:
-        return 8;
-      default:
-        throw Exception('Unsupported GGUF value type: $valueType');
-    }
-  }
-
-  Future<String> _readStringWithUint32Length(RandomAccessFile raf) async {
-    final length = await _readUint32(raf);
-    final bytes = await _readExact(raf, length);
-    return utf8.decode(bytes, allowMalformed: true);
-  }
-
-  Future<String> _readStringWithUint64Length(RandomAccessFile raf) async {
-    final length = await _readUint64(raf);
-    final bytes = await _readExact(raf, length);
-    return utf8.decode(bytes, allowMalformed: true);
-  }
-
-  Future<int> _readUint32(RandomAccessFile raf) async {
-    final bytes = await _readExact(raf, 4);
-    return ByteData.sublistView(bytes).getUint32(0, Endian.little);
-  }
-
-  Future<int> _readUint64(RandomAccessFile raf) async {
-    final bytes = await _readExact(raf, 8);
-    return ByteData.sublistView(bytes).getUint64(0, Endian.little);
-  }
-
-  Future<Uint8List> _readExact(RandomAccessFile raf, int length) async {
-    final buffer = Uint8List(length);
-    var offset = 0;
-    while (offset < length) {
-      final chunk = await raf.read(length - offset);
-      if (chunk.isEmpty) {
-        throw Exception('Unexpected end of file');
-      }
-      buffer.setRange(offset, offset + chunk.length, chunk);
-      offset += chunk.length;
-    }
-    return buffer;
-  }
-
-  Future<void> _skipBytes(RandomAccessFile raf, int length) async {
-    final position = await raf.position();
-    await raf.setPosition(position + length);
-  }
 
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
