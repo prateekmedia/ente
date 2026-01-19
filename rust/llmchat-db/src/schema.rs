@@ -1,0 +1,26 @@
+pub const CREATE_TABLES_SQL: &str = r#"
+CREATE TABLE sessions (
+  session_uuid TEXT PRIMARY KEY NOT NULL,
+  title        BLOB NOT NULL,
+  created_at   INTEGER NOT NULL,
+  updated_at   INTEGER NOT NULL,
+  remote_id    TEXT UNIQUE,
+  needs_sync   INTEGER NOT NULL DEFAULT 1 CHECK(needs_sync IN (0,1)),
+  deleted_at   INTEGER
+);
+
+CREATE TABLE messages (
+  message_uuid        TEXT PRIMARY KEY NOT NULL,
+  session_uuid        TEXT NOT NULL,
+  parent_message_uuid TEXT,
+  sender              TEXT NOT NULL CHECK(sender IN ('self','other')),
+  text                BLOB NOT NULL,
+  attachments         TEXT,
+  created_at          INTEGER NOT NULL,
+  deleted_at          INTEGER,
+  FOREIGN KEY (session_uuid) REFERENCES sessions(session_uuid) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_messages_order ON messages(session_uuid, created_at, message_uuid);
+CREATE INDEX idx_sessions_updated ON sessions(updated_at);
+"#;
