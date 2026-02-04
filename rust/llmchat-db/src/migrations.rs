@@ -1,22 +1,55 @@
-use crate::{Backend, Error, Result};
 use crate::backend::RowExt;
 use crate::schema;
+use crate::{Backend, Error, Result};
 
-pub const LATEST_VERSION: i64 = 1;
+pub const LATEST_VERSION: i64 = 4;
 
 pub fn migrate<B: Backend>(backend: &B) -> Result<()> {
-    let version = user_version(backend)?;
-    match version {
-        0 => {
-            backend.execute_batch(schema::CREATE_ALL)?;
-            backend.execute("PRAGMA user_version = 1;", &[])?;
-            Ok(())
+    let mut version = user_version(backend)?;
+
+    while version < LATEST_VERSION {
+        match version {
+            0 => {
+                backend.execute_batch(schema::CREATE_ALL)?;
+                version = LATEST_VERSION;
+            }
+            1 => {
+                backend.execute(
+                    "ALTER TABLE messages ADD COLUMN needs_sync INTEGER NOT NULL DEFAULT 1 CHECK(needs_sync IN (0,1));",
+                    &[],
+                )?;
+                backend.execute(
+                    "UPDATE messages SET needs_sync = 0 WHERE session_uuid IN (SELECT session_uuid FROM sessions WHERE needs_sync = 0);",
+                    &[],
+                )?;
+                version = 2;
+            }
+            2 => {
+                backend.execute(
+                    "ALTER TABLE sessions ADD COLUMN server_updated_at INTEGER;",
+                    &[],
+                )?;
+                backend.execute(
+                    "ALTER TABLE messages ADD COLUMN server_updated_at INTEGER;",
+                    &[],
+                )?;
+                version = 3;
+            }
+            3 => {
+                backend.execute("ALTER TABLE messages ADD COLUMN remote_id TEXT;", &[])?;
+                version = 4;
+            }
+            other => {
+                return Err(Error::Migration(format!(
+                    "unsupported schema version {other}"
+                )));
+            }
         }
-        LATEST_VERSION => Ok(()),
-        other => Err(Error::Migration(format!(
-            "unsupported schema version {other}"
-        ))),
+
+        backend.execute(&format!("PRAGMA user_version = {version};"), &[])?;
     }
+
+    Ok(())
 }
 
 fn user_version<B: Backend>(backend: &B) -> Result<i64> {
@@ -29,8 +62,8 @@ fn user_version<B: Backend>(backend: &B) -> Result<i64> {
 #[cfg(all(test, feature = "sqlite"))]
 mod tests {
     use super::*;
-    use crate::backend::{BackendTx, RowExt, Value};
     use crate::backend::sqlite::SqliteBackend;
+    use crate::backend::{BackendTx, RowExt, Value};
 
     #[test]
     fn creates_schema_and_indexes() {
