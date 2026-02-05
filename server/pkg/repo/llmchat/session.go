@@ -12,10 +12,6 @@ import (
 )
 
 func (r *Repository) UpsertSession(ctx context.Context, userID int64, req model.UpsertSessionRequest) (model.Session, error) {
-	if _, err := ParseClientID(req.ClientMetadata); err != nil {
-		return model.Session{}, err
-	}
-
 	mergedClientMetadata, err := MergeEncryptedData(req.ClientMetadata, req.EncryptedData)
 	if err != nil {
 		return model.Session{}, err
@@ -25,16 +21,16 @@ func (r *Repository) UpsertSession(ctx context.Context, userID int64, req model.
 		session_uuid,
 		user_id,
 		header,
-		client_metadata,
+		encrypted_data,
 		is_deleted,
 		created_at
 	) VALUES ($1, $2, $3, $4, FALSE, now_utc_micro_seconds())
 	ON CONFLICT (session_uuid) DO UPDATE
 		SET header = EXCLUDED.header,
-			client_metadata = EXCLUDED.client_metadata,
+			encrypted_data = EXCLUDED.encrypted_data,
 			is_deleted = FALSE
 		WHERE llmchat_sessions.user_id = EXCLUDED.user_id
-	RETURNING session_uuid, user_id, header, client_metadata, is_deleted, created_at, updated_at`,
+	RETURNING session_uuid, user_id, header, encrypted_data, is_deleted, created_at, updated_at`,
 		req.SessionUUID,
 		userID,
 		req.Header,
@@ -43,12 +39,12 @@ func (r *Repository) UpsertSession(ctx context.Context, userID int64, req model.
 
 	var result model.Session
 	var header sql.NullString
-	var clientMetadata sql.NullString
+	var encryptedData sql.NullString
 	if err := row.Scan(
 		&result.SessionUUID,
 		&result.UserID,
 		&header,
-		&clientMetadata,
+		&encryptedData,
 		&result.IsDeleted,
 		&result.CreatedAt,
 		&result.UpdatedAt,
@@ -62,8 +58,8 @@ func (r *Repository) UpsertSession(ctx context.Context, userID int64, req model.
 	if header.Valid {
 		result.Header = &header.String
 	}
-	if clientMetadata.Valid {
-		result.ClientMetadata = &clientMetadata.String
+	if encryptedData.Valid {
+		result.ClientMetadata = &encryptedData.String
 	}
 	return result, nil
 }
@@ -89,29 +85,11 @@ func (r *Repository) GetSessionMeta(ctx context.Context, sessionUUID string) (Se
 	return meta, nil
 }
 
-func (r *Repository) GetSessionUUIDByClientID(ctx context.Context, userID int64, clientID string) (string, error) {
-	row := r.DB.QueryRowContext(ctx, `SELECT session_uuid
-		FROM llmchat_sessions
-		WHERE user_id = $1 AND client_metadata IS NOT NULL
-			AND client_metadata::jsonb->>'clientId' = $2`,
-		userID,
-		clientID,
-	)
-	var sessionUUID string
-	if err := row.Scan(&sessionUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
-		}
-		return "", stacktrace.Propagate(err, "failed to fetch llmchat session by client id")
-	}
-	return sessionUUID, nil
-}
-
 func (r *Repository) DeleteSession(ctx context.Context, userID int64, sessionUUID string) (model.SessionTombstone, error) {
 	row := r.DB.QueryRowContext(ctx, `UPDATE llmchat_sessions
 		SET is_deleted = TRUE,
 			header = NULL,
-			client_metadata = NULL
+			encrypted_data = NULL
 		WHERE session_uuid = $1 AND user_id = $2 AND is_deleted = FALSE
 		RETURNING session_uuid, updated_at`,
 		sessionUUID,
@@ -144,9 +122,9 @@ func (r *Repository) DeleteSession(ctx context.Context, userID int64, sessionUUI
 
 func (r *Repository) GetSessionDiffPage(ctx context.Context, userID int64, sinceTime int64, sinceSessionUUID string, limit int16) ([]model.SessionDiffEntry, bool, error) {
 	rows, err := r.DB.QueryContext(ctx, `SELECT session_uuid,
-		client_metadata::jsonb->>'encryptedData' AS encrypted_data,
+		encrypted_data::jsonb->>'encryptedData' AS extracted_encrypted_data,
 		header,
-		client_metadata,
+		encrypted_data,
 		created_at,
 		updated_at
 		FROM llmchat_sessions
@@ -199,9 +177,9 @@ func (r *Repository) GetSessionTombstonesPage(ctx context.Context, userID int64,
 
 func (r *Repository) GetSessionDiff(ctx context.Context, userID int64, sinceTime int64, limit int16) ([]model.SessionDiffEntry, error) {
 	rows, err := r.DB.QueryContext(ctx, `SELECT session_uuid,
-		client_metadata::jsonb->>'encryptedData' AS encrypted_data,
+		encrypted_data::jsonb->>'encryptedData' AS extracted_encrypted_data,
 		header,
-		client_metadata,
+		encrypted_data,
 		created_at,
 		updated_at
 		FROM llmchat_sessions
@@ -244,27 +222,27 @@ func convertRowsToSessionDiffEntries(rows *sql.Rows) ([]model.SessionDiffEntry, 
 	entries := make([]model.SessionDiffEntry, 0)
 	for rows.Next() {
 		var entry model.SessionDiffEntry
-		var encryptedData sql.NullString
+		var extractedEncryptedData sql.NullString
 		var header sql.NullString
-		var clientMetadata sql.NullString
+		var encryptedData sql.NullString
 		if err := rows.Scan(
 			&entry.SessionUUID,
-			&encryptedData,
+			&extractedEncryptedData,
 			&header,
-			&clientMetadata,
+			&encryptedData,
 			&entry.CreatedAt,
 			&entry.UpdatedAt,
 		); err != nil {
 			return nil, stacktrace.Propagate(err, "failed to scan llmchat session diff")
 		}
-		if encryptedData.Valid {
-			entry.EncryptedData = encryptedData.String
+		if extractedEncryptedData.Valid {
+			entry.EncryptedData = extractedEncryptedData.String
 		}
 		if header.Valid {
 			entry.Header = header.String
 		}
-		if clientMetadata.Valid {
-			entry.ClientMetadata = &clientMetadata.String
+		if encryptedData.Valid {
+			entry.ClientMetadata = &encryptedData.String
 		}
 		entries = append(entries, entry)
 	}

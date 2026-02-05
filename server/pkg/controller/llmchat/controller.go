@@ -78,15 +78,7 @@ func (c *Controller) UpsertSession(ctx *gin.Context, req model.UpsertSessionRequ
 		return nil, stacktrace.Propagate(err, "failed to validateKey")
 	}
 	userID := auth.GetUserID(ctx.Request.Header)
-	clientID, err := llmchat.ParseClientID(req.ClientMetadata)
-	if err != nil {
-		return nil, err
-	}
-	if existingSessionUUID, err := c.Repo.GetSessionUUIDByClientID(ctx, userID, clientID); err != nil {
-		return nil, err
-	} else if existingSessionUUID != "" {
-		req.SessionUUID = existingSessionUUID
-	} else if req.SessionUUID == "" {
+	if req.SessionUUID == "" {
 		req.SessionUUID = uuid.NewString()
 	}
 	if _, err := uuid.Parse(req.SessionUUID); err != nil {
@@ -104,15 +96,7 @@ func (c *Controller) UpsertMessage(ctx *gin.Context, req model.UpsertMessageRequ
 		return nil, stacktrace.Propagate(err, "failed to validateKey")
 	}
 	userID := auth.GetUserID(ctx.Request.Header)
-	clientID, err := llmchat.ParseClientID(req.ClientMetadata)
-	if err != nil {
-		return nil, err
-	}
-	if existingMessageUUID, err := c.Repo.GetMessageUUIDByClientID(ctx, userID, clientID); err != nil {
-		return nil, err
-	} else if existingMessageUUID != "" {
-		req.MessageUUID = existingMessageUUID
-	} else if req.MessageUUID == "" {
+	if req.MessageUUID == "" {
 		req.MessageUUID = uuid.NewString()
 	}
 	if _, err := uuid.Parse(req.MessageUUID); err != nil {
@@ -538,7 +522,6 @@ func (c *Controller) validateAttachments(ctx *gin.Context, userID int64, attachm
 	}
 	maxSize := c.maxAttachmentSize(userID)
 	seen := make(map[string]struct{}, len(attachments))
-	seenClientIDs := make(map[string]struct{}, len(attachments))
 	for _, attachment := range attachments {
 		if attachment.ID == "" {
 			return stacktrace.Propagate(ente.ErrBadRequest, "missing attachmentId")
@@ -550,14 +533,6 @@ func (c *Controller) validateAttachments(ctx *gin.Context, userID int64, attachm
 		if _, err := uuid.Parse(attachment.ID); err != nil {
 			return stacktrace.Propagate(ente.ErrBadRequest, "invalid attachmentId")
 		}
-		clientID, err := llmchat.ParseClientID(attachment.ClientMetadata)
-		if err != nil {
-			return err
-		}
-		if _, ok := seenClientIDs[clientID]; ok {
-			return stacktrace.Propagate(ente.ErrBadRequest, "duplicate attachment clientId")
-		}
-		seenClientIDs[clientID] = struct{}{}
 		if attachment.Size < 0 {
 			return stacktrace.Propagate(ente.ErrBadRequest, "invalid attachment size")
 		}

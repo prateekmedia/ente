@@ -19,11 +19,6 @@ type AttachmentReference struct {
 	BucketID     *string
 }
 
-type AttachmentClientRef struct {
-	AttachmentID string
-	MessageUUID  string
-}
-
 type AttachmentOwner struct {
 	UserID      int64
 	MessageUUID string
@@ -31,24 +26,6 @@ type AttachmentOwner struct {
 
 func buildAttachmentObjectKey(userID int64, attachmentID string) string {
 	return fmt.Sprintf("%s/%d/%s", llmChatAttachmentPrefix, userID, attachmentID)
-}
-
-func (r *Repository) GetAttachmentByClientID(ctx context.Context, userID int64, clientID string) (*AttachmentClientRef, error) {
-	row := r.DB.QueryRowContext(ctx, `SELECT attachment_id, message_uuid
-		FROM llmchat_attachments
-		WHERE user_id = $1 AND client_metadata IS NOT NULL
-			AND client_metadata::jsonb->>'clientId' = $2`,
-		userID,
-		clientID,
-	)
-	var ref AttachmentClientRef
-	if err := row.Scan(&ref.AttachmentID, &ref.MessageUUID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, stacktrace.Propagate(err, "failed to fetch llmchat attachment by client id")
-	}
-	return &ref, nil
 }
 
 func (r *Repository) GetAttachmentOwner(ctx context.Context, attachmentID string) (*AttachmentOwner, error) {
